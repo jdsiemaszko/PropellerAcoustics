@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
-from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot3DDirectivity
+from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot_3D_directivity
 
 class HansonModel():
 
@@ -255,7 +255,7 @@ class HansonModel():
         # return np.array([R_arr, theta_arr, phi_arr])
         return np.array([X, Y, Z]), np.array([R_arr, theta_arr, phi_arr]), theta_m, phi_m # shape (3, Ntheta * Nphi) each
     
-    def plotDirectivity(self, fig, ax, m:float, valmax=None, valmin=None, R=1.62,
+    def plot3Ddirectivity(self, fig, ax, m:float, valmax=None, valmin=None, R=1.62,
                         Nphi=18, Ntheta=36, blending=0.1, title=None):
         
         """
@@ -272,7 +272,7 @@ class HansonModel():
         pmB, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
         pmB = pmB[:, 0] # shape (Nx,)
 
-        fig, ax = plot3DDirectivity(
+        fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
             blending=blending,
             title=f"Far-field directivity of $p_{{mB}}$",

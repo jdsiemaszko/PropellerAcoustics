@@ -194,7 +194,7 @@ plt.show()
 ROBS = 1.62 * RADIUS_MULT
 fig = plt.figure(figsize=(7, 7))
 ax = fig.add_subplot(111, projection="3d")
-hm.plotDirectivity(fig, ax, m=5, R=ROBS,
+hm.plot3Ddirectivity(fig, ax, m=5, R=ROBS,
                         # valmax=30, valmin=-10,
                         Nphi=36*2, Ntheta=18*2,
                         # mode='beam',
@@ -206,7 +206,7 @@ plt.close(fig)
 
 # fig = plt.figure(figsize=(7, 7))
 # ax = fig.add_subplot(111, projection="3d")
-# hm_near.plotDirectivity(fig, ax, m=5, R=ROBS,
+# hm_near.plot3Ddirectivity(fig, ax, m=5, R=ROBS,
 #                         # valmax=30, valmin=-10,
 #                         Nphi=36*2, Ntheta=18*2,
 #                         # mode='beam',

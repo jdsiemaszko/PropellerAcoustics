@@ -210,7 +210,7 @@ def compute_distance_matrix(x, y):
     r = np.linalg.norm(diff, axis=0)  # shape (Nx, Ny)
     return r
 
-def plot3DDirectivity(vector_to_plot, Theta, Phi, 
+def plot_3D_directivity(vector_to_plot, Theta, Phi, 
     extra_script=lambda fig, ax: None,
     blending=0.1, title=None,
     valmin = None, valmax=None, fig=None, ax=None):
@@ -314,5 +314,37 @@ def plot3DDirectivity(vector_to_plot, Theta, Phi,
         plt.show()
         plt.close(fig)
 
+
+    return fig, ax
+
+
+def plot_directivity_contour(fig, ax, theta, phi, magnitudes, levels=20, cmap='viridis', title=None):
+    """
+    Plot a 2D contour map of directivity (in dB) vs theta and phi.
+
+    Parameters
+    ----------
+    theta : array_like
+        Array of theta angles (radians) of shape (Ntheta,)
+    phi : array_like
+        Array of phi angles (radians) of shape (Nphi,)
+    magnitudes_db : array_like
+        2D array of directivity in dB, shape (Ntheta, Nphi)
+    levels : int
+        Number of contour levels
+    cmap : str
+        Colormap name
+    """
+    Theta, Phi = np.meshgrid(theta, phi, indexing='ij')  # shape (Ntheta, Nphi)
+    magnitudes_db = p_to_SPL(magnitudes).reshape(Theta.shape)  # ensure shape matches Theta and Phi
+    # 2D filled contour plot
+    cf = ax.contourf(np.rad2deg(Phi), np.rad2deg(Theta), magnitudes_db, levels=levels, cmap=cmap)
+    cbar = fig.colorbar(cf, ax=ax)
+    cbar.set_label("Directivity [dB]")
+
+    ax.set_xlabel("Phi [deg]")
+    ax.set_ylabel("Theta [deg]")
+    if title is not None:
+        ax.set_title(title)
 
     return fig, ax

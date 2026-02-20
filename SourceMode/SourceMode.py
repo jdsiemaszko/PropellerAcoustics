@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from TailoredGreen.TailoredGreen import TailoredGreen
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from Constants.helpers import p_to_SPL, plot3DDirectivity
+from Constants.helpers import p_to_SPL, plot_3D_directivity
 
 def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, normal:np.ndarray):
     # get the radial,radial, and axial unit vectors given an azimuth, the axis vector, origin point, and zero-azimuth direction
@@ -181,7 +181,7 @@ class SourceMode():
 
         pmB = self.getPressure(x, Omega, m)
         k = Omega / c * m
-        fig, ax = plot3DDirectivity(
+        fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
             extra_script=extra_script,
             blending=blending,
@@ -382,7 +382,7 @@ class SourceModeArray():
         pmB = self.getPressure(x, m)
         k = Omega/c * m
         R = R if R is not None else (1e3 / k)
-        fig, ax = plot3DDirectivity(
+        fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
             extra_script=extra_script,
             blending=blending,

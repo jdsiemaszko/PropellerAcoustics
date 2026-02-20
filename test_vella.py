@@ -71,7 +71,7 @@ plt.close()
 for m in [5]:
     fig = plt.figure(figsize=(7, 7))
     ax = fig.add_subplot(111, projection="3d")
-    HANSON_VELLA.plotDirectivity(fig, ax, m=m, R=ROBS,
+    HANSON_VELLA.plot3Ddirectivity(fig, ax, m=m, R=ROBS,
                             valmax=65, valmin=10,
                             Nphi=36*2, Ntheta=18*2,
                             # mode='beam',
@@ -84,7 +84,7 @@ for m in [5]:
 for m in [5]:
     fig = plt.figure(figsize=(7, 7))
     ax = fig.add_subplot(111, projection="3d")
-    HANSON_VELLA.plotDirectivity(fig, ax, m=m, R=ROBS,
+    HANSON_VELLA.plot3Ddirectivity(fig, ax, m=m, R=ROBS,
                             valmax=65, valmin=10,
                             Nphi=36*2, Ntheta=18*2,
                             mode='beam',
@@ -100,7 +100,7 @@ for m in [5]:
 for m in [1, 4, 5]:
     fig = plt.figure(figsize=(7, 7))
     ax = fig.add_subplot(111, projection="3d")
-    HANSON_VELLA.plotDirectivity(fig, ax, m=m, R=ROBS,
+    HANSON_VELLA.plot3Ddirectivity(fig, ax, m=m, R=ROBS,
                             valmax=65, valmin=10,
                             Nphi=36*2, Ntheta=18*2,
                             # mode='beam',

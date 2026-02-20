@@ -28,7 +28,7 @@ ax.set_aspect('equal')
 plt.show()
 plt.close()
 
-cg.plotDirectivity(k=np.array([10.0]), y=np.array([[0], [1.0], [0.0]]), R=5.0, Nphi=36*2, Ntheta=18*2,
+cg.plot3Ddirectivity(k=np.array([10.0]), y=np.array([[0], [1.0], [0.0]]), R=5.0, Nphi=36*2, Ntheta=18*2,
                    valmin=40, valmax=65)
 
 

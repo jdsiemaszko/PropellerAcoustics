@@ -29,7 +29,7 @@ fig = plt.figure(figsize=(14, 7))
 
 # Left subplot
 ax1 = fig.add_subplot(121, projection="3d")
-hm.plotDirectivity(
+hm.plot3Ddirectivity(
     fig=fig,
     ax=ax1,
     m=np.array([1.0]),
@@ -43,7 +43,7 @@ hm.plotDirectivity(
 
 # Right subplot
 ax2 = fig.add_subplot(122, projection="3d")
-hmnf.plotDirectivity(
+hmnf.plot3Ddirectivity(
     fig=fig,
     ax=ax2,
     m=np.array([1.0]),

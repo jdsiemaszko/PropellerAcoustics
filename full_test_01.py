@@ -97,7 +97,7 @@ harmonic_to_plot = 5
 for m in [harmonic_to_plot]:
     fig = plt.figure(figsize=(7, 7))
     ax = fig.add_subplot(111, projection="3d")
-    HANSON_VELLA.plotDirectivity(fig, ax, m=m, R=ROBS,
+    HANSON_VELLA.plot3Ddirectivity(fig, ax, m=m, R=ROBS,
                             valmax=65, valmin=10,
                             Nphi=NPHI, Ntheta=NTHETA,
                             # mode='beam',

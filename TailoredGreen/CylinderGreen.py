@@ -871,12 +871,12 @@ class CylinderGreen(TailoredGreen):
     # def plotFarFieldGradient(self, k, y, R=None, Nphi=36, Ntheta=18):
     #     super().plotFarFieldGradient(k, y, R=R, Nphi=Nphi, Ntheta=Ntheta)
 
-    def plotDirectivity(
+    def plot3Ddirectivity(
         self, k, y, R=None, Nphi=36, Ntheta=18,
         ref=PREF,
         blending=0.1,
     valmin = None, valmax=None):
-        super().plotDirectivity(
+        super().plot3Ddirectivity(
             k, y, R=R, Nphi=Nphi, Ntheta=Ntheta,
             ref=ref,
             extra_script=self.plotAxis,

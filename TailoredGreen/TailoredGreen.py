@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Constants.const import PREF
-from Constants.helpers import p_to_SPL, compute_distance_matrix, plot3DDirectivity
+from Constants.helpers import p_to_SPL, compute_distance_matrix, plot_3D_directivity, plot_directivity_contour
 
 def FreeSpaceGreenFunction(x, y, k, dim=3):
     """
@@ -303,7 +303,7 @@ class TailoredGreen():
         plt.show()
         return fig, axs
 
-    def plotDirectivity(
+    def plot3Ddirectivity(
     self, k, y, R=None, Ntheta=18, Nphi=36, 
     extra_script=lambda fig, ax: None,
     blending=0.1,
@@ -314,7 +314,7 @@ class TailoredGreen():
         )
 
         R = R if R is not None else (1e3 / k)
-        fig, ax = plot3DDirectivity(
+        fig, ax = plot_3D_directivity(
             G, Theta, Phi, 
             extra_script=extra_script,
             blending=blending,
@@ -326,6 +326,9 @@ class TailoredGreen():
         )
         
         return fig, ax
+
+    def plotDirectivityContour():
+        pass
 
     def plotSelf(self, fig, ax):
         """
@@ -340,4 +343,4 @@ if __name__=="__main__":
     R = 100.0
     # tg.plotScatteringYZ(y=np.array([[0.1], [0.0], [0]]), k=np.array([10.0]), rmin=0.6, rmax=10.0)
     tg.plotFarFieldGradient(k=np.array([10.0]), y=source, R=R)
-    tg.plotDirectivity(k=np.array([10.0]), y=source, R=R, Nphi=36, Ntheta=18)
+    tg.plot3Ddirectivity(k=np.array([10.0]), y=source, R=R, Nphi=36, Ntheta=18)
