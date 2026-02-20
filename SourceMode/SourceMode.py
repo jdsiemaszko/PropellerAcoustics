@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from TailoredGreen.TailoredGreen import TailoredGreen
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from Constants.const import PREF, p_to_SPL
+from Constants.helpers import p_to_SPL, plot3DDirectivity
 
 def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, normal:np.ndarray):
     # get the radial,radial, and axial unit vectors given an azimuth, the axis vector, origin point, and zero-azimuth direction
@@ -15,60 +15,6 @@ def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, 
 
     return radial_loc, tangential_loc, axis_rep
 
-def getPolarFromCylindrical(x: np.ndarray,
-                            origin: np.ndarray,
-                            axis: np.ndarray,
-                            radial: np.ndarray,
-                            normal: np.ndarray):
-    """
-    Spherical coordinates (r, theta, phi) in a custom frame.
-
-    Supports:
-        x.shape == (3,)      single point
-        x.shape == (3, N)    multiple points (column-wise)
-
-    Returns
-    -------
-    r, theta, phi : floats or arrays of shape (N,)
-    """
-
-    x = np.asarray(x)
-    single_point = (x.ndim == 1)
-    if single_point:
-        x = x.reshape(3, 1)
-
-    # Normalize frame
-    ez = axis / np.linalg.norm(axis)
-    e0 = radial / np.linalg.norm(radial)
-    en = normal / np.linalg.norm(normal)
-
-    # Relative vectors
-    rvec = x - origin.reshape(3, 1)
-
-    # Radius
-    r = np.linalg.norm(rvec, axis=0)
-
-    # Polar angle
-    z_comp = ez @ rvec
-    with np.errstate(divide='ignore', invalid='ignore'):
-        cos_theta = z_comp / r
-    cos_theta = np.clip(cos_theta, -1.0, 1.0)
-    theta = np.arccos(cos_theta)
-    theta[r < 1e-15] = 0.0
-
-    # Transverse projection
-    r_perp = rvec - np.outer(ez, z_comp)
-    rho = np.linalg.norm(r_perp, axis=0)
-
-    c0 = e0 @ r_perp
-    cn = en @ r_perp
-    phi = np.arctan2(cn, c0)
-    phi[rho < 1e-15] = 0.0
-
-    if single_point:
-        return r[0], theta[0], phi[0]
-
-    return r, theta, phi
 class SourceMode():
 
     def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TailoredGreen, radial:np.ndarray=None,
@@ -224,103 +170,29 @@ class SourceMode():
         plt.show()
         plt.close(fig)
 
-    def plotFarFieldPressure(self, m, Omega, R=None, Nphi=36, Ntheta=18, c=340, ref=PREF, extra_script=None, blending=0.1):
+    def plotFarFieldPressure(self, m, Omega, R=None, Nphi=36, Ntheta=18,
+    c=340,     extra_script=lambda fig, ax: None, blending=0.1,
+    valmin = None, valmax=None, fig=None, ax=None):
         # if extra_script is None:
         #     extra_script = self.plotSelf
 
-        x, Theta, Phi = self.green.getFarFieldx(np.min(m) * self.B * Omega / c)
+        R = R if R is not None else (1e3 / k)
+        x, Theta, Phi = self.green.getFarFieldx(np.min(m) * self.B * Omega / c, Nphi=Nphi, Ntheta=Ntheta, R=R)
 
         pmB = self.getPressure(x, Omega, m)
-
-        R = np.max(x[0, :]) if R is None else R
-
-        for label, g in zip(
-            [
-                # 'real', 'imag',
-              'abs'],
-            [
-                # np.real(pmB), np.imag(pmB),
-                  np.abs(pmB)]
-        ):
-
-            mag = np.abs(g) # take square of magnitude as measure
-
-            # --- reference scale ---
-            ref_loc = mag.max() if ref is None else ref
-
-            mag_db = p_to_SPL(mag)
-
-            # --- normalize radius ---
-            r0 = (mag / mag.max()* (1-blending) + blending).reshape(Ntheta, Nphi)
-            mag_db0 = mag_db.reshape(Ntheta, Nphi)
-
-            r_c = r0
-            Theta_c = Theta
-            Phi_c = Phi
-            mag_db_c = mag_db0
-
-            # --- spherical to Cartesian ---
-            X = r_c * np.sin(Theta_c) * np.cos(Phi_c)
-            Y = r_c * np.sin(Theta_c) * np.sin(Phi_c)
-            Z = r_c * np.cos(Theta_c)
-
-            fig = plt.figure(figsize=(7, 7))
-            ax = fig.add_subplot(111, projection="3d")
-
-            # --- color normalization ---
-            norm = colors.Normalize(vmin=mag_db_c.min(), vmax=mag_db_c.max())
-            facecolors = plt.cm.viridis(norm(mag_db_c))
-
-            # --- build quad faces ---
-            faces = []
-            face_colors = []
-
-            for i in range(Ntheta - 1):
-                for j in range(Nphi - 1):
-                    verts = [
-                        [X[i, j],     Y[i, j],     Z[i, j]],
-                        [X[i+1, j],   Y[i+1, j],   Z[i+1, j]],
-                        [X[i+1, j+1], Y[i+1, j+1], Z[i+1, j+1]],
-                        [X[i, j+1],   Y[i, j+1],   Z[i, j+1]],
-                    ]
-                    faces.append(verts)
-                    face_colors.append(facecolors[i, j])
-
-            poly = Poly3DCollection(
-                faces,
-                facecolors=face_colors,
-                edgecolors='k',
-                linewidths=0.5,
-                alpha=0.75
-            )
-
-            ax.add_collection3d(poly)
-
-            # --- colorbar ---
-            mappable = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
-            mappable.set_array(mag_db_c)
-            cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
-            cbar.set_label("Directivity [dB]")
-
-            # --- axes ---
-            ax.set_title(f"Far-field directivity of $p_{{mB}}$ ({label} part)")
-            ax.set_box_aspect([1, 1, 1])
-            ax.set_axis_off()
-
-            # source location
-            # ax.plot(self.dipole_positions[0, :], self.dipole_positions[1, :], self.dipole_positions[2, :], 'ro', markersize=6)
-            if extra_script is not None:
-                extra_script(fig, ax)
-
-
-            ax.grid()
-            ax.set_box_aspect([1,1,1])
-            ax.set_xlim([-1,1])
-            ax.set_ylim([-1,1])
-            ax.set_zlim([-1,1])
-
-            plt.show()
-            plt.close(fig)
+        k = Omega / c * m
+        fig, ax = plot3DDirectivity(
+            pmB, Theta, Phi, 
+            extra_script=extra_script,
+            blending=blending,
+            title=f"Far-field directivity of $p_{{mB}}$",
+            valmin=valmin,
+            valmax=valmax,
+            fig=fig,
+            ax=ax
+        )
+        
+        return fig, ax
 
     def plotSelf(self, fig, ax):
         self.green.plotSelf(fig, ax)
@@ -499,126 +371,29 @@ class SourceModeArray():
     def plotAxis(self, fig, ax):
         self.children[-1].plotAxis(fig, ax)
         
-    def plotFarFieldPressure(self, m, R=None, Nphi=36, Ntheta=18, c=340, ref=PREF, extra_script=None, blending=0.1,
+    def plotFarFieldPressure(self, m, R=None, Nphi=36, Ntheta=18, c=340,extra_script=lambda fig, ax: None, blending=0.1,
                              valmin = None, valmax=None, fig=None, ax=None):
         # if extra_script is None:
         #     extra_script = self.plotSelf
-        Omega = self.Omega
 
+        Omega = self.Omega
         x, Theta, Phi = self.green.getFarFieldx(np.min(m) * self.B * Omega / c, Nphi=Nphi, Ntheta=Ntheta, R=R)
 
         pmB = self.getPressure(x, m)
-
-        R = np.max(x[0, :]) if R is None else R
-
-        for label, g in zip(
-            [
-                # 'real', 'imag',
-              'abs'],
-            [
-                # np.real(pmB), np.imag(pmB),
-                  np.abs(pmB)]
-        ):
-
-            mag = np.abs(g) # take square of magnitude as measure
-
-                    # --- color limits ---
-            if valmax is None:
-                valmax = mag.max()
-            if valmin is None:
-                valmin = mag.min()
-
-            # --- reference scale ---
-            ref_loc = mag.max() if ref is None else ref
-
-            mag_db = p_to_SPL(mag)
-
-            # --- normalize radius ---
-            r0 = (mag_db - valmin) / (valmax - valmin) * (1 - blending) + blending
-            mag_db0 = mag_db.reshape(Ntheta, Nphi)
-            r0 = r0.reshape(Ntheta, Nphi)
-            print(f'maximum amplitude: {np.max(mag_db0)} [dB]')
-
-            r_c = r0
-            Theta_c = Theta
-            Phi_c = Phi
-            mag_db_c = mag_db0
-
-            # --- spherical to Cartesian ---
-            X = r_c * np.sin(Theta_c) * np.cos(Phi_c)
-            Y = r_c * np.sin(Theta_c) * np.sin(Phi_c)
-            Z = r_c * np.cos(Theta_c)
-            if fig is None or ax is None:
-                fig = plt.figure(figsize=(7, 7))
-                ax = fig.add_subplot(111, projection="3d")
-
-            # --- color normalization ---
-            norm = colors.Normalize(vmin=valmin, vmax=valmax)
-            facecolors = plt.cm.viridis(norm(mag_db_c))
-
-            # --- build quad faces ---
-            faces = []
-            face_colors = []
-
-            for i in range(Ntheta - 1):
-                for j in range(Nphi - 1):
-                    verts = [
-                        [X[i, j],     Y[i, j],     Z[i, j]],
-                        [X[i+1, j],   Y[i+1, j],   Z[i+1, j]],
-                        [X[i+1, j+1], Y[i+1, j+1], Z[i+1, j+1]],
-                        [X[i, j+1],   Y[i, j+1],   Z[i, j+1]],
-                    ]
-                    faces.append(verts)
-                    face_colors.append(facecolors[i, j])
-
-            poly = Poly3DCollection(
-                faces,
-                facecolors=face_colors,
-                edgecolors='k',
-                linewidths=0.5,
-                alpha=0.75
-            )
-
-            ax.add_collection3d(poly)
-
-            # --- colorbar ---
-            mappable = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
-            mappable.set_array(mag_db_c)
-            cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
-            cbar.set_label("Directivity [dB]")
-
-            # --- axes ---
-            ax.set_title(f"Far-field directivity of $p_{{{m[0]:.1f}}}$ ({label} part)")
-            ax.set_box_aspect([1, 1, 1])
-            ax.set_axis_off()
-
-            # --- axes limits ---
-            rmax = np.max(r0) * 0.65 if np.max(r0)>0 else 1.0
-            ax.set_xlim(-rmax, rmax)
-            ax.set_ylim(-rmax, rmax)
-            ax.set_zlim(-rmax, rmax)
-            z = np.linspace(-R, R, 2)
-            x = np.zeros_like(z)
-            y = np.zeros_like(z)
-
-            ax.plot(x, y, z, linewidth=2, color='k', linestyle='dashed', zorder=9)
-            # circle of radius R (x–y plane)
-            theta_c = np.linspace(0, 2*np.pi, 200)
-            ax.plot(
-                rmax * np.cos(theta_c) * 1.5,
-                rmax * np.sin(theta_c) * 1.5,
-                np.zeros_like(theta_c) * 1.5,
-                color='k',
-                linewidth=1.5,
-                linestyle='dashed',
-                zorder=10      # higher than other geometry
-             )
-
-            ax.set_box_aspect([1, 1, 1])
-            ax.set_axis_off()
-            ax.set_title(f"Far-field directivity, mode $m={float(m):.0f} \cdot B$")
-            ax.view_init(elev=30, azim=-45)
+        k = Omega/c * m
+        R = R if R is not None else (1e3 / k)
+        fig, ax = plot3DDirectivity(
+            pmB, Theta, Phi, 
+            extra_script=extra_script,
+            blending=blending,
+            title=f"Far-field directivity of $p_{{mB}}$",
+            valmin=valmin,
+            valmax=valmax,
+            fig=fig,
+            ax=ax
+        )
         return fig, ax
+
         
 if __name__ == "__main__":
     from TailoredGreen.CylinderGreen import CylinderGreen

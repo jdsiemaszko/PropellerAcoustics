@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
-from Constants.helpers import getSphericalCoordinates, p_to_SPL
+from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot3DDirectivity
 
 class HansonModel():
 
@@ -253,7 +253,7 @@ class HansonModel():
         Z = R_arr * np.cos(theta_arr)
 
         # return np.array([R_arr, theta_arr, phi_arr])
-        return np.array([X, Y, Z]), np.array([R_arr, theta_arr, phi_arr]) # shape (3, Ntheta * Nphi) each
+        return np.array([X, Y, Z]), np.array([R_arr, theta_arr, phi_arr]), theta_m, phi_m # shape (3, Ntheta * Nphi) each
     
     def plotDirectivity(self, fig, ax, m:float, valmax=None, valmin=None, R=1.62,
                         Nphi=18, Ntheta=36, blending=0.1, title=None):
@@ -266,115 +266,22 @@ class HansonModel():
         """
 
         # --- observation mesh ---
-        x_cart, x_spherical = self.getPolarMesh(R=R, Nphi=Nphi, Ntheta=Ntheta)
+        x_cart, x_spherical, Theta, Phi = self.getPolarMesh(R=R, Nphi=Nphi, Ntheta=Ntheta)
 
         # --- pressure / magnitude ---
         pmB, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
         pmB = pmB[:, 0] # shape (Nx,)
 
-        magnitudes = p_to_SPL(pmB) # global function ensuring consistency of SPL across codebase
-
-        R_arr, theta, phi = x_spherical[0], x_spherical[1], x_spherical[2]          # (Nx,)
-
-        print(f'maximum amplitude: {np.max(magnitudes)} [dB]')
-
-        # --- reshape to grid ---
-        magnitudes = magnitudes.reshape(Ntheta, Nphi)
-        theta = theta.reshape(Ntheta, Nphi)
-        phi   = phi.reshape(Ntheta, Nphi)
-
-        # --- color limits ---
-        if valmax is None:
-            valmax = magnitudes.max()
-        if valmin is None:
-            valmin = magnitudes.min()
-
-        r = (magnitudes - valmin) / (valmax - valmin) * (1 - blending) + blending
-
-        # --- unit vectors from spherical coordinates ---
-        X = r * np.sin(theta) * np.cos(phi)
-        Y = r * np.sin(theta) * np.sin(phi)
-        Z = r * np.cos(theta)
-
-        # --- color normalization ---
-        norm = colors.Normalize(vmin=valmin, vmax=valmax)
-        facecolors = plt.cm.viridis(norm(magnitudes))
-
-        # --- build quad faces ---
-        faces = []
-        face_colors = []
-
-        for i in range(Ntheta - 1):
-            for j in range(Nphi - 1):
-                verts = [
-                    [X[i, j],     Y[i, j],     Z[i, j]],
-                    [X[i+1, j],   Y[i+1, j],   Z[i+1, j]],
-                    [X[i+1, j+1], Y[i+1, j+1], Z[i+1, j+1]],
-                    [X[i, j+1],   Y[i, j+1],   Z[i, j+1]],
-                ]
-                faces.append(verts)
-                face_colors.append(facecolors[i, j])
-
-        poly = Poly3DCollection(
-            faces,
-            facecolors=face_colors,
-            edgecolors='k',
-            linewidths=0.5,
-            alpha=0.75
+        fig, ax = plot3DDirectivity(
+            pmB, Theta, Phi, 
+            blending=blending,
+            title=f"Far-field directivity of $p_{{mB}}$",
+            valmin=valmin,
+            valmax=valmax,
+            fig=fig,
+            ax=ax
         )
-
-        ax.add_collection3d(poly)
-
-        ###### alternative plot with edges colored
-        # ax.plot_surface(
-        # X, Y, Z,
-        # facecolors=facecolors,
-        # rstride=1,
-        # cstride=1,
-        # linewidth=1.,        # line width of cell edges
-        # edgecolors='k',        # black edges
-        # # antialiased=True,
-        # shade=False,
-        # alpha=0.75
-
-        #  )
-
-
-        # --- colorbar ---
-        mappable = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
-        mappable.set_array(magnitudes)
-        fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1,
-                    label="Directivity [dB]")
-
-        # --- axes limits ---
-        rmax = np.max(r) * 0.65 if np.max(r)>0 else 1.0
-        ax.set_xlim(-rmax, rmax)
-        ax.set_ylim(-rmax, rmax)
-        ax.set_zlim(-rmax, rmax)
-        z = np.linspace(-R, R, 2)
-        x = np.zeros_like(z)
-        y = np.zeros_like(z)
-
-        ax.plot(x, y, z, linewidth=2, color='k', linestyle='dashed', zorder=9)
-
-        # circle of radius R (x–y plane)
-        theta_c = np.linspace(0, 2*np.pi, 200)
-        ax.plot(
-            rmax * np.cos(theta_c) * 1.5,
-            rmax * np.sin(theta_c) * 1.5,
-            np.zeros_like(theta_c) * 1.5,
-            color='k',
-            linewidth=1.5,
-            linestyle='dashed',
-            zorder=10      # higher than other geometry
-)
-
-        ax.set_box_aspect([1, 1, 1])
-        ax.set_axis_off()
-        ax.view_init(elev=30, azim=-45)
-        if title is not None:
-            ax.set_title(title, fontsize=14)
-
+        
         return fig, ax
 
     def plotPressureSpectrum(self, fig, ax, x:tuple, m:np.ndarray, plot_kwargs={'color' : 'k', 'marker' : 's'}):

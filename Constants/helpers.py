@@ -1,5 +1,9 @@
 from .const import PREF, SPLSHIFT
 import numpy as np
+from scipy.special import hankel2, jve, jv
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 
 def p_to_SPL(p, pref=PREF):
 
@@ -129,3 +133,186 @@ def distance_in_polar(x_polar, y_polar):
     )
 
     return distance 
+
+def theodorsen(sigma):
+    res = hankel2(1, sigma) / (hankel2(1, sigma) + 1j * hankel2(0, sigma))
+
+    res[np.where(np.abs(sigma) < 1e-12)] = 1.0 # low freq limit
+
+    return res
+    # return 1.0
+
+def periodic_sum(array, period, time):
+    """
+    Perform a discrete periodic sum (modal sum) of a signal onto one period.
+
+    Parameters
+    ----------
+    array : array-like, shape (..., Nt, Nr)
+        Signal sampled at 'time'.
+        The **last-but-one axis** must correspond to time.
+    period : float
+        Period of the signal.
+    time : 1D array, shape (Nt,)
+        Time samples covering a large window, e.g., (-tmax-period/2, tmax+period/2)
+
+    Returns
+    -------
+    t_mod : 1D array, shape (Np,)
+        Time samples in [0, period), evenly spaced with spacing dt.
+    psum : array, shape (..., Np, Nr)
+        Periodic sum of the signal onto one period.
+    """
+
+    array = np.asarray(array)
+    time = np.asarray(time)
+
+    # --- assume uniform time spacing
+    dt = np.mean(np.diff(time))
+    n_per = int(np.ceil(period / dt))
+    Np = n_per
+
+    # --- output time grid
+    t_mod = np.arange(Np) * dt
+    t_mod = t_mod % period - period/2  # ensure [-period/2, period/2)
+
+    # --- prepare output array
+    psum_shape = list(array.shape)
+    psum_shape[-2] = Np  # replace time axis
+    psum = np.zeros(psum_shape, dtype=array.dtype)
+
+    # --- fold each time sample onto the correct bin
+    # last-but-one axis is assumed to be time
+    time_idx = np.floor((time % period) / dt).astype(int)
+    time_idx = np.clip(time_idx, 0, Np-1)  # safety
+
+    # iterate over time samples (vectorized over all other axes)
+    for i, k in enumerate(time_idx):
+        # np.take along time axis
+        psum[..., k, :] += array[..., i, :]
+
+    return t_mod, psum
+def compute_distance_matrix(x, y):
+    x = np.atleast_2d(x)
+    y = np.atleast_2d(y)
+
+    # Ensure input shapes are (3, Nx) and (3, Ny)
+    # if x.shape[0] != 3:
+    #     x = x.T
+    # if y.shape[0] != 3:
+    #     y = y.T
+
+    Nx = x.shape[1]
+    Ny = y.shape[1]
+
+    # Compute pairwise distances
+    diff = x[:, :, None] - y[:, None, :]
+    r = np.linalg.norm(diff, axis=0)  # shape (Nx, Ny)
+    return r
+
+def plot3DDirectivity(vector_to_plot, Theta, Phi, 
+    extra_script=lambda fig, ax: None,
+    blending=0.1, title=None,
+    valmin = None, valmax=None, fig=None, ax=None):
+
+    Ntheta = Theta.shape[0]
+    Nphi = Theta.shape[1]
+
+    G = vector_to_plot
+
+    for label, g in zip(
+        [
+            # 'real', 'imag',
+        'abs'],
+        [
+            # np.real(G), np.imag(G),
+            np.abs(G)]
+    ):
+
+        mag = np.abs(g) # take square of magnitude as measure
+
+
+
+        mag_db = p_to_SPL(mag)
+        if valmax is None:
+            valmax = mag_db.max()
+        if valmin is None:
+            valmin = mag_db.min()
+            
+        print(f'maximum magnitude: {np.max(mag_db)} [dB]')
+
+        # --- normalize radius ---
+        r0 = (mag_db - valmin) / (valmax - valmin) * (1 - blending) + blending
+        mag_db0 = mag_db.reshape(Ntheta, Nphi)
+        r0 = r0.reshape(Ntheta, Nphi)
+
+        r_c = r0
+        Theta_c = Theta
+        Phi_c = Phi
+        mag_db_c = mag_db0
+
+        # --- spherical to Cartesian ---
+        X = r_c * np.sin(Theta_c) * np.cos(Phi_c)
+        Y = r_c * np.sin(Theta_c) * np.sin(Phi_c)
+        Z = r_c * np.cos(Theta_c)
+
+        if fig is None or ax is None:   
+            fig = plt.figure(figsize=(7, 7))
+            ax = fig.add_subplot(111, projection="3d")
+
+        # --- color normalization ---
+        norm = colors.Normalize(vmin=valmin, vmax=valmax)
+        facecolors = plt.cm.viridis(norm(mag_db_c))
+
+        # --- build quad faces ---
+        faces = []
+        face_colors = []
+
+        for i in range(Ntheta - 1):
+            for j in range(Nphi - 1):
+                verts = [
+                    [X[i, j],     Y[i, j],     Z[i, j]],
+                    [X[i+1, j],   Y[i+1, j],   Z[i+1, j]],
+                    [X[i+1, j+1], Y[i+1, j+1], Z[i+1, j+1]],
+                    [X[i, j+1],   Y[i, j+1],   Z[i, j+1]],
+                ]
+                faces.append(verts)
+                face_colors.append(facecolors[i, j])
+
+        poly = Poly3DCollection(
+            faces,
+            facecolors=face_colors,
+            edgecolors='k',
+            linewidths=0.5,
+            alpha=0.75
+        )
+
+        ax.add_collection3d(poly)
+        # --- colorbar ---
+        mappable = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
+        mappable.set_array(mag_db_c)
+        cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
+        cbar.set_label("Directivity [dB]")
+
+        # --- axes ---
+        if title is not None:
+            ax.set_title(title)
+        ax.set_aspect('equal')
+        ax.set_box_aspect([1, 1, 1])
+        RR = np.max(r0) * 1.1
+        ax.set_xlim([-RR, RR])
+        ax.set_ylim([-RR, RR])    
+        ax.set_zlim([-RR, RR])
+        # ax.set_axis_off()
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+
+        extra_script(fig, ax)
+        ax.grid()
+
+        plt.show()
+        plt.close(fig)
+
+
+    return fig, ax

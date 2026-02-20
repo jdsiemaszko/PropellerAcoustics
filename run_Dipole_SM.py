@@ -1,9 +1,9 @@
-from PotentialInteraction.main import HansonModel
-from PotentialInteraction.near_field import NearFieldHansonModel
+from Hanson.far_field import HansonModel
+from Hanson.near_field import NearFieldHansonModel
 from SourceMode.SourceMode import SourceModeArray
 from TailoredGreen.CylinderGreen import CylinderGreen
 from TailoredGreen.TailoredGreen import TailoredGreen
-from Constants.const import p_to_SPL
+from Constants.helpers import p_to_SPL
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -49,26 +49,23 @@ loadings_3D[2, :, :] = loadings[:, :] * np.sin(np.deg2rad(TWIST))
 
 
 # GREEN'S FUNCTION MODULE
-gf = TailoredGreen(dim=3) # free-field version!
-# gf.plotFarFieldGradient(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 0.0, 0.0]).reshape(3, 1), R=ROBS)
-# gf.plotFarFieldGradient(M * OMEGA * NBLADES / SOS, y = np.array([1.0, 0.0, 0.0]).reshape(3, 1), R=ROBS)
-# gf.plotFarFieldGradient(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 1.0, 0.0]).reshape(3, 1), R=ROBS)
-# gf.plotFarFieldGradient(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 0.0, 1.0]).reshape(3, 1), R=ROBS)
-
-# gf.plotDirectivity(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 0.0, 0.0]).reshape(3, 1), R=ROBS)
-# gf.plotDirectivity(M * OMEGA * NBLADES / SOS, y = np.array([1.0, 0.0, 0.0]).reshape(3, 1), R=ROBS)
-# gf.plotDirectivity(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 1.0, 0.0]).reshape(3, 1), R=ROBS)
-# gf.plotDirectivity(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 0.0, 1.0]).reshape(3, 1), R=ROBS)
-
+gf = TailoredGreen(dim=3) # free-field version, could be interchanged with an instance of CylinderGreen
 
 # HANSON MODULE
+axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
+origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
+
 HANSON_VELLA = HansonModel(twist_rad = twist_array, chord_m = chord_array,
+                    loadings_Npm = loadings,
+                    axis=axis_prop, origin=origin_prop,
                     radius_m=radius_array, B=NBLADES, nb=NBEAMS,
-                    Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=OMEGA, rho_kgm3=RHO, c_ms=SOS, kmax=KMAX)
+                     Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord_array,
+                                        loadings_Npm = loadings,
+                                        axis=axis_prop, origin=origin_prop,
                                 radius_m=radius_array, B=NBLADES, nb=NBEAMS,
-                            Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=OMEGA, rho_kgm3=RHO, c_ms=SOS, kmax=KMAX)
+                            Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 # SOURCE MODE MODULE
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
@@ -97,28 +94,24 @@ ax.set_axis_off()
 plt.show()
 plt.close()
 
-##### 2) plot directivity
-# fig = plt.figure(figsize=(7, 7))
-# ax = fig.add_subplot(111, projection="3d")
-# sourceArray.plotFarFieldPressure(m=np.array([M]), Nphi=NPHI, Ntheta=NTHETA, R=ROBS,
-#                                   valmax=65, valmin=10,
-#                                   fig=fig, ax=ax
-#                                   )
-# plt.show()
-# plt.close(fig)
+#### 2) plot directivity
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(111, projection="3d")
+sourceArray.plotFarFieldPressure(m=np.array([M]), Nphi=NPHI, Ntheta=NTHETA, R=ROBS,
+                                  valmax=65, valmin=10,
+                                  fig=fig, ax=ax
+                                  )
+plt.show()
+plt.close(fig)
 
-# fig = plt.figure(figsize=(7, 7))
-# ax = fig.add_subplot(111, projection="3d")
-# HANSON_VELLA.plotDirectivity(fig, ax, m=M, R=ROBS,
-#                         valmax=65, valmin=10,
-#                         Nphi=NPHI, Ntheta=NTHETA,
-#                         # mode='beam',
-#                         #   mode='total',
-#                         mode='blade',
-#                         loadings=loadings_3D
-#                         )
-# plt.show()
-# plt.close(fig)
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(111, projection="3d")
+HANSON_VELLA.plotDirectivity(fig, ax, m=M, R=ROBS,
+                        valmax=65, valmin=10,
+                        Nphi=NPHI, Ntheta=NTHETA,
+                        )
+plt.show()
+plt.close(fig)
 
 phi = np.pi/2
 NLINE = NTHETA* 2
@@ -129,13 +122,13 @@ x_cartesian = ROBS * np.array([
     np.cos(theta),
 ])
 
-x_polar = np.array([np.ones(NLINE) * ROBS, theta, np.ones(NLINE) * phi])
+# x_polar = np.array([np.ones(NLINE) * ROBS, theta, np.ones(NLINE) * phi])
 
 # ms = np.array([1,5,10])
 ms = np.array([1,2,5])
 
-p_hanson, _ = HANSON_VELLA.getHansonPressure(x_polar, m=ms, loading=loadings_3D,  B=NBLADES, Omega=OMEGA, nb=NBEAMS, multiplier=NBLADES)
-p_nf, _ = HANSON_NEARFIELD.getHansonPressure(x_polar, m=ms, loading=loadings_3D,  B=NBLADES, Omega=OMEGA, nb=NBEAMS, multiplier=NBLADES)
+p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms)
+p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms)
 p_sourceMode = sourceArray.getPressure(x_cartesian, m=ms)
 
 fig, ax = plt.subplots(figsize=(4, 3))

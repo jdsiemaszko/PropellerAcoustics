@@ -1,9 +1,9 @@
-from PotentialInteraction.main import HansonModel
-from PotentialInteraction.near_field import NearFieldHansonModel
+from Hanson.far_field import HansonModel
+from Hanson.near_field import NearFieldHansonModel
 from SourceMode.SourceMode import SourceModeArray
 from TailoredGreen.CylinderGreen import CylinderGreen
 from TailoredGreen.TailoredGreen import TailoredGreen
-from Constants.const import p_to_SPL
+from Constants.helpers import p_to_SPL
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -24,7 +24,7 @@ RHO = 1.2#kgm^-3
 SOS = 340 # ms^-1
 
 # VELLA ET AL DATA
-DATAPATH = './Vella2026Model/Validation/harmonics_ISAE2_D20_L20-1.h5'
+DATAPATH = './Validation/harmonics_ISAE2_D20_L20-1.h5'
 
 datafile = h5py.File(DATAPATH, 'r')
 
@@ -67,11 +67,7 @@ p_r = np.array(datafile['p_real'])
 p_data = p_r + 1j * p_i
 
 shift = np.pi
-x_polar = np.array([
-    R * np.ones_like(theta),
-    theta, 
-    (phi+shift) * np.ones_like(theta)
-])
+
 x_cartesian = R * np.array([
     np.sin(theta) * np.cos(phi+shift),
     np.sin(theta) * np.sin(phi+shift),
@@ -98,13 +94,19 @@ radius_array = r_bounds
 gf = TailoredGreen(dim=3) # free-field version!
 
 # HANSON MODULE
-HANSON_VELLA = HansonModel(twist_rad = -twist_array, chord_m = chord_array,
+axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
+origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
+HANSON_VELLA = HansonModel(twist_rad = twist_array, chord_m = chord_array,
+                    loadings_Npm = loading_per_unit_span_magnitude,
+                    axis=axis_prop, origin=origin_prop,
                     radius_m=radius_array, B=NBLADES, nb=NBEAMS,
-                    Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=OMEGA, rho_kgm3=RHO, c_ms=SOS, kmax=KMAX)
+                     Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord_array,
+                    loadings_Npm = loading_per_unit_span_magnitude,
+                    axis=axis_prop, origin=origin_prop,
                                 radius_m=radius_array, B=NBLADES, nb=NBEAMS,
-                            Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=OMEGA, rho_kgm3=RHO, c_ms=SOS, kmax=KMAX)
+                            Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 # SOURCE MODE MODULE
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
@@ -148,16 +150,12 @@ ax = fig.add_subplot(111, projection="3d")
 HANSON_VELLA.plotDirectivity(fig, ax, m=5, R=R,
                         valmax=65, valmin=10,
                         Nphi=NPHI, Ntheta=NTHETA,
-                        # mode='beam',
-                        #   mode='total',
-                        mode='blade',
-                        loadings=loading_per_unit_span
                         )
 plt.show()
 plt.close(fig)
 
-p_hanson, _ = HANSON_VELLA.getHansonPressure(x_polar, m=ms, loading=loading_per_unit_span,  B=NBLADES, Omega=OMEGA, nb=NBEAMS, multiplier=NBLADES)
-p_nf, _ = HANSON_NEARFIELD.getHansonPressure(x_polar, m=ms, loading=loading_per_unit_span,  B=NBLADES, Omega=OMEGA, nb=NBEAMS, multiplier=NBLADES)
+p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms)
+p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms)
 p_sourceMode = sourceArray.getPressure(x_cartesian, m=ms)
 
 fig, ax = plt.subplots(figsize=(4, 3))

@@ -3,7 +3,7 @@ from .TailoredGreen import TailoredGreen
 from .CylinderGreen import CylinderGreen
 import numpy as np
 from numpy.polynomial.legendre import leggauss
-from Constants.const import PREF, p_to_SPL
+from Constants.helpers import p_to_SPL
 import matplotlib.pyplot as plt
 
 class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, not the CylinderGreen!

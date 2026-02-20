@@ -296,9 +296,8 @@ class CylinderGreen(TailoredGreen):
     """
     def __init__(self, radius:float, axis:np.ndarray, origin:np.ndarray, radial:np.ndarray=None, dim=3,
                  numerics={
-                    'nmax': 16,
-                    'Nq_prop': 100,
-                    'maxKmultiple': 5
+                    'nmax': 32,
+                    'Nq_prop': 128,
                  }
                  
                  ):
@@ -351,9 +350,6 @@ class CylinderGreen(TailoredGreen):
         Nk = k.size
         Nx = x.shape[1]
         Ny = y.shape[1]
-
-        # obs_r, obs_theta, obs_phi = getSphericalCoordinatesWRTx(x)
-        # src_r, src_theta, src_phi = getSphericalCoordinatesWRTx(y)
 
         obs_r, obs_phi, obs_x = getCylindricalCoordinates(x, self.axis, self.origin, self.radial, self.normal)
         src_r, src_phi, src_x = getCylindricalCoordinates(y, self.axis, self.origin, self.radial, self.normal)
@@ -565,7 +561,7 @@ class CylinderGreen(TailoredGreen):
         G *= (-1j / (4 * np.pi))
         return G
 
-    def getScatteringGreenGradientMemory(self, x, y, k,):
+    def getScatteringGreenGradientHighMemory(self, x, y, k,):
 
         #  mmax=16, Nq_prop=100, maxKmultiple=5
         
@@ -876,16 +872,15 @@ class CylinderGreen(TailoredGreen):
     #     super().plotFarFieldGradient(k, y, R=R, Nphi=Nphi, Ntheta=Ntheta)
 
     def plotDirectivity(
-        self, k, y, R=None, Nphi=18, Ntheta=36,
+        self, k, y, R=None, Nphi=36, Ntheta=18,
         ref=PREF,
-        extra_script=lambda self, fig, ax: None,
-            blending=0.1,
+        blending=0.1,
     valmin = None, valmax=None):
         super().plotDirectivity(
             k, y, R=R, Nphi=Nphi, Ntheta=Ntheta,
             ref=ref,
             extra_script=self.plotAxis,
-            blending=0.1,
+            blending=blending,
             valmin = valmin, valmax=valmax
         )
 
@@ -970,47 +965,4 @@ class CylinderGreen(TailoredGreen):
 
         ax.set_box_aspect([1, 1, 1])
 
-
-if __name__ == "__main__":
-    axis = np.array([1.0, 0.0, 0.0])
-    origin = np.array([0.0, 0.0, 0.0])
-    # radial = np.array([0.0, 1.0, 0.0])
-
-    # r, phi, z = getCylindricalCoordinates(points, axis, origin, radial,normal)
-    # print(points[:, 0], points[:, 1], points[:, 2])
-    # print(r, phi, z)
-    # x = np.array([[2.0, 1.0, 1.0]]).T
-    # cg.plotFarFieldGradient(k=np.array([10.0]), y=np.array([[0], [1.01], [0]]), R=0.501, Ntheta=2, Nphi = 36, Nr= 5, Rmax=1.0)
-    # cg.plotFarFieldGradient(k=np.array([10.0]), y=np.array([[0], [1.0], [0]]), R=1.0, Ntheta=18, Nphi = 36, Nr= 5, Rmax=1.5)
-    
-    # for nmax  in [4, 8, 16]:
-    #     print(f"nmax = {nmax}")
-    #     cg = CylinderGreen(radius=0.5, axis=axis, origin=origin, dim=3, 
-    #                        numerics={
-    #                     'nmax': nmax,
-    #                     'Nq_prop': 100,
-    #                     'maxKmultiple': 5
-    #                 })
-    #     cg.plotScatteringYZ(y=np.array([[0.0], [1.0], [0]]), k=np.array([10.0]), rmin=0.5, rmax=10.0)
-
-
-    # for kmax  in [5, 10, 25]:
-    #     print(f"kmax = {kmax}")
-    #     cg = CylinderGreen(radius=0.5, axis=axis, origin=origin, dim=3, 
-    #                        numerics={
-    #                     'nmax': 8,
-    #                     'Nq_prop': 100,
-    #                     'maxKmultiple': kmax
-    #                 })
-    #     # cg.plotScatteringYZ(y=np.array([[0.0], [1.0], [0]]), k=np.array([10.0]), rmin=0.5, rmax=10.0)
-    #     cg.plotDirectivity(
-    #         k=np.array([10.0]), y=np.array([[0], [1.0], [0]]), R=200.0, Nphi=18, Ntheta=36
-    #     )
-    cg = CylinderGreen(radius=0.5, axis=axis, origin=origin, dim=3, 
-                           numerics={
-                        'nmax': 55,
-                        'Nq_prop': 64,
-                        'eps_k' : 1e-6,
-                    })
-    # cg.plotScatteringYZ(y=np.array([[0.0], [0.0], [1.0]]), k=np.array([10.0]), rmin=0.5, rmax=200.0)
-    cg.plotDirectivity(k=np.array([10.0]), y=np.array([[0], [0.0], [1.0]]), R=5.0, Nphi=18, Ntheta=36)
+        return fig, ax

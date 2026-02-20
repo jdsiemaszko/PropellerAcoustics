@@ -3,24 +3,8 @@ from scipy.special import hankel1, jv, kv
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from Constants.const import PREF, p_to_SPL
-def compute_distance_matrix(x, y):
-    x = np.atleast_2d(x)
-    y = np.atleast_2d(y)
-
-    # Ensure input shapes are (3, Nx) and (3, Ny)
-    # if x.shape[0] != 3:
-    #     x = x.T
-    # if y.shape[0] != 3:
-    #     y = y.T
-
-    Nx = x.shape[1]
-    Ny = y.shape[1]
-
-    # Compute pairwise distances
-    diff = x[:, :, None] - y[:, None, :]
-    r = np.linalg.norm(diff, axis=0)  # shape (Nx, Ny)
-    return r
+from Constants.const import PREF
+from Constants.helpers import p_to_SPL, compute_distance_matrix, plot3DDirectivity
 
 def FreeSpaceGreenFunction(x, y, k, dim=3):
     """
@@ -157,7 +141,6 @@ class TailoredGreen():
 
         return x, Theta, Phi
     
-
     def getFarFieldGradientGreen(self, k, y, R=None,  Nphi=36, Ntheta=18):
 
         """
@@ -203,8 +186,7 @@ class TailoredGreen():
         
         return G, x, Theta, Phi
     
-
-    def plotFarFieldGradient(self, k, y, R=None, Nphi=36, Ntheta=18, extra_script=lambda fig, ax: None):
+    def plotFarFieldGradient(self, k, y, R=None, Nphi=36, Ntheta=18, extra_script=lambda fig, ax: None, fig=None, ax=None):
         gradG, x, Phi, Theta = self.getFarFieldGradientGreen(k, y, R=R, Nphi=Nphi, Ntheta=Ntheta)
 
         R = R if R is not None else (10 / k)
@@ -213,20 +195,17 @@ class TailoredGreen():
             "abs"], [
                 # np.real(gradG), np.imag(gradG),
                 np.abs(gradG)]):
-            gx, gy, gz = np.real(gradG) # discard imaginary part
+            gx, gy, gz = np.real(gradG)
             X, Y, Z = x[0, :], x[1, :], x[2, :]
-            # magsx =np.linalg.norm(x, axis=0)
-            # X = X / magsx
-            # Y = Y / magsx
-            # Z = Z / magsx
 
             gx, gy, gz = gx.ravel(), gy.ravel(), gz.ravel()
 
                 # ---- vector magnitude for coloring ----
             mag = np.sqrt(gx**2 + gy**2 + gz**2)
 
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection="3d")
+            if fig is None or ax is None:   
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection="3d")
 
             # ---- quiver plot with magnitude coloring ----
             q = ax.quiver(
@@ -263,7 +242,9 @@ class TailoredGreen():
             plt.show()
             plt.close(fig)
 
-    def plotScatteringYZ(self, k, y, eps=1e-6, rmin=None, rmax=None, Nr=50, Ntheta=90):
+        return fig, ax
+
+    def plotScatteringYZ(self, k, y, eps=1e-6, rmin=None, rmax=None, Nr=50, Ntheta=90, fig=None, axs=None):
 
         theta = np.linspace(0, 2 * np.pi, Ntheta, endpoint=False)
         R = np.linspace(rmin, rmax, Nr)
@@ -272,7 +253,9 @@ class TailoredGreen():
         Z = R_grid * np.sin(Theta)
         X = np.zeros_like(Y)
         x = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])  # shape (3, N)
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5),  sharey=True,constrained_layout=True)
+        if fig is None or axs is None:   
+
+            fig, axs = plt.subplots(1, 2, figsize=(12, 5),  sharey=True,constrained_layout=True)
 
         G0 = self.getFreeSpaceGreen(x, y, k)
         G1 = self.getScatteringGreen(x, y, k)
@@ -318,120 +301,37 @@ class TailoredGreen():
         fig.colorbar(im1, ax=axs[1])
 
         plt.show()
+        return fig, axs
 
     def plotDirectivity(
     self, k, y, R=None, Ntheta=18, Nphi=36, 
-    ref=PREF,
     extra_script=lambda fig, ax: None,
     blending=0.1,
-    valmin = None, valmax=None
+    valmin = None, valmax=None, fig=None, ax=None
 ):
-
-
-        G, x, Phi, Theta = self.getFarFieldGreen(
+        G, x, Theta, Phi = self.getFarFieldGreen(
             k, y, R=R,  Ntheta=Ntheta, Nphi=Nphi
         )
 
         R = R if R is not None else (1e3 / k)
-
-
-        for label, g in zip(
-            [
-                # 'real', 'imag',
-              'abs'],
-            [
-                # np.real(G), np.imag(G),
-                  np.abs(G)]
-        ):
-
-            mag = np.abs(g) # take square of magnitude as measure
-            if valmax is None:
-                valmax = mag.max()
-            if valmin is None:
-                valmin = mag.min()
-
-
-            mag_db = p_to_SPL(mag)
-            print(f'maximum magnitude: {np.max(mag_db)} [dB]')
-
-            # --- normalize radius ---
-            r0 = (mag_db - valmin) / (valmax - valmin) * (1 - blending) + blending
-            mag_db0 = mag_db.reshape(Ntheta, Nphi)
-            r0 = r0.reshape(Ntheta, Nphi)
-
-            r_c = r0
-            Theta_c = Theta
-            Phi_c = Phi
-            mag_db_c = mag_db0
-
-            # --- spherical to Cartesian ---
-            X = r_c * np.sin(Phi_c) * np.cos(Theta_c)
-            Y = r_c * np.sin(Phi_c) * np.sin(Theta_c)
-            Z = r_c * np.cos(Phi_c)
-
-            fig = plt.figure(figsize=(7, 7))
-            ax = fig.add_subplot(111, projection="3d")
-
-            # --- color normalization ---
-            norm = colors.Normalize(vmin=valmin, vmax=valmax)
-            facecolors = plt.cm.viridis(norm(mag_db_c))
-
-            # --- build quad faces ---
-            faces = []
-            face_colors = []
-
-            for i in range(Ntheta - 1):
-                for j in range(Nphi - 1):
-                    verts = [
-                        [X[i, j],     Y[i, j],     Z[i, j]],
-                        [X[i+1, j],   Y[i+1, j],   Z[i+1, j]],
-                        [X[i+1, j+1], Y[i+1, j+1], Z[i+1, j+1]],
-                        [X[i, j+1],   Y[i, j+1],   Z[i, j+1]],
-                    ]
-                    faces.append(verts)
-                    face_colors.append(facecolors[i, j])
-
-            poly = Poly3DCollection(
-                faces,
-                facecolors=face_colors,
-                edgecolors='k',
-                linewidths=0.5,
-                alpha=0.75
-            )
-
-            ax.add_collection3d(poly)
-            # --- colorbar ---
-            mappable = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
-            mappable.set_array(mag_db_c)
-            cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
-            cbar.set_label("Directivity [dB]")
-
-            # --- axes ---
-            ax.set_title(f"Far-field directivity of G ({label} part)")
-            ax.set_aspect('equal')
-            ax.set_box_aspect([1, 1, 1])
-            RR = np.max(r0) * 1.1
-            ax.set_xlim([-RR, RR])
-            ax.set_ylim([-RR, RR])    
-            ax.set_zlim([-RR, RR])
-            # ax.set_axis_off()
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
-
-
-            # source location
-            ax.plot(y[0, :], y[1, :], y[2, :], 'ro', markersize=6)
-
-            extra_script(fig, ax)
-            ax.grid()
-
-            plt.show()
-            plt.close(fig)
-
+        fig, ax = plot3DDirectivity(
+            G, Theta, Phi, 
+            extra_script=extra_script,
+            blending=blending,
+            title=f"Far-field directivity of G",
+            valmin=valmin,
+            valmax=valmax,
+            fig=fig,
+            ax=ax
+        )
+        
+        return fig, ax
 
     def plotSelf(self, fig, ax):
-        pass
+        """
+        empty method for plotting geometry, overwritten in subclasses
+        """
+        return fig, ax
 
 if __name__=="__main__":
 
