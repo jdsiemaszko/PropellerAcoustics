@@ -1,0 +1,4 @@
+/dataverse_files/*
+/dataverse_files.zip
+./vscode/*
+.vscode/settings.json
