@@ -1,12 +1,12 @@
-from TayloredGreen.CylinderGreen import CylinderGreen
-from TayloredGreen.TayloredGreen import TayloredGreen
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
 from SourceMode.SourceMode import SourceMode
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 # green = CylinderGreen(axis=np.array([1.,0,0]), radius=0.5, origin=np.array([0,0,0]))
 
-gff = TayloredGreen() # free-field
+gff = TailoredGreen() # free-field
 caxis = np.array([1.0, 0.0, 0.0])
 corigin = np.array([0.0, 0.0, 0.0])
 cg = CylinderGreen(radius=0.5, axis=caxis, origin=corigin, dim=3, 

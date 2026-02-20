@@ -1,5 +1,5 @@
-from TayloredGreen.CylinderGreen import CylinderGreen
-from TayloredGreen.TayloredGreen import TayloredGreen
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
 from SourceMode.SourceMode import SourceMode, SourceModeArray
 from Constants.const import p_to_SPL
 import numpy as np

@@ -1,4 +1,4 @@
-from TayloredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
+from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors

@@ -10,7 +10,7 @@ ROBS = 1
 
 rad = np.linspace(0.016, 0.1, NSEG+1, endpoint=True)
 loadings = np.zeros((kmaxx, NSEG), dtype=np.complex128)
-loadings[1:5, :] = 1.0 + 0j
+loadings[1:5, :] = 1.0 + 0j # arbitrary loading
 
 hm = HansonModel(twist_rad = np.deg2rad(10 * np.ones(NSEG+1)), chord_m = 0.025 * np.ones(NSEG+1),
                  radius_m=rad,
@@ -38,6 +38,7 @@ hm.plotDirectivity(
     Ntheta=18*2,
     valmin=40,
     valmax=65,
+    title='far-field'
 )
 
 # Right subplot
@@ -51,6 +52,8 @@ hmnf.plotDirectivity(
     Ntheta=18*2,
     valmin=40,
     valmax=65,
+    title='near-field'
+
 )
 
 plt.tight_layout()

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from TayloredGreen.TayloredGreen import TayloredGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Constants.const import PREF, p_to_SPL
 
@@ -71,7 +71,7 @@ def getPolarFromCylindrical(x: np.ndarray,
     return r, theta, phi
 class SourceMode():
 
-    def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TayloredGreen, radial:np.ndarray=None,
+    def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TailoredGreen, radial:np.ndarray=None,
                   numerics={
                       'Ndipoles':36
                   }
@@ -399,7 +399,7 @@ class SourceMode():
 
 class SourceModeArray():
     def __init__(self, BLH:np.ndarray, B:int,   Omega:float, gamma:np.ndarray, axis:np.ndarray,
-                  origin:np.ndarray, radius:np.ndarray, green:TayloredGreen, radial:np.ndarray=None,
+                  origin:np.ndarray, radius:np.ndarray, green:TailoredGreen, radial:np.ndarray=None,
                   c = 340.0,
                 numerics={
                     'Ndipoles':36
@@ -621,11 +621,11 @@ class SourceModeArray():
         return fig, ax
         
 if __name__ == "__main__":
-    from TayloredGreen.CylinderGreen import CylinderGreen
+    from TailoredGreen.CylinderGreen import CylinderGreen
     
     # green = CylinderGreen(axis=np.array([1.,0,0]), radius=0.5, origin=np.array([0,0,0]))
 
-    green = TayloredGreen() # free-field
+    green = TailoredGreen() # free-field
     source = SourceMode(BLH=np.array([1.0, 0.5, 0.1]), B=2, gamma=0.05, axis=np.array([0,1.,1.]), origin=np.array([0,1.,0]), radius=0.1, green=green)
 
     # source.plotGeometry()

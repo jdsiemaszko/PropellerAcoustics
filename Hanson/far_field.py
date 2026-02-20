@@ -256,7 +256,7 @@ class HansonModel():
         return np.array([X, Y, Z]), np.array([R_arr, theta_arr, phi_arr]) # shape (3, Ntheta * Nphi) each
     
     def plotDirectivity(self, fig, ax, m:float, valmax=None, valmin=None, R=1.62,
-                        Nphi=18, Ntheta=36, blending=0.1):
+                        Nphi=18, Ntheta=36, blending=0.1, title=None):
         
         """
         plot a 3D directivity pattern for a given mode m
@@ -372,6 +372,8 @@ class HansonModel():
         ax.set_box_aspect([1, 1, 1])
         ax.set_axis_off()
         ax.view_init(elev=30, azim=-45)
+        if title is not None:
+            ax.set_title(title, fontsize=14)
 
         return fig, ax
 

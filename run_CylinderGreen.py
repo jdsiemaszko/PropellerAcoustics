@@ -1,5 +1,5 @@
-from TayloredGreen.CylinderGreen import CylinderGreen
-from TayloredGreen.TayloredGreen import TayloredGreen
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors

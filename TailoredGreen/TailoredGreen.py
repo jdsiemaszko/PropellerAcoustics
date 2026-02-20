@@ -47,9 +47,9 @@ def FreeSpaceGreenFunction(x, y, k, dim=3):
         return G  # shape (Nk, Nx, Ny)
     else:
         raise NotImplementedError("Only 3D Green's function is implemented as of now.")
-class TayloredGreen():
+class TailoredGreen():
     """
-    Generic class for computing and plotting the Taylored Green's function
+    Generic class for computing and plotting the Tailored Green's function
     """
     def __init__(self, dim=3):
         self.dim = dim
@@ -435,7 +435,7 @@ class TayloredGreen():
 
 if __name__=="__main__":
 
-    tg = TayloredGreen(dim=3)
+    tg = TailoredGreen(dim=3)
     source = np.array([[0.0], [1e-2], [0.0]])
     R = 100.0
     # tg.plotScatteringYZ(y=np.array([[0.1], [0.0], [0]]), k=np.array([10.0]), rmin=0.6, rmax=10.0)

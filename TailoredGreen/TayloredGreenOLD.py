@@ -7,7 +7,7 @@ import matplotlib.colors as colors
 # from numpy.polynomial.laguerre import laggauss
 
 """
-Taylored Green's function on the Helmholtz equation.
+Tailored Green's function on the Helmholtz equation.
 
 """
 
@@ -318,7 +318,7 @@ def CylinderGreenFunction(
     return G
 
 
-class TayloredGreen():
+class TailoredGreen():
     def __init__(self, G_scattering, c=340., dim=3, kwargs_green={}):
         self.dim = dim
         self.G_scattering = G_scattering
@@ -514,7 +514,7 @@ class TayloredGreen():
 
         plt.show()
 
-greenCylinder = TayloredGreen(CylinderGreenFunction, dim=3, kwargs_green={'a': 0.5})
+greenCylinder = TailoredGreen(CylinderGreenFunction, dim=3, kwargs_green={'a': 0.5})
 
 if __name__ == "__main__":
     ysrc = np.array([[0.0, 0.0, 1.0]]).T

@@ -1,12 +1,12 @@
 from matplotlib import axis
-from .TayloredGreen import TayloredGreen
+from .TailoredGreen import TailoredGreen
 from .CylinderGreen import CylinderGreen
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 from Constants.const import PREF, p_to_SPL
 import matplotlib.pyplot as plt
 
-class SurfacePotentialGreen(TayloredGreen): # Note: subclass the main object, not the CylinderGreen!
+class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, not the CylinderGreen!
 
     def __init__(self, radius:float, axis:np.ndarray, origin:np.ndarray, radial:np.ndarray=None, dim=3,
                  numerics={
@@ -37,7 +37,7 @@ class SurfacePotentialGreen(TayloredGreen): # Note: subclass the main object, no
         else:
             self.radial = radial / np.linalg.norm(radial) # radial vector of the cylinder, taken as the zero azimuth direction
         self.normal = np.cross(self.axis, self.radial)
-        self.free_field_green = TayloredGreen(
+        self.free_field_green = TailoredGreen(
             dim=dim
         ) # also store the free-field solution!
 

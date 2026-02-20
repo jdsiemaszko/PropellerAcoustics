@@ -1,5 +1,5 @@
-from TayloredGreen.CylinderGreen import CylinderGreen
-from TayloredGreen.TayloredGreen import TayloredGreen
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
 from SourceMode.SourceMode import SourceMode, SourceModeArray
 from Constants.const import p_to_SPL
 import numpy as np
@@ -76,7 +76,7 @@ loading_magnitude = -loading[1, :, :] / np.cos(GAMMA) # still complex!
 # ----------------------- SETUP -----------------------
 
 
-gff = TayloredGreen() # free-field
+gff = TailoredGreen() # free-field
 # source = SourceMode(BLH=loading_magnitude[:, -1], B=2, gamma=np.deg2rad(10),
 #                      axis=np.array([0., 0.0, 1.]), origin=np.array([0, 0.0,0.0]), radius=0.1,
 #                        green=gff

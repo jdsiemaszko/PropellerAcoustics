@@ -1,5 +1,5 @@
 from matplotlib import axis
-from .TayloredGreen import TayloredGreen
+from .TailoredGreen import TailoredGreen
 import numpy as np
 from scipy.special import hankel1, jv, kv, h1vp, hankel1e, jvp
 from numpy.polynomial.legendre import leggauss
@@ -289,9 +289,9 @@ def beta_safe_vectorized(m, x):
         return result.item()
     
     return result
-class CylinderGreen(TayloredGreen):
+class CylinderGreen(TailoredGreen):
     """
-    Class for computing and plotting the Taylored Green's function
+    Class for computing and plotting the Tailored Green's function
     for a cylinder scatterer.
     """
     def __init__(self, radius:float, axis:np.ndarray, origin:np.ndarray, radial:np.ndarray=None, dim=3,

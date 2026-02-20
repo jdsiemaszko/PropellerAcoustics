@@ -1,8 +1,8 @@
 from PotentialInteraction.main import HansonModel
 from PotentialInteraction.near_field import NearFieldHansonModel
 from SourceMode.SourceMode import SourceModeArray
-from TayloredGreen.CylinderGreen import CylinderGreen
-from TayloredGreen.TayloredGreen import TayloredGreen
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
 from Constants.const import p_to_SPL
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,7 +49,7 @@ loadings_3D[2, :, :] = loadings[:, :] * np.sin(np.deg2rad(TWIST))
 
 
 # GREEN'S FUNCTION MODULE
-gf = TayloredGreen(dim=3) # free-field version!
+gf = TailoredGreen(dim=3) # free-field version!
 # gf.plotFarFieldGradient(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 0.0, 0.0]).reshape(3, 1), R=ROBS)
 # gf.plotFarFieldGradient(M * OMEGA * NBLADES / SOS, y = np.array([1.0, 0.0, 0.0]).reshape(3, 1), R=ROBS)
 # gf.plotFarFieldGradient(M * OMEGA * NBLADES / SOS, y = np.array([0.0, 1.0, 0.0]).reshape(3, 1), R=ROBS)

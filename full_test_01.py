@@ -1,7 +1,7 @@
 from PotentialInteraction.main import HansonModel
 from SourceMode.SourceMode import SourceModeArray
-from TayloredGreen.CylinderGreen import CylinderGreen
-from TayloredGreen.TayloredGreen import TayloredGreen
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
 from Constants.const import p_to_SPL
 import numpy as np
 import matplotlib.pyplot as plt
@@ -60,7 +60,7 @@ gcyl = CylinderGreen(radius=D_CYL/2, axis=axis_cyl, origin=origin_cyl, dim=3,
                     'eps_radius' : EPS_RADIUS
                 })
 
-gf = TayloredGreen(dim=3) # free-field version!
+gf = TailoredGreen(dim=3) # free-field version!
 
 # SOURCE MODE MODULE
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
