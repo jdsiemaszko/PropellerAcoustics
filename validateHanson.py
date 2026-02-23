@@ -1,5 +1,5 @@
-from PotentialInteraction.main import HansonModel
-from PotentialInteraction.near_field import NearFieldHansonModel
+from Hanson.far_field import HansonModel
+from Hanson.near_field import NearFieldHansonModel
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
@@ -7,7 +7,7 @@ import matplotlib.colors as colors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-DATAPATH = './Vella2026Model/Validation/harmonics_ISAE2_D20_L20-1.h5'
+DATAPATH = './Validation/harmonics_ISAE2_D20_L20-1.h5'
 
 NSEG = 20
 

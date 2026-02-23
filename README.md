@@ -2,7 +2,7 @@ Code implementation of several models in Propeller Acoustics
 
 Modules include:
 
-1) Hanson - implementing the Hanson model for propagating surface loadings to far-field pressure, both the standard far-field formulation from Hanson & Patrzych 1993 as well as the general extension from Roger & Moreau 2008 are included.
+1) Hanson - implementing the Hanson model for propagating loading harmonics to far-field pressure. Both the standard far-field formulation from Hanson & Patrzych (1993) as well as the general extension from Roger & Moreau (2008) are included.
 
 2) Tailored Green - module responsible for computing the Tailored and free-field Green's functions. instances for Free-field, Infinite Cylinder, and Semi-infinite Cylinder included.
 
@@ -13,12 +13,13 @@ Modules include:
 Full "blind" model is then constructed by interfacing the modules:
 
 4 -> 1 for a free-field model
+
 4, 2 -> 3 for a tailored model
 
-For usage, see scripts "run_CylinderGreen.py", "run_SourceMode.py", and "run_Dipole_SM.py"
+For usage, see scripts "run_CylinderGreen.py", "run_SourceMode.py", and "run_Dipole_SM.py". Mind that other scripts may be deprecated.
 
 TODO's:
-1) Create example script
+1) Create full example script
 2) Clean up PotentialInteraction
 3) Validate PotentialInteraction
-4) Interface BEM with TailoredGreen
+4) Interface BEM with TailoredGreen if relevant
