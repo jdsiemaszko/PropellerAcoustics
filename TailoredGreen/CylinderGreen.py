@@ -319,22 +319,6 @@ class CylinderGreen(TailoredGreen):
 
         self.normal = np.cross(self.axis, self.radial) # normal vector of the cylinder, completing the right-handed coordinate system
 
-    def conditionTerms(self, newterm, eps=1e12, printBool=False):
-        # condition terms to avoid NaNs and Infs
-        newterm = np.where(
-            np.isnan(newterm) | np.isinf(newterm),
-            0.0,
-            newterm
-        )
-        newterm = np.where(
-            np.abs(newterm) > eps,
-            0.0,
-            newterm
-        )
-        if printBool:
-            print(f'ignoring a total of {np.sum(np.isnan(newterm)) + np.sum(np.isinf(newterm)) + np.sum(np.abs(newterm) > eps)} problematic terms out of {newterm.size}' )
-        return newterm
-
     def getScatteringGreenMemory(self, x, y, k):
 
         mmax = self._numerics.get("nmax", int(k.max() * self.radius) + 10)

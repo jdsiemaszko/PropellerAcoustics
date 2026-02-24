@@ -109,9 +109,6 @@ HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord
                             Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 # SOURCE MODE MODULE
-axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
-origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
-
 sourceArray = SourceModeArray(BLH=loading_per_unit_span_magnitude, # loading per unit span, magnitude only
                         B = NBLADES,
                         Omega=OMEGA, gamma = twist_array,

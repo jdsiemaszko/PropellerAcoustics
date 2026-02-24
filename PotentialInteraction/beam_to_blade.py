@@ -9,7 +9,7 @@ class BladeLoadings():
                  Uz0_mps:np.ndarray,
                  Tprime_Npm:np.ndarray,
                  Qprime_Npm:np.ndarray,
-                  B=2, Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=1.0, rho_kgm3=1.0, c_ms = 340, kmax = 20, nb:float = 1):
+                  B=2, Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=1.0, rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1):
 
         """
         arrays: twist, chord, radius of size Nr+1, defined as edges of radial stations
@@ -22,7 +22,7 @@ class BladeLoadings():
         self.Lcylinder = Lcylinder_m
         self.Omega=Omega_rads
         self.rho = rho_kgm3
-        self.c = c_ms # speed of sound
+        self.c = c_mps # speed of sound
         if nb!=1:
             raise ValueError("WARNING: case nb>1 not implemented yet!")
         self.nbeam = nb

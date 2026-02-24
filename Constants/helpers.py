@@ -318,7 +318,7 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
     return fig, ax
 
 
-def plot_directivity_contour(fig, ax, theta, phi, magnitudes, levels=20, cmap='viridis', title=None):
+def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel=None, ylabel=None, fig=None, ax=None,):
     """
     Plot a 2D contour map of directivity (in dB) vs theta and phi.
 
@@ -335,15 +335,25 @@ def plot_directivity_contour(fig, ax, theta, phi, magnitudes, levels=20, cmap='v
     cmap : str
         Colormap name
     """
+
+    if fig is None or ax is None:   
+        fig, ax = plt.subplots(figsize=(7, 5))
+
     Theta, Phi = np.meshgrid(theta, phi, indexing='ij')  # shape (Ntheta, Nphi)
     magnitudes_db = p_to_SPL(magnitudes).reshape(Theta.shape)  # ensure shape matches Theta and Phi
     # 2D filled contour plot
-    cf = ax.contourf(np.rad2deg(Phi), np.rad2deg(Theta), magnitudes_db, levels=levels, cmap=cmap)
+    cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap)
+    # cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
     cbar = fig.colorbar(cf, ax=ax)
     cbar.set_label("Directivity [dB]")
 
-    ax.set_xlabel("Phi [deg]")
-    ax.set_ylabel("Theta [deg]")
+    if xlabel is None:
+        xlabel = "Phi [deg]"
+    if ylabel is None:
+        ylabel = "Theta [deg]"
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
     if title is not None:
         ax.set_title(title)
 

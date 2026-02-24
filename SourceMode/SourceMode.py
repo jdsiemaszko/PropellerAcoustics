@@ -98,15 +98,15 @@ class SourceMode():
     
     def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
         green = self.green
-
-        loadings = self.computeLoadingVectors(m) # shape (2 * Ns - 1, Nm, Ny, 3) units of NEWTON
         gradG = green.getGradientGreenAnalytical(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
-
-        # print(loadings.shape, gradG.shape)
-        pmB = -1.0 * np.einsum('s m y k, k m x y -> x m', loadings, gradG)
-
-        return pmB  * self.B
+        return self._getPressureFromGrad(x, m, gradG)
     
+    def _getPressureFromGrad(self,x:np.ndarray, m:np.ndarray, GradG:np.ndarray):
+        # GradG is of shape (3, Nm, Nx, Ny)
+        loadings = self.computeLoadingVectors(m) # shape (2 * Ns - 1, Nm, Ny, 3) units of NEWTON
+        pmB = -1.0 * np.einsum('s m y k, k m x y -> x m', loadings, GradG)
+        return pmB * self.B
+
     # def getPressureExplicitFreeField(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
     #     loadings = self.computeLoadingVectors(m)  #Ns, Nm, Ny, 3
     #     loading_axial = np.einsum('snyc, c -> sny', loadings, self.axis, optimize=True)
@@ -267,6 +267,15 @@ class SourceMode():
                 arrow_length_ratio=0.2,
                 linewidth=1.5
             )
+
+
+    def plotSurfacePressure(self, m:float, Omega, c=340, valmin=None, valmax=None, fig=None, ax=None):
+        if not hasattr(self.green, 'getBoundaryEvaluationPoints'):
+            raise NotImplementedError('The green function must have the method getBoundaryEvaluationPoints to plot surface pressure, current instance does not match this requirement')
+        pmB = self.getPressure(self.green.getBoundaryEvaluationPoints(), Omega, m, c) # shape (Npoints, Nm)
+        SPL_mb = p_to_SPL(pmB)
+        self.green._plotSurfaceSolution(SPL_mb, fig=fig, ax=ax, levels=20, cmap='viridis', title=None)
+        return fig, ax
         
 
 class SourceModeArray():
@@ -333,6 +342,9 @@ class SourceModeArray():
             ) # construct source modes at each radial station
 
     def getPressure(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
@@ -340,6 +352,26 @@ class SourceModeArray():
             pmB += child.getPressure(x, self.Omega, m, c=self.SoS)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
+    
+    def _getSurfacePressureEstHalfCylinder(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        # pre-compute green for efficiency
+        all_dipole_positions = np.concatenate([child.dipole_positions for child in self.children], axis=1) # shape (3, Nr * Ndipoles)
+        gradG = self.green.full_cylinder_green.getGradientGreenAnalytical(x, all_dipole_positions, m * self.Omega * self.B / self.SoS) # shape (3, Nm, Nx, Ny)
+
+
+        print('computing pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            # compute the guess: use cylinder green's function
+            # compute the pressure from each ring
+            pmB += child._getPressureFromGrad(x, m, gradG[:, :, :, index*child.numerics['Ndipoles']:(index+1)*child.numerics['Ndipoles']])
+            # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
+        return pmB
+    
     
     def plotSelf(self, fig, ax):
         for child in self.children:
@@ -392,6 +424,44 @@ class SourceModeArray():
             fig=fig,
             ax=ax
         )
+        return fig, ax
+    
+    def plotSurfacePressureHalfCylinder(self, m:float, valmin=None, valmax=None, fig=None, ax=None, extend_z=None):
+        if not hasattr(self.green, 'getBoundaryEvaluationPoints'):
+            raise NotImplementedError('The green function must have the method getBoundaryEvaluationPoints to plot surface pressure, current instance does not match this requirement')
+
+        eval_points = self.green.getBoundaryEvaluationPoints()
+
+        z_edges = self.green.panel_z_edges
+        z_centers = (z_edges[:-1] + z_edges[1:]) / 2
+        th_edges = self.green.panel_th_edges
+        th_centers = (th_edges[:-1] + th_edges[1:]) / 2
+        if extend_z is not None:
+            # Select axial indices inside desired range
+            indices_z = np.where(
+                (z_centers > extend_z[0]) & (z_centers < extend_z[1])
+            )[0]
+
+
+
+            Nazim = len(th_centers)
+            Nax = len(z_centers)
+
+            # Build global indices: each z-slice contains Nazim consecutive points
+            indices = np.concatenate([
+                np.arange(iz * Nazim, (iz + 1) * Nazim)
+                for iz in indices_z
+            ])
+
+            # Extract filtered evaluation points
+            eval_points = eval_points[:, indices]
+
+            # Keep only selected z centers
+            z_centers = z_centers[indices_z]
+        pmB = self._getSurfacePressureEstHalfCylinder(eval_points, m) # shape (Npoints, Nm)
+
+        SPL_mb = p_to_SPL(pmB)
+        self.green._plotSurfaceSolution(SPL_mb, z_centers, th_centers, fig=fig, ax=ax, levels=20, cmap='viridis', title=None, extent_z=extend_z)
         return fig, ax
 
         

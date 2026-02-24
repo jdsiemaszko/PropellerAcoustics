@@ -76,8 +76,8 @@ UZ_UDNS_V2 = np.array([0, -0.058479532163742576, -0.08771929824561298, -0.029239
 
 # directory where THIS file lives
 BASE_DIR = Path(__file__).resolve().parent
-UDW_EXACT = np.loadtxt(BASE_DIR / "Validation" / "uy_m01R.csv", delimiter=',')[:, 1]
-R_RT_UDW = np.loadtxt(BASE_DIR / "Validation" / "uy_m01R.csv", delimiter=',')[:, 0]
+UDW_EXACT = np.loadtxt(BASE_DIR / "data" / "uy_m01R.csv", delimiter=',')[:, 1]
+R_RT_UDW = np.loadtxt(BASE_DIR / "data" / "uy_m01R.csv", delimiter=',')[:, 0]
 
 OMEGA = 8000/60 * 2 * np.pi
 def interpolate_UZ(r_norm, omega):     
@@ -111,14 +111,14 @@ TAN = np.array([0.000823698389888226, 0.0010838161219675886, 0.00177745564581613
 
 
 
-R_EXACT = np.loadtxt(BASE_DIR / "Validation" / "radius.csv", delimiter=',')
-T_EXACT = np.loadtxt(BASE_DIR / "Validation" / "thrust.csv", delimiter=',')
-Q_EXACT = np.loadtxt(BASE_DIR / "Validation" / "tanforce.csv", delimiter=',')
+R_EXACT = np.loadtxt(BASE_DIR / "data" / "radius.csv", delimiter=',')
+T_EXACT = np.loadtxt(BASE_DIR / "data" / "thrust.csv", delimiter=',')
+Q_EXACT = np.loadtxt(BASE_DIR / "data" / "tanforce.csv", delimiter=',')
 DR_EXACT = R_EXACT[1] - R_EXACT[0]
 RT = R_EXACT[-1]
 R_RT_EXACT = R_EXACT / RT
 DT_EXACT = T_EXACT / DR_EXACT
-SDQ_EXACT = Q_EXACT / DR_EXACT
+DQ_EXACT = Q_EXACT / DR_EXACT
 
 
 

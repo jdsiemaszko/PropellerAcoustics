@@ -62,7 +62,8 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
     def _getScatteringGreen(self, x, y, k, green_at_surface):
         
-        eval_points = self.getBoundaryEvaluationPoints() # (3, Nz)
+        # eval_points = self.getBoundaryEvaluationPoints() # (3, Nz)
+        eval_points = self.panel_positions # 3, Nz
 
         # ____________prediction from Roger et al. 2023______________________
         # effectively, we're solving G = G0 + G0 @ V @ G for V defining the surface potential
@@ -94,11 +95,13 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
     def getScatteringGreen(self, x, y, k):
         green_at_surface = self.free_field_green.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k) # (Nk, Nz, Ny)
-        return self.__getScatteringGreen(x, y, k, green_at_surface)
+        return self._getScatteringGreen(x, y, k, green_at_surface)
     
     def _getScatteringGreenGradient(self, x, y, k, green_grad_at_surface):
         
-        eval_points = self.getBoundaryEvaluationPoints() # (3, Nz)
+        # eval_points = self.getBoundaryEvaluationPoints() # (3, Nz)
+        eval_points = self.panel_positions # 3, Nz
+
 
         # ____________prediction from Roger et al. 2023______________________
         # effectively, we're solving ∇yG = ∇yG0 + ∇y(G0 @ V @ G) = (G0 @ V @ ∇yG) for V defining the surface potential
@@ -128,9 +131,9 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
     def getScatteringGreenGradient(self, x, y, k):
         green_grad_at_surface = self.free_field_green.getGradientGreenAnalytical(self.getBoundaryEvaluationPoints(), y, k) # (3, Nk, Nz, Ny)
-        return self.__getScatteringGreenGradient(x, y, k, green_grad_at_surface)
+        return self._getScatteringGreenGradient(x, y, k, green_grad_at_surface)
     
-    def plotSelf(self, fig, ax, normal_scale=None, stride=1, show_mesh=True, show_normals=True):
+    def plotSelf(self, fig, ax, normal_scale=None, stride=1, show_mesh=True, show_normals=False):
         """
         High-level plotting function for the discretized geometry.
         """
@@ -165,7 +168,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
         """
         pos = self.panel_positions
 
-        ax.scatter(pos[0], pos[1], pos[2], marker='o', color='r')
+        ax.scatter(pos[0], pos[1], pos[2], marker='o', color='g')
 
         return fig, ax
 
@@ -201,21 +204,18 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
         return fig, ax
 
-    def _plotSurfaceSolution(self, fig, ax, sol, levels=20, cmap='viridis', title=None):
-        # plot the solution against two surface coordinates z and th
-        z_edges = self.panel_z_edges
-        th_edges = self.panel_th_edges
-        z_centers = 0.5 * (z_edges[:-1] + z_edges[1:])
-        th_centers = 0.5 * (th_edges[:-1] + th_edges[1:])
+    def _plotSurfaceSolution(self, sol, z, th, fig=None, ax=None, levels=20, cmap='viridis', title=None, extent_z=None):
 
-        Nax = len(z_edges) - 1
-        Nazim = len(th_edges) - 1
+
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(figsize=(8, 6))
 
         # --- reshape consistent with construction ---
+        Nax, Nazim = len(z), len(th)
         sol_2d = sol.reshape(Nax, Nazim)
 
         # --- shift theta from [0, 2π) → [-π, π) ---
-        th_shifted = (th_centers + np.pi) % (2*np.pi) - np.pi
+        th_shifted = (th + np.pi) % (2*np.pi) - np.pi
 
         # --- sort theta so it increases from -π to π ---
         sort_idx = np.argsort(th_shifted)
@@ -224,8 +224,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
         sol_2d = sol_2d[:, sort_idx]   # reorder along azimuth axis
 
         # --- meshgrid ---
-        Z, TH = np.meshgrid(z_centers, th_sorted, indexing='ij')
-
+        Z, TH = np.meshgrid(z, th_sorted, indexing='ij')
         cf = ax.contourf(Z, np.rad2deg(TH), sol_2d, levels=levels, cmap=cmap)
 
         cbar = fig.colorbar(cf, ax=ax)
@@ -240,12 +239,12 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
     
     def plotSurfaceGreen(self, fig, ax, y, k, levels=20, cmap='viridis', title=None):
         gr = self.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k)
-        self._plotSurfaceSolution(fig, ax, p_to_SPL(gr), levels=levels, cmap=cmap, title=title)
+        self._plotSurfaceSolution(fig, ax, p_to_SPL(gr), self.panel_z_centers, self.panel_th_centers, levels=levels, cmap=cmap, title=title)
         return fig, ax
     
     def plotSurfaceFFGreen(self, fig, ax, y, k, levels=20, cmap='viridis', title=None):
         gr = self.getFreeSpaceGreen(self.getBoundaryEvaluationPoints(), y, k)
-        self._plotSurfaceSolution(fig, ax, p_to_SPL(gr), levels=levels, cmap=cmap, title=title)
+        self._plotSurfaceSolution(fig, ax, p_to_SPL(gr), self.panel_z_centers, self.panel_th_centers, levels=levels, cmap=cmap, title=title)
         return fig, ax
 
 class HalfCylinderGreen(SurfacePotentialGreen):
@@ -350,7 +349,7 @@ class HalfCylinderGreen(SurfacePotentialGreen):
                     + np.sin(th_edges)[None, :] * self.normal[:, None]
                 )
             )
-            ax.plot(circle[0], circle[1], circle[2], color='r', linestyle='dashed')
+            ax.plot(circle[0], circle[1], circle[2], color='g', linestyle='dashed')
 
         # radial lines
         for th in th_edges:
@@ -362,7 +361,7 @@ class HalfCylinderGreen(SurfacePotentialGreen):
                     + np.sin(th) * self.normal[:, None]
                 )
             )
-            ax.plot(line[0], line[1], line[2], color='r', linestyle='dashed')
+            ax.plot(line[0], line[1], line[2], color='g', linestyle='dashed')
 
         return fig, ax
     

@@ -2,9 +2,8 @@
 
 import numpy as np
 import numpy as np
-from Constants.helpers import p_to_SPL, theodorsen
 from scipy.special import jv
-from Constants.helpers import periodic_sum
+from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL
 
 class BeamLoadings():
 
@@ -12,7 +11,7 @@ class BeamLoadings():
                  Uz0_mps:np.ndarray,
                  Tprime_Npm:np.ndarray,
                  Qprime_Npm:np.ndarray,
-                  B=2, Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=1.0, rho_kgm3=1.0, c_ms = 340, kmax = 20, nb:float = 1):
+                  B=2, Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=1.0, rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1):
 
         """
         arrays: twist, chord, radius of size Nr+1, defined as edges of radial stations
@@ -25,7 +24,7 @@ class BeamLoadings():
         self.Lcylinder = Lcylinder_m
         self.Omega=Omega_rads
         self.rho = rho_kgm3
-        self.c = c_ms # speed of sound
+        self.c = c_mps # speed of sound
         if nb!=1:
             raise ValueError("WARNING: case nb>1 not implemented yet!")
         self.nbeam = nb
@@ -77,7 +76,7 @@ class BeamLoadings():
         time = time_1d[:, None] * np.ones((1, Nr))  # (Nt, Nr)
 
 
-        Fhat = self.__getBeamVortexLoads(time) # size (3, Nt, Nr)
+        Fhat = self._getBeamVortexLoads(time) # size (3, Nt, Nr)
 
         T_periodic, F_beam = periodic_sum(Fhat, period, time_1d) # shapes (Np), (3, Np, Nr)
 
@@ -92,10 +91,49 @@ class BeamLoadings():
 
         return F_beam_k
 
-    def __getBeamVortexLoads(self, time, Npoints=36):
+    def getBeamLoadingMagnitude(self):
+        Fbeam = self.getBeamLoadingHarmonics()
+        return Fbeam[1, :, :] / np.cos(self.seg_twist[None, :]) # shape (Nk, Nr) assuming orientation
+    
+    
+    def _getBeamVortexLoads(self, time, Npoints=360):
+
+        Nt, Nr = time.shape
+
+        pressure, thetab, deltathetab = self._getBeamVortexPressure(time, Npoints) # (Npoints, Nt, Nr)
+
+
+        # --- force integration on cylinder
+        cos_t = np.cos(thetab)[:, None, None]   # (Npoints, 1, 1)
+        sin_t = np.sin(thetab)[:, None, None]   # (Npoints, 1, 1)
+
+
+        Fphi = self.Dcylinder / 2 * np.sum(
+            pressure *
+            cos_t *
+            deltathetab,
+            axis=0
+        ) # (Nt, Nr), drag, oriented backwards
+
+
+        Fz = -self.Dcylinder / 2 * np.sum(
+            pressure *
+            sin_t * 
+            deltathetab,
+            axis=0
+        ) # (Nt, Nr) # lift, oriented upwards
+
+        Fbeam = np.zeros((3, Nt, Nr)) # Note: in the time domain!, size (3, Nt, Nr)
+        Fbeam[1, :, :] = Fz
+        Fbeam[2, :, :] = Fphi
+
+        return Fbeam
+
+    def _getBeamVortexPressure(self, time, Npoints=36):
         """
         time: array, shape (Nt, Nr)
         """
+
         Nt, Nr = time.shape
 
         T_per_unit_span = self.Tprime # Nr
@@ -141,29 +179,63 @@ class BeamLoadings():
             1j / Zvbar_e + 1j / (Zv_e - Z_e) - 1j / (Zvbar_e - Z_circ_conjugate_e)
         ) # (Npoints, Nt, Nr)
 
+        return pressure, thetab, deltathetab
+    
+    def getBeamPressureHarmonics(self, D__Dref_max=50.0, points_per_period = 20):
 
-        # --- force integration on cylinder
-        cos_t = np.cos(thetab)[:, None, None]   # (Npoints, 1, 1)
-        sin_t = np.sin(thetab)[:, None, None]   # (Npoints, 1, 1)
+        period = 2 * np.pi / self.B / self.Omega
 
+        dref = self.Lcylinder # some lengthscale
+        Nr = self.seg_radius.shape[0]
 
-        Fphi = self.Dcylinder / 2 * np.sum(
-            pressure *
-            cos_t *
-            deltathetab,
-            axis=0
-        ) # (Nt, Nr), drag, oriented backwards
+        tmax = D__Dref_max * dref / self.Omega / self.seg_radius # N_r ?
+        tmaxmax = np.max(tmax) # should be the FIRST ENTRY
 
+        dt = period / (points_per_period * self.kmax) # timestep chosen small enough to resolve the maximum frequency!
 
-        Fz = -self.Dcylinder / 2 * np.sum(
-            pressure *
-            sin_t * 
-            deltathetab,
-            axis=0
-        ) # (Nt, Nr) # lift, oriented upwards
+        # tmaxmax = 0.0
 
-        Fbeam = np.zeros((3, Nt, Nr)) # Note: in the time domain!, size (3, Nt, Nr)
-        Fbeam[1, :, :] = Fz
-        Fbeam[2, :, :] = Fphi
+        # integration time
+        time_1d = np.arange(
+            -tmaxmax - period/2,
+            tmaxmax + period/2 + dt,
+                            dt) # (Nt, Nr) ?, ensure all times in (-period/2, period/2) have plenty of datapoints outside to sum
+        Nt = time_1d.size
 
-        return Fbeam
+        # --- expand time to (Nt, Nr)
+        time = time_1d[:, None] * np.ones((1, Nr))  # (Nt, Nr)
+
+        pressure, thetab, deltathetab = self._getBeamVortexPressure(time) # pressure of shape Npoints, Nt, Nr
+
+        T_periodic, pressure_periodic = periodic_sum(pressure, period, time_1d) # shapes (Np), (Npoints, Np, Nr)
+
+        k = self.k # Nk
+        # shape (3, Nk, Nr)
+        
+        p_k = self.B * self.Omega / 4 / np.pi * np.sum(pressure_periodic[:, None, :, :] * np.exp(-1j *
+                 k[None, :, None, None] * self.B * self.Omega * 
+                 T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp        
+        
+        return p_k, thetab, self.seg_radius # shape (Npoints, Nk, Nr), Npoints, Nr
+    
+
+    def plotSurfacePressureContour(self, m:int, fig=None, ax=None, D__Dref_max=50.0, points_per_period = 20):
+        p, thetab, radius = self.getBeamPressureHarmonics(D__Dref_max, points_per_period) # p_k of shape (Npoints, Nk, Nr), thetab of shape (Npoints), radius of shape (Nr)
+        index = np.where(self.k == m)[0][0] # index of the desired mode
+        # if does not exist, will throw an error, which is fine
+        pk = p[:, index, :]
+        index = np.where(self.k == m)[0][0]
+        pk = p[:, index, :]   # (Npoints, Nr)
+
+        # --- Shift theta from [0, 2pi) to [-pi, pi) ---
+        thetab_shifted = (thetab + np.pi) % (2*np.pi) - np.pi
+
+        # --- Sort so theta increases monotonically ---
+        sort_idx = np.argsort(thetab_shifted)
+
+        thetab = thetab_shifted[sort_idx]
+        pk = pk[sort_idx, :]
+        fig, ax = plot_directivity_contour(magnitudes=p_to_SPL(pk), theta=np.rad2deg(thetab), phi=radius, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title='Surface Pressure Directivity (dB)')
+
+        return fig, ax
+

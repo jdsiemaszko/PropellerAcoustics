@@ -27,22 +27,21 @@ class HansonModel():
         self.nbeam = nb
 
 
-        self.twist_e = twist_rad # Nr
-        self.chord_e = chord_m # Nr
-        self.radius_e = radius_m # Nr
+        self.twist_e = twist_rad # Nr+1
+        self.chord_e = chord_m # Nr+1
+        self.radius_e = radius_m # Nr+1
         self.r0 = radius_m[0]
         self.r1 = radius_m[-1]
 
-        self.twist_c = (twist_rad[1:] + twist_rad[:-1]) / 2
+        self.twist_c = (twist_rad[1:] + twist_rad[:-1]) / 2 #Nr
         self.chord_c = (chord_m[1:] + chord_m[:-1]) / 2
         self.radius_c = (radius_m[1:] + radius_m[:-1]) / 2
 
-        self.dr = np.diff(radius_m) # (Nr -1)
+        self.dr = np.diff(radius_m) # (Nr)
+        self.Nr = len(self.dr)
 
         if len(self.twist_c) != self.Nr or len(self.chord_c) != self.Nr or len(self.radius_c) != self.Nr:
             raise ValueError("Inconsistent input sizes: seg_twist, seg_chord, seg_radius should all have size Nr")
-
-        self.k = np.arange(0, self.Nk, 1) # array of modal orders
 
         # orientation of the propeller in space
         self.axis = axis / np.linalg.norm(axis) # axis vector of the prop
@@ -253,8 +252,8 @@ class HansonModel():
         # return np.array([R_arr, theta_arr, phi_arr])
         return np.array([X, Y, Z]), np.array([R_arr, theta_arr, phi_arr]), theta_m, phi_m # shape (3, Ntheta * Nphi) each
     
-    def plot3Ddirectivity(self, fig, ax, m:float, valmax=None, valmin=None, R=1.62,
-                        Nphi=18, Ntheta=36, blending=0.1, title=None):
+    def plot3Ddirectivity(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.62,
+                        Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None, mode='rotor', loadings_2=None):
         
         """
         plot a 3D directivity pattern for a given mode m
@@ -267,7 +266,18 @@ class HansonModel():
         x_cart, x_spherical, Theta, Phi = self.getPolarMesh(R=R, Nphi=Nphi, Ntheta=Ntheta)
 
         # --- pressure / magnitude ---
-        pmB, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
+        if mode=='rotor':
+            pmB, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), Fblade=loadings, multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
+        elif mode=='stator':
+            pmB, _ = self.getPressureStator(x_cart, np.array([m]).reshape(1,), Fbeam=loadings, multiplier=self.nbeam) # of shape (Nx=Ntheta*Nphi, 1)
+        elif mode=='total':
+            if loadings_2 is None:
+                raise ValueError("For mode='total', both loading and loadings_2 (rotor and stator loadings respectively) must be provided")
+            pmB_rotor, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), Fblade=loadings, multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
+            pmB_stator, _ = self.getPressureStator(x_cart, np.array([m*self.B]).reshape(1,), Fbeam=loadings_2, multiplier=self.nbeam) # of shape (Nx=Ntheta*Nphi, 1)
+            pmB = pmB_rotor + pmB_stator
+        else:
+            raise ValueError("Invalid mode, should be 'rotor' or 'stator'")
         pmB = pmB[:, 0] # shape (Nx,)
 
         fig, ax = plot_3D_directivity(
@@ -282,12 +292,26 @@ class HansonModel():
         
         return fig, ax
 
-    def plotPressureSpectrum(self, fig, ax, x:tuple, m:np.ndarray, plot_kwargs={'color' : 'k', 'marker' : 's'}):
+    def plot3DdirectivityRotor(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.62,
+                        Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
+        # wrapper for ploting rotor only
+        return self.plot3Ddirectivity(m, loadings, valmax, valmin, R, Nphi, Ntheta, blending, title, fig, ax, mode='rotor')
+    
+    def plot3DdirectivityStator(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.62,
+                        Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
+        # wrapper for ploting stator only
+        return self.plot3Ddirectivity(m, loadings, valmax, valmin, R, Nphi, Ntheta, blending, title, fig, ax, mode='stator')
+    
+    def plot3DdirectivityTotal(self, m:float, loadings:np.ndarray, loadings_2:np.ndarray, valmax=None, valmin=None, R=1.62,
+                        Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
+        # wrapper for ploting total directivity
+        return self.plot3Ddirectivity(m, loadings=loadings, valmax=valmax, valmin=valmin, R=R, Nphi=Nphi, Ntheta=Ntheta, blending=blending, title=title, fig=fig, ax=ax, mode='total', loadings_2=loadings_2)
+
+    def plotPressureSpectrum(self, fig, ax, x:tuple, m:np.ndarray, loadings:np.ndarray, plot_kwargs={'color' : 'k', 'marker' : 's'}):
 
 
         # --- pressure / magnitude ---
-        pmB = self.getPressureRotor(x, m, multiplier=self.B)[0] # of shape (Nx=Ntheta*Nphi, Nm)
-
+        pmB = self.getPressureRotor(x, m, Fblade=loadings, multiplier=self.B)[0] # of shape (Nx=Ntheta*Nphi, Nm)
 
         ax.plot(m, p_to_SPL(pmB[0]), **plot_kwargs)
 
@@ -303,7 +327,3 @@ class HansonModel():
         plt.tight_layout()
 
         return fig, ax
-
-
-if __name__ == "__main__":
-    pass
