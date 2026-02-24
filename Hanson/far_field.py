@@ -8,14 +8,13 @@ from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot_3D_directi
 
 class HansonModel():
 
-    def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray, loadings_Npm:np.ndarray,
+    def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray,
                     axis:np.ndarray, origin:np.ndarray, radial:np.ndarray=None,
                   B:int=2, Omega_rads:float=1.0, rho_kgm3:float=1.0, c_mps:float = 340., nb:int = 1):
 
         """
         Hanson model for propeller noise propagation
         Input arrays of size (Nr+1), defined as SEGMENT EDGES, so that the segment centers are at (twist_rad[1:]+twist_rad[:-1])/2 and segment sizes are dr = np.diff(radius_m) etc.
-        loadings: input array of size (Nk, Nr), defining the distribution of LOADING PER UNIT SPAN along the blade, for a total of Nk modes!
         modes k range from 0 to Nk-1 and correspond to frequencies k*Omega
         """
 
@@ -38,11 +37,7 @@ class HansonModel():
         self.chord_c = (chord_m[1:] + chord_m[:-1]) / 2
         self.radius_c = (radius_m[1:] + radius_m[:-1]) / 2
 
-        self.loadings = loadings_Npm # size (Nk, Nr), 
-
         self.dr = np.diff(radius_m) # (Nr -1)
-
-        self.Nk, self.Nr = loadings_Npm.shape
 
         if len(self.twist_c) != self.Nr or len(self.chord_c) != self.Nr or len(self.radius_c) != self.Nr:
             raise ValueError("Inconsistent input sizes: seg_twist, seg_chord, seg_radius should all have size Nr")
@@ -66,10 +61,12 @@ class HansonModel():
         self.normal = np.cross(self.axis, self.radial) # normal vector, completing the right-handed coordinate system
 
 
-    def getPressureRotor(self, x:np.ndarray, m:np.ndarray, multiplier:float=None):
+    def getPressureRotor(self, x:np.ndarray, m:np.ndarray, Fblade:np.ndarray, multiplier:float=None):
         """
         Generic function for computing the hanson formulation of noise for rotors
         x is expressed in the GLOBAL coordinate system
+        loadings: input array of size (Nk, Nr), defining the distribution of LOADING PER UNIT SPAN along the blade, for a total of Nk modes from 0 to Nk-1!
+
 
         multiplier is an overall multiplier for total the pressure mode. For B blades it should be B, for one stator/beam it should be 1.
 
@@ -85,7 +82,6 @@ class HansonModel():
 
         c0 = self.c # SoS
         Omega = self.Omega
-        Fblade = self.loadings # Nk, Nr
         B = self.B
         nb =self.nbeam
 
@@ -101,7 +97,8 @@ class HansonModel():
 
         wavenumber = mB * Omega / c0 # (Nm )
 
-        k = self.k * nb # Nk multiplied by the number of beams! (TODO: check?)
+        Nk = Fblade.shape[0] # shape Nk, Nr
+        k = np.arange(0, Nk, 1) # array of modal orders, shape Nk, note that we assume order of Fblade
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
         Fblade = np.concatenate((np.conjugate(Fblade[-1:0:-1]), Fblade), axis=0) # minus loadings are conjugates of positive!
@@ -154,7 +151,7 @@ class HansonModel():
 
         return pmb, x
 
-    def getPressureStator(self, x:np.ndarray, m:np.ndarray, multiplier:float=None):
+    def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fbeam:np.ndarray, multiplier:float=None):
         """
         Generic function for computing the hanson formulation of noise for stators
 
@@ -171,7 +168,7 @@ class HansonModel():
 
         c0 = self.c # SoS
         Omega = self.Omega
-        Fblade = self.loadings # Nk, Nr
+
         B = self.B
         nb =self.nbeam
 
@@ -187,20 +184,21 @@ class HansonModel():
 
         wavenumber = mB * Omega / c0 # Nm, issue if mb = 0?
 
-        k = self.k * nb # Nk multiplied by the number of beams!
+        Nk = Fbeam.shape[0] # shape Nk, Nr
+        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
-        Fblade = np.concatenate((np.conjugate(Fblade[-1:0:-1]), Fblade), axis=0) 
+        Fbeam = np.concatenate((np.conjugate(Fbeam[-1:0:-1]), Fbeam), axis=0) 
 
         m_int = np.asarray(m, dtype=np.int64)
 
         lookup = {val: i for i, val in enumerate(k)}
 
         Nm = len(m_int)
-        Nr = Fblade.shape[1]
+        Nr = Fbeam.shape[1]
 
         # Preallocate with zeros (this automatically handles missing modes)
-        Fm = np.zeros((Nm, Nr), dtype=Fblade.dtype)
+        Fm = np.zeros((Nm, Nr), dtype=Fbeam.dtype)
 
         # Find which requested modes exist
         valid_mask = np.array([mb in lookup for mb in m_int])
@@ -208,7 +206,7 @@ class HansonModel():
         if np.any(valid_mask):
             valid_modes = m_int[valid_mask]
             idx = np.array([lookup[mb] for mb in valid_modes])
-            Fm[valid_mask, :] = Fblade[idx, :]
+            Fm[valid_mask, :] = Fbeam[idx, :]
 
         # Downstream projections
         Fphi = Fm * np.sin(twist)[None, :] #Nm, Nr
@@ -224,7 +222,7 @@ class HansonModel():
         # reduce by summing along Nr axis
         pmb = np.sum (
             matrix
-            * dr[None, None, :] # integration over r, note: we assume that Fblade is per unit span, in units N/m.
+            * dr[None, None, :] # integration over r, note: we assume that Fbeam is per unit span, in units N/m.
               ,
             axis=-1
         ) # integrate along the r axis

@@ -86,9 +86,9 @@ class BeamLoadings():
         k = self.k # Nk
         # shape (3, Nk, Nr)
         
-        F_beam_k = self.B * self.Omega / 4 / np.pi * np.sum(F_beam[:, None, :, :] * np.exp(1j *
+        F_beam_k = self.B * self.Omega / 4 / np.pi * np.sum(F_beam[:, None, :, :] * np.exp(-1j *
                  k[None, :, None, None] * self.B * self.Omega * 
-                 T_periodic[None, None, :, None]) * dt, axis=2)
+                 T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp
 
         return F_beam_k
 

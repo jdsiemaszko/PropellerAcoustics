@@ -67,7 +67,7 @@ class BladeLoadings():
 
         # beta = np.pi/2 - np.arctan(Uz / self.Omega / self.seg_radius) # stagger angle! Nr
 
-        beta = np.pi/2 - self.seg_twist
+        beta = np.pi/2 - self.seg_twist # alpha in Wu et al. 2022
         beta_r = beta[None, :] # (1, Nr)
 
         Dc = self.Dcylinder
@@ -86,7 +86,7 @@ class BladeLoadings():
                 + 1j * beta_r
             )
             # * (-1.0) ** k_k
-            * np.exp(1j * np.pi * k_k)
+            # * np.exp(1j * np.pi * k_k) #TODO: figure out this factor: it is included in Vella et al. 2026, but not in Wu et al. 2022
         )                                                 # (Nk, Nr)
 
         return wk
@@ -158,6 +158,8 @@ class BladeLoadings():
 
         Fblade[1, 0, :] = self.Tprime # axial, positive upwards
         Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
+
+        Fblade = np.conjugate(Fblade) # opposite convention for FFT, need to be conjugated for our convention
 
         return Fblade
     

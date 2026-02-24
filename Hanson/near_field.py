@@ -29,7 +29,7 @@ class NearFieldHansonModel(HansonModel):
         self.positions_m = np.stack([seg_radius_broadcasted, theta_array, phi_array], axis=0) # shape (3, Nalpha, Nr)
         self.positions_m_stator = np.stack([self.radius_c, np.ones_like(self.radius_c)*np.pi/2, np.zeros_like(self.radius_c)], axis=0) # shape (3, Nr)
 
-    def _getPressureRotorParallel(self, x: np.ndarray, m: np.ndarray, multiplier: float = None):
+    def _getPressureRotorParallel(self, x: np.ndarray, m: np.ndarray, Fblade:np.ndarray, multiplier: float = None):
         """
         Fully vectorized near-field Hanson rotor pressure.
         Time integration rewritten as alpha-integration.
@@ -54,8 +54,9 @@ class NearFieldHansonModel(HansonModel):
         mB = m * B                          # (Nm,)
         wavenumber = mB * Omega / c0        # (Nm,)
 
-        k = self.k
-        Fblade = self.loadings              # (3, Nk, Nr)
+        Nk = Fblade.shape[0] # shape Nk, Nr
+        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
+
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
         Fblade = np.concatenate((np.conjugate(Fblade[-1:0:-1]), Fblade), axis=0) # minus loadings are conjugates of positive!
@@ -140,7 +141,7 @@ class NearFieldHansonModel(HansonModel):
 
         return pmb, x
     
-    def getPressureRotor(self, x: np.ndarray, m: np.ndarray, multiplier: float = None):
+    def getPressureRotor(self, x: np.ndarray, m: np.ndarray, Fblade:np.ndarray, multiplier: float = None):
         """
         Memory-optimized near-field Hanson rotor pressure.
 
@@ -168,8 +169,9 @@ class NearFieldHansonModel(HansonModel):
         mB = m * B                         # (Nm,)
         wavenumber = mB * Omega / c0       # (Nm,)
 
-        k = self.k
-        Fblade = self.loadings             # (Nk, Nr)
+        Nk = Fblade.shape[0] # shape Nk, Nr
+        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
+
 
         # Add negative modes
         k = np.concatenate((-k[-1:0:-1], k))
@@ -283,7 +285,7 @@ class NearFieldHansonModel(HansonModel):
 
         return pmb, x
     
-    def getPressureStator(self, x:np.ndarray, m:np.ndarray, multiplier:float=None):
+    def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fbeam:np.ndarray, multiplier:float=None):
         """
         Generic function for computing the hanson formulation of noise for stators
 
@@ -300,7 +302,6 @@ class NearFieldHansonModel(HansonModel):
 
         c0 = self.c # SoS
         Omega = self.Omega
-        Fblade = self.loadings # Nk, Nr
         B = self.B
         nb =self.nbeam
 
@@ -322,20 +323,22 @@ class NearFieldHansonModel(HansonModel):
 
         wavenumber = mB * Omega / c0 # Nm, issue if mb = 0?
 
-        k = self.k * nb # Nk multiplied by the number of beams!
+        Nk = Fbeam.shape[0] # shape Nk, Nr
+        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
+
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
-        Fblade = np.concatenate((np.conjugate(Fblade[-1:0:-1]), Fblade), axis=0) 
+        Fbeam = np.concatenate((np.conjugate(Fbeam[-1:0:-1]), Fbeam), axis=0) 
 
         m_int = np.asarray(m, dtype=np.int64)
 
         lookup = {val: i for i, val in enumerate(k)}
 
         Nm = len(m_int)
-        Nr = Fblade.shape[1]
+        Nr = Fbeam.shape[1]
 
         # Preallocate with zeros (this automatically handles missing modes)
-        Fm = np.zeros((Nm, Nr), dtype=Fblade.dtype)
+        Fm = np.zeros((Nm, Nr), dtype=Fbeam.dtype)
 
         # Find which requested modes exist
         valid_mask = np.array([mb in lookup for mb in m_int])
@@ -343,7 +346,7 @@ class NearFieldHansonModel(HansonModel):
         if np.any(valid_mask):
             valid_modes = m_int[valid_mask]
             idx = np.array([lookup[mb] for mb in valid_modes])
-            Fm[valid_mask, :] = Fblade[idx, :]
+            Fm[valid_mask, :] = Fbeam[idx, :]
 
         # Downstream projections
         Fphi = Fm * np.sin(twist)[None, :] #Nm, Nr
@@ -363,7 +366,7 @@ class NearFieldHansonModel(HansonModel):
         # reduce by summing along Nr axis
         pmb = np.sum (
             matrix
-            * dr[None, None, :] # integration over r, note: we assume that Fblade is per unit span, in units N/m.
+            * dr[None, None, :] # integration over r, note: we assume that Fbeam is per unit span, in units N/m.
               ,
             axis=-1
         ) # integrate along the r axis, result of shape Nx, Nm
