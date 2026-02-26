@@ -152,13 +152,13 @@ ax = fig.add_subplot(111, projection="3d")
 HANSON_VELLA.plot3Ddirectivity(fig=fig, ax=ax, m=5, R=R,
                         valmax=65, valmin=10,
                         Nphi=NPHI, Ntheta=NTHETA,
-                        loadings=loading_per_unit_span_magnitude, mode='rotor'
+                        loadings=loading_per_unit_span, mode='rotor'
                         )
 plt.show()
 plt.close(fig)
 
-p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span_magnitude)
-p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span_magnitude)
+p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span)
+p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span)
 p_sourceMode = sourceArray.getPressure(x_cartesian, m=ms)
 
 fig, ax = plt.subplots(figsize=(4, 3))

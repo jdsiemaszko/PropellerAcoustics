@@ -169,15 +169,15 @@ class NearFieldHansonModel(HansonModel):
         mB = m * B                         # (Nm,)
         wavenumber = mB * Omega / c0       # (Nm,)
 
-        Nk = Fblade.shape[0] # shape Nk, Nr
+        Nk = Fblade.shape[1] # shape 3, Nk, Nr
         k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
 
 
         # Add negative modes
         k = np.concatenate((-k[-1:0:-1], k))
         Fblade = np.concatenate(
-            (np.conjugate(Fblade[-1:0:-1]), Fblade),
-            axis=0
+            (np.conjugate(Fblade[:, -1:0:-1, :]), Fblade),
+            axis=1
         )
 
         Nm = mB.size
@@ -202,8 +202,8 @@ class NearFieldHansonModel(HansonModel):
         # --------------------------------------------
         # Loadings (pre-rotated)
         # --------------------------------------------
-        Fphi = np.sin(twist)[None, :] * Fblade
-        Fz   = np.cos(twist)[None, :] * Fblade
+        Fphi = Fblade[2, :, :]
+        Fz   = Fblade[1, :, :]
 
         theta = np.pi / 2
 

@@ -63,8 +63,8 @@ class HansonModel():
     def getPressureRotor(self, x:np.ndarray, m:np.ndarray, Fblade:np.ndarray, multiplier:float=None):
         """
         Generic function for computing the hanson formulation of noise for rotors
-        x is expressed in the GLOBAL coordinate system
-        loadings: input array of size (Nk, Nr), defining the distribution of LOADING PER UNIT SPAN along the blade, for a total of Nk modes from 0 to Nk-1!
+        x is expressed in the GLOBAL CARTESIAN coordinate system
+        Fblade: input array of size (3, Nk, Nr), defining the distribution of LOADING PER UNIT SPAN along the SINGLE blade, for a total of Nk modes from 0 to Nk-1!
 
 
         multiplier is an overall multiplier for total the pressure mode. For B blades it should be B, for one stator/beam it should be 1.
@@ -96,11 +96,11 @@ class HansonModel():
 
         wavenumber = mB * Omega / c0 # (Nm )
 
-        Nk = Fblade.shape[0] # shape Nk, Nr
-        k = np.arange(0, Nk, 1) # array of modal orders, shape Nk, note that we assume order of Fblade
+        Nk = Fblade.shape[1] # shape 3, Nk, Nr
+        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
-        Fblade = np.concatenate((np.conjugate(Fblade[-1:0:-1]), Fblade), axis=0) # minus loadings are conjugates of positive!
+        Fblade = np.concatenate((np.conjugate(Fblade[:, -1:0:-1, :]), Fblade), axis=1) # minus loadings are conjugates of positive!
         # Fblade and k are now of shape (2Nk-1, Nr) with negative modes first
 
         # --- explicit broadcasting ---
@@ -116,8 +116,8 @@ class HansonModel():
 
         wavenumber_m = wavenumber[None, :, None, None]  # (1, Nm, 1, 1)
 
-        Fphi = np.sin(twist)[None, None, None, :] * Fblade[None, None, :, :] # (1, 1, Nk, Nr) NOTE: this is drag, oriented opposite to direction of travel
-        Fz = np.cos(twist)[None, None, None, :] * Fblade[None, None, :, :] # (1, 1, Nk, Nr)
+        Fphi = Fblade[2, :, :][None, None, :, :] # (1, 1, Nk, Nr) NOTE: this is drag, oriented opposite to direction of travel
+        Fz = Fblade[1, :, :][None, None, :, :] # (1, 1, Nk, Nr)
         
         
         # --- matrix construction ---
