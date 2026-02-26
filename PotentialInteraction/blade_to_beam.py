@@ -143,8 +143,9 @@ class BeamLoadings():
         Uz = -self.Uz # Nr # negative
 
 
-        stagger = np.arctan(Uz / self.Omega / self.seg_radius) # Nr
-        L_per_unit_span = T_per_unit_span / np.cos(stagger)
+        # stagger = np.arctan(Uz / self.Omega / self.seg_radius) # Nr
+        stagger = self.seg_twist
+        L_per_unit_span = T_per_unit_span * np.cos(stagger)
 
         Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
         gamma = L_per_unit_span / self.rho / Ur # Nr
@@ -235,15 +236,18 @@ class BeamLoadings():
         # if does not exist, will throw an error, which is fine
         pk = p[:, index, :]
 
-        # # --- Shift theta from [0, 2pi) to [-pi, pi) ---
-        # thetab_shifted = (thetab + np.pi) % (2*np.pi) - np.pi
+                # --- shift theta from [0, 2π) → [-π, π) ---
+        th_shifted = (thetab + np.pi) % (2*np.pi) - np.pi
 
-        # # --- Sort so theta increases monotonically ---
-        # sort_idx = np.argsort(thetab_shifted)
+        # --- sort theta so it increases from -π to π ---
+        sort_idx = np.argsort(th_shifted)
 
-        # thetab = thetab_shifted[sort_idx]
-        # pk = pk[sort_idx, :]
-        fig, ax = plot_directivity_contour(magnitudes=p_to_SPL(pk), theta=np.rad2deg(thetab), phi=radius, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title='Surface Pressure Directivity (dB)')
+        th_sorted = th_shifted[sort_idx]
+        pk = pk.reshape(len(thetab), len(radius))
+        pk = pk[sort_idx,]
+        pk = pk.flatten()
+
+        fig, ax = plot_directivity_contour(magnitudes=p_to_SPL(pk), theta=np.rad2deg(th_sorted), phi=radius, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title='Surface Pressure Directivity (dB)')
 
         return fig, ax
 

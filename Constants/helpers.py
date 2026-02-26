@@ -409,8 +409,8 @@ def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', 
     Theta, Phi = np.meshgrid(theta, phi, indexing='ij')  # shape (Ntheta, Nphi)
     magnitudes_db = p_to_SPL(magnitudes).reshape(Theta.shape)  # ensure shape matches Theta and Phi
     # 2D filled contour plot
-    # cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap)
-    cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
+    cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap)
+    # cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
     cbar = fig.colorbar(cf, ax=ax)
     cbar.set_label("Directivity [dB]")
 

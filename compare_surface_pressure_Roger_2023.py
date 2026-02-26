@@ -20,7 +20,7 @@ OMEGA=8000/60*2*np.pi
 
 # _________ NUMERICAL INPUTS __________
 NSEG = 20
-KMAX = 64
+KMAX = 32
 NTHETA = 18 # discretization in the polar angle
 NPHI = 36 # discretization in the azimuth
 NDIPOLES = 36 # discterization of each source mode
@@ -45,7 +45,9 @@ nb = 1
 # full cylinder
 axis_cg = np.array([1.0, 0.0, 0.0])
 origin_cg = np.array([0.0, 0.0, -Lcylinder_m])
-cg = SF_FullCylinderGreen(radius=Dcylinder_m/2, axis=axis_cg, origin=origin_cg, dim=3, 
+radial_cg = np.array([0.0, 1.0, 0.0]) # for consistency with potentialinteraction convention
+
+cg = SF_FullCylinderGreen(radius=Dcylinder_m/2, axis=axis_cg, origin=origin_cg, radial=radial_cg, dim=3, 
                         numerics={
                     'nmax': 32,
                     'Nq_prop': 128,
@@ -115,11 +117,11 @@ sma = SourceModeArray(BLH=blade_l.getBladeLoadingMagnitude(), # loading per unit
 # plt.show()
 # plt.close()
 
-beam_l.plotSurfacePressureContour(m=1)
+beam_l.plotSurfacePressureContour(m=5)
 plt.show()
 plt.close()
 
-sma.plotSurfacePressureFullCylinder(m=1, 
+sma.plotSurfacePressureFullCylinder(m=5, 
                                     extend_z=(0.016, 0.1)
                                     )
 plt.show()

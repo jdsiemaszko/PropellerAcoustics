@@ -74,6 +74,7 @@ p_r = np.array(datafile['p_real'])
 p_data = p_r + 1j * p_i
 
 shift = np.pi
+# shift = 0
 
 x_cartesian = R * np.array([
     np.sin(theta) * np.cos(phi+shift),

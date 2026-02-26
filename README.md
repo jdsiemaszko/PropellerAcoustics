@@ -20,6 +20,7 @@ For usage, see scripts "run_CylinderGreen.py", "run_SourceMode.py", and "run_Dip
 
 TODO's:
 1) Create full example script
-2) Clean up PotentialInteraction
 3) Validate PotentialInteraction
+3.1) Check the instances of F per blade vs F total
+3.2) Check force profile in time -> Force harmonic magnitude -> far-field pressure
 4) Interface BEM with TailoredGreen if relevant
