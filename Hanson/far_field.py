@@ -9,7 +9,7 @@ from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot_3D_directi
 class HansonModel():
 
     def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray,
-                    axis:np.ndarray, origin:np.ndarray, radial:np.ndarray=None,
+                    axis:np.ndarray=np.array([0, 0, 1]), origin:np.ndarray=np.array([0, 0, 0]), radial:np.ndarray=None,
                   B:int=2, Omega_rads:float=1.0, rho_kgm3:float=1.0, c_mps:float = 340., nb:int = 1):
 
         """
@@ -22,7 +22,7 @@ class HansonModel():
         self.Omega=Omega_rads
         self.rho = rho_kgm3
         self.c = c_mps # speed of sound
-        if nb!=1:
+        if nb>=1:
             raise ValueError("WARNING: case nb>1 not implemented yet!")
         self.nbeam = nb
 
@@ -321,7 +321,7 @@ class HansonModel():
         ax.minorticks_on()
         ax.grid(which='minor', alpha=0.5)
         ax.grid(which='major')
-        ax.legend()
+        # ax.legend()
 
         ax.set_xscale('log')
         ax.set_xlabel('$f^+$')

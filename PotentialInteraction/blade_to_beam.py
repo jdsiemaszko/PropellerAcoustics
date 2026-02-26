@@ -4,7 +4,7 @@ import numpy as np
 import numpy as np
 from scipy.special import jv
 from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL, periodic_sum_interpolated
-
+import matplotlib.pyplot as plt
 class BeamLoadings():
 
     def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray,
@@ -130,7 +130,7 @@ class BeamLoadings():
 
         return Fbeam
 
-    def _getBeamVortexPressure(self, time, Npoints=360):
+    def _getBeamVortexPressure(self, time, Npoints=360, overwrite_positions=None):
         """
         time: array, shape (Nt, Nr)
         """
@@ -140,7 +140,7 @@ class BeamLoadings():
 
         T_per_unit_span = self.Tprime # Nr
         
-        Uz = self.Uz # Nr
+        Uz = -self.Uz # Nr # negative
 
 
         stagger = np.arctan(Uz / self.Omega / self.seg_radius) # Nr
@@ -148,6 +148,7 @@ class BeamLoadings():
 
         Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
         gamma = L_per_unit_span / self.rho / Ur # Nr
+
 
         # --- explicitly expand radial quantities
         Uz_e     = Uz[None, None, :]        # (1, 1, Nr)
@@ -164,7 +165,11 @@ class BeamLoadings():
         thetab = np.linspace(0, 2 * np.pi, Npoints, endpoint=False) # angles on the cylinder surface, measured from the prop. plane, size (Npoints)
         deltathetab = 2 * np.pi / Npoints
 
-        Z = self.Dcylinder/2 * np.exp(1j * thetab) # positions along the cylinder surface, complex, size, (Npoints)
+
+        if overwrite_positions is not None:
+            Z = overwrite_positions[0, :] + 1j *overwrite_positions[1, :] # pass external position coordinates, mostly for debugging
+        else:
+            Z = self.Dcylinder/2 * np.exp(1j * thetab) # positions along the cylinder surface, complex, size, (Npoints)
 
         Z_circ_conjugate = self.Dcylinder**2 / 4 / Z
 
@@ -182,7 +187,11 @@ class BeamLoadings():
             1j / Zvbar_e + 1j / (Zv_e - Z_e) - 1j / (Zvbar_e - Z_circ_conjugate_e)
         ) # (Npoints, Nt, Nr)
 
-        return pressure, thetab, deltathetab
+        if overwrite_positions is not None:
+            # pressure[np.abs(Z) < self.Dcylinder/2, :, :] = 0.0 
+            return pressure, overwrite_positions
+        else:
+            return pressure, thetab, deltathetab
     
     def getBeamPressureHarmonics(self, D__Dref_max=10.0, points_per_period = 20):
 

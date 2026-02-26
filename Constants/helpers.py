@@ -66,6 +66,9 @@ def getSphericalCoordinates(x, axis: np.ndarray, origin: np.ndarray, radial: np.
     phi   - azimuth angles (N,)    [-π, π]
     """
 
+    if len(x.shape) ==1 :
+        x=x.reshape(3, 1)
+
     # # Normalize axis and radial vectors
     axis = axis / np.linalg.norm(axis)
     radial = radial / np.linalg.norm(radial)
@@ -76,7 +79,7 @@ def getSphericalCoordinates(x, axis: np.ndarray, origin: np.ndarray, radial: np.
 
 
     # Shift points by origin
-    x_shifted = x - origin[:, np.newaxis]  # (3, N)
+    x_shifted = x - origin[:, None]  # (3, N)
 
     # Total radial distance
     R = np.linalg.norm(x_shifted, axis=0)
@@ -88,7 +91,7 @@ def getSphericalCoordinates(x, axis: np.ndarray, origin: np.ndarray, radial: np.
     theta = np.arccos(np.clip(z / R, -1.0, 1.0))
 
     # Radial component in transverse plane
-    r_vec = x_shifted - axis[:, np.newaxis] * z[np.newaxis, :]
+    r_vec = x_shifted - axis[:, None] * z[None, :]
 
     # Azimuth angle φ
     cos_phi = np.dot(radial, r_vec)
@@ -377,9 +380,6 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
         extra_script(fig, ax)
         ax.grid()
-
-        plt.show()
-        plt.close(fig)
 
 
     return fig, ax
