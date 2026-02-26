@@ -8,6 +8,7 @@ from PotentialInteraction.beam_to_blade import BladeLoadings
 from PotentialInteraction.blade_to_beam import BeamLoadings
 from PotentialInteraction.placeholder import *
 from Hanson.far_field import HansonModel
+from Hanson.near_field import NearFieldHansonModel
 
 import numpy as np
 
@@ -16,11 +17,11 @@ import numpy as np
 # ------------------------------------------------------------------
 
 NSEG = 20
-radius_m = np.linspace(0.016, 0.1, NSEG)
+radius_m = np.linspace(0.016, 0.1, NSEG+1)
 radius_c = (radius_m[1:] + radius_m[:-1]) / 2
-twist_rad = np.ones(NSEG) * np.deg2rad(10)
-chord_m = np.ones(NSEG) * 0.025
-Uz0_mps = -np.interp(radius_c / 0.1, R_RT_UDW, UDW_EXACT) # interpolated
+twist_rad = np.ones(NSEG+1) * np.deg2rad(10)
+chord_m = np.ones(NSEG+1) * 0.025
+Uz0_mps = -np.interp(radius_c / 0.1, R_RT_UDW, UDW_EXACT) # interpolated from data
 Tprime_Npm = np.interp(radius_c / 0.1, R_RT_EXACT, DT_EXACT)
 Qprime_Npm = np.interp(radius_c / 0.1, R_RT_EXACT, DQ_EXACT)
 
@@ -30,8 +31,11 @@ Lcylinder_m = 0.02
 Omega_rads = 8000 / 60 * 2 * np.pi
 rho_kgm3 = 1.2
 c_mps = 340
-kmax = 20
+kmax = 40
 nb = 1
+
+NPHI = 36
+NTHETA = 18
 
 axis = np.array([0.0, 0.0, 1.0])
 origin = np.array([0.0, 0.0, 0.0])
@@ -87,10 +91,29 @@ han = HansonModel(
     nb=nb
 )
 
+# han_nf = NearFieldHansonModel(
+#     axis=axis,
+#     origin=origin,
+#     twist_rad=twist_rad,
+#     chord_m=chord_m,
+#     radius_m=radius_m,
+#     B=B,
+#     Omega_rads=Omega_rads,
+#     rho_kgm3=rho_kgm3,
+#     c_mps=c_mps,
+#     nb=nb
+# )
 
-# han.plot3DdirectivityRotor(m=5, loadings=blade_l.getBladeLoadingMagnitude(), R=1.62, Nphi=36*2, Ntheta=18*2)
-# han.plot3DdirectivityStator(m=5, loadings=beam_l.getBeamLoadingMagnitude(), R=1.62, Nphi=36*2, Ntheta=18*2)
-han.plot3DdirectivityTotal(m=5, loadings=blade_l.getBladeLoadingMagnitude(), loadings_2=beam_l.getBeamLoadingMagnitude(), R=1.62, Nphi=36*2, Ntheta=18*2)
+BLH = blade_l.getBladeLoadingMagnitude() # shape Nk, Nr
+BeamLH = beam_l.getBeamLoadingHarmonics() # shape 3, Nk, Nr
+
+
+han.plot3DdirectivityRotor(m=5, loadings=BLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=65, valmin=40)
+han.plot3DdirectivityStator(m=5, loadings=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=65, valmin=40)
+han.plot3DdirectivityTotal(m=1, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=65, valmin=40)
+han.plot3DdirectivityTotal(m=4, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=65, valmin=40)
+han.plot3DdirectivityTotal(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=65, valmin=40)
+
 
 
 

@@ -4,6 +4,7 @@ from scipy.special import hankel2, jve, jv
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+from scipy.interpolate import interp1d
 
 def p_to_SPL(p, pref=PREF):
 
@@ -142,6 +143,7 @@ def theodorsen(sigma):
     return res
     # return 1.0
 
+#TODO: fix
 def periodic_sum(array, period, time):
     """
     Perform a discrete periodic sum (modal sum) of a signal onto one period.
@@ -169,7 +171,7 @@ def periodic_sum(array, period, time):
 
     # --- assume uniform time spacing
     dt = np.mean(np.diff(time))
-    n_per = int(np.ceil(period / dt))
+    n_per = int(np.round(period / dt))
     Np = n_per
 
     # --- output time grid
@@ -192,6 +194,71 @@ def periodic_sum(array, period, time):
         psum[..., k, :] += array[..., i, :]
 
     return t_mod, psum
+
+
+def periodic_sum_interpolated(array, period, time, t_new=None, kind='cubic'):
+    """
+    Compute the periodic sum of a signal onto one period using interpolation.
+    
+    f_sum(t) = sum_n f(t + n*period) over all integer n where data exists.
+    
+    Parameters
+    ----------
+    array : array-like, shape (..., Nt, Nr)
+        Signal sampled at 'time'.
+        Last-but-one axis corresponds to time.
+    period : float
+        Period of the signal.
+    time : 1D array, shape (Nt,)
+        Original time samples (may span multiple periods).
+    t_new : 1D array, optional
+        Target time array in [-period/2, period/2). If None, uniform grid is built.
+    kind : str
+        Interpolation kind ('linear', 'cubic', etc.)
+    
+    Returns
+    -------
+    t_new : 1D array
+        Target times in [-period/2, period/2).
+    psum : array, shape (..., len(t_new), Nr)
+        Periodic sum interpolated onto t_new.
+    """
+
+    array = np.asarray(array)
+    time = np.asarray(time)
+
+    # --- set up output time grid
+    dt = np.mean(np.diff(time))
+    if t_new is None:
+        Np = int(np.round(period/dt))
+        t_new = np.linspace(-period/2, period/2, Np, endpoint=False)
+    else:
+        t_new = np.asarray(t_new)
+
+    # --- create single interpolator over original time
+    interp_func = interp1d(
+        time,
+        array,
+        kind=kind,
+        axis=-2,
+        bounds_error=False,
+        fill_value=0.0,
+        assume_sorted=True
+    )
+
+    # --- determine which integer shifts are needed
+    t_min, t_max = time[0], time[-1]
+    n_min = int(np.floor((t_min - t_new[-1]) / period))
+    n_max = int(np.ceil((t_max - t_new[0]) / period))
+    n_range = np.arange(n_min-1, n_max +1 + 1)
+
+    # --- sum over all periodic shifts
+    psum = np.zeros(array.shape[:-2] + (len(t_new), array.shape[-1]), dtype=array.dtype)
+    for n in n_range:
+        psum += interp_func(t_new + n*period)
+
+    return t_new, psum
+
 def compute_distance_matrix(x, y):
     x = np.atleast_2d(x)
     y = np.atleast_2d(y)
@@ -342,8 +409,8 @@ def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', 
     Theta, Phi = np.meshgrid(theta, phi, indexing='ij')  # shape (Ntheta, Nphi)
     magnitudes_db = p_to_SPL(magnitudes).reshape(Theta.shape)  # ensure shape matches Theta and Phi
     # 2D filled contour plot
-    cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap)
-    # cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
+    # cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap)
+    cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
     cbar = fig.colorbar(cf, ax=ax)
     cbar.set_label("Directivity [dB]")
 

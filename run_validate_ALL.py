@@ -9,11 +9,17 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import h5py
 
+def print_hdf5_structure(name, obj):
+    indent = "  " * (name.count('/') - 1)
+    if isinstance(obj, h5py.Group):
+        print(f"{indent}[Group] {name}")
+    elif isinstance(obj, h5py.Dataset):
+        print(f"{indent}[Dataset] {name}  shape={obj.shape}  dtype={obj.dtype}")
 
 # _________ INPUTS __________
 
 # arbitrary 
-ms = np.array([1, 5, 10]) # modes to plot
+ms = np.array([1, 2, 4, 8]) # modes to plot
 
 # ASSUMPTIONS
 NBLADES = 2
@@ -25,6 +31,7 @@ SOS = 340 # ms^-1
 
 # VELLA ET AL DATA
 DATAPATH = './Validation/harmonics_ISAE2_D20_L20-1.h5'
+# DATAPATH = './Validation/harmonics_ISAE2_D20_L20_thickness_steady_unsteady.h5'
 
 datafile = h5py.File(DATAPATH, 'r')
 
@@ -34,7 +41,7 @@ phi = np.array(datafile['phi'][0]) # pi/2
 theta = np.array(datafile['theta'][:, 0]) # 0 -> pi
 r = np.array(datafile['r'][:, 0]) # discretization in the radial dir
 ddr = r[5] - r[4]
-r_bounds = np.concatenate(([r[0]-ddr], r))
+r_bounds = np.concatenate(([r[0]-ddr], r))+ddr/2
 dr = np.diff(r_bounds)
 BPF = np.array(datafile['BPF'][:, 0]) # in Hz?
 
@@ -97,13 +104,11 @@ gf = TailoredGreen(dim=3) # free-field version!
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
 HANSON_VELLA = HansonModel(twist_rad = twist_array, chord_m = chord_array,
-                    loadings_Npm = loading_per_unit_span_magnitude,
                     axis=axis_prop, origin=origin_prop,
                     radius_m=radius_array, B=NBLADES, nb=NBEAMS,
                      Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord_array,
-                    loadings_Npm = loading_per_unit_span_magnitude,
                     axis=axis_prop, origin=origin_prop,
                                 radius_m=radius_array, B=NBLADES, nb=NBEAMS,
                             Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
@@ -144,19 +149,20 @@ plt.close()
 
 fig = plt.figure(figsize=(7, 7))
 ax = fig.add_subplot(111, projection="3d")
-HANSON_VELLA.plot3Ddirectivity(fig, ax, m=5, R=R,
+HANSON_VELLA.plot3Ddirectivity(fig=fig, ax=ax, m=5, R=R,
                         valmax=65, valmin=10,
                         Nphi=NPHI, Ntheta=NTHETA,
+                        loadings=loading_per_unit_span_magnitude, mode='rotor'
                         )
 plt.show()
 plt.close(fig)
 
-p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms)
-p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms)
+p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span_magnitude)
+p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span_magnitude)
 p_sourceMode = sourceArray.getPressure(x_cartesian, m=ms)
 
 fig, ax = plt.subplots(figsize=(4, 3))
-for ind, (color, mode) in enumerate(zip(['r', 'b', 'g'], ms)):
+for ind, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
 
     index_data = np.where(m == mode)[0][0]
     ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, ind] , color=color, marker='x', label=f'm={mode}')
@@ -178,13 +184,15 @@ fig, ax = plt.subplots(figsize=(4, 3))
 # plot_directivity(fig, ax, x, p_to_SPL(p_model)[:, m_to_plot-1])
 # plot_directivity(fig, ax2, x, p_to_SPL(p)[:, m_to_plot-1])
 
-for index, (color, mode) in enumerate(zip(['r', 'b', 'g'], ms)):
+for index, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
     index_data = np.where(m == mode)[0][0]
 
-    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
-    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
-    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_sourceMode))[:, index], color=color, marker='^', linestyle='dashed')
-    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(-np.conjugate(p_data)))[:, index_data], color=color, marker='o', linestyle='dashdot')
+    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
+    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
+    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_sourceMode))[:, index], color=color, marker='^', linestyle='dashed')
+    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(np.conjugate(p_data)))[:, index_data], color=color, marker='o', linestyle='dashdot')
+
+    ax.plot(np.rad2deg(theta), (np.rad2deg(np.angle(p_sourceMode))[:, index] - np.rad2deg(np.angle(-np.conjugate(p_data)))[:, index_data])%360, color=color, marker='o', linestyle='dashdot')
 
 
 ax.legend()

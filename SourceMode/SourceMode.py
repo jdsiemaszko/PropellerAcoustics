@@ -353,7 +353,7 @@ class SourceModeArray():
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
-    def _getSurfacePressureEstHalfCylinder(self, x:np.ndarray, m:np.ndarray):
+    def _getSurfacePressureEstFullCylinder(self, x:np.ndarray, m:np.ndarray):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
 
@@ -426,7 +426,7 @@ class SourceModeArray():
         )
         return fig, ax
     
-    def plotSurfacePressureHalfCylinder(self, m:float, valmin=None, valmax=None, fig=None, ax=None, extend_z=None):
+    def plotSurfacePressureFullCylinder(self, m:float, valmin=None, valmax=None, fig=None, ax=None, extend_z=None):
         if not hasattr(self.green, 'getBoundaryEvaluationPoints'):
             raise NotImplementedError('The green function must have the method getBoundaryEvaluationPoints to plot surface pressure, current instance does not match this requirement')
 
@@ -458,10 +458,10 @@ class SourceModeArray():
 
             # Keep only selected z centers
             z_centers = z_centers[indices_z]
-        pmB = self._getSurfacePressureEstHalfCylinder(eval_points, m) # shape (Npoints, Nm)
+        pmB = self._getSurfacePressureEstFullCylinder(eval_points, m) # shape (Npoints, Nm)
 
         SPL_mb = p_to_SPL(pmB)
-        self.green._plotSurfaceSolution(SPL_mb, z_centers, th_centers, fig=fig, ax=ax, levels=20, cmap='viridis', title=None, extent_z=extend_z)
+        self.green._plotSurfaceSolution(SPL_mb, z_centers, th_centers, fig=fig, ax=ax, levels=20, cmap='viridis', title=None, extent_z=extend_z, )
         return fig, ax
 
         

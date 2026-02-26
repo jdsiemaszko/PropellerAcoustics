@@ -204,7 +204,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
         return fig, ax
 
-    def _plotSurfaceSolution(self, sol, z, th, fig=None, ax=None, levels=20, cmap='viridis', title=None, extent_z=None):
+    def _plotSurfaceSolution(self, sol, z, th, fig=None, ax=None, levels=20, cmap='viridis', title=None, extent_z=None, ylabel=None, xlabel=None):
 
 
         if fig is None or ax is None:
@@ -230,8 +230,13 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
         cbar = fig.colorbar(cf, ax=ax)
         cbar.set_label("Directivity [dB]")
 
-        ax.set_ylabel("Theta [deg]")
-        ax.set_xlabel("Z [-]")
+        if xlabel is None:
+            xlabel = "$z$ [m]"
+        if ylabel is None:
+            ylabel = r"$\theta$ [deg]"
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+
         if title is not None:
             ax.set_title(title)
 

@@ -43,7 +43,7 @@ class BladeLoadings():
         self.Nr = len(twist_rad) - 1
         self.Nk = kmax+1
         self.kmax = kmax
-        self.k = np.arange(0, kmax+1, 1) # array of modal orders
+        self.k = np.arange(0, kmax+1, 1) * self.nbeam  # array of modal orders, TODO: check the nbeam scaling!
 
         self.Uz = Uz0_mps # Nr
         self.Tprime = Tprime_Npm # Nr
@@ -154,12 +154,22 @@ class BladeLoadings():
 
 
         # steady loads. Note: phase shift
-
-
         Fblade[1, 0, :] = self.Tprime # axial, positive upwards
         Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
 
         Fblade = np.conjugate(Fblade) # opposite convention for FFT, need to be conjugated for our convention
+
+        # fill the array with zeros where k!= multiple of nb
+        k_global = np.arange(0, max(self.k), 1)
+        Fblade_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
+        # find where self.k==k_global
+        # fill these entries with value of Fblade
+        # leave the rest at zero
+        # find where self.k == k_global and fill
+        for i, k_val in enumerate(self.k):
+            idx = np.where(k_global == k_val)[0] # should be EXACTLY one entry!
+            if idx.size > 0:
+                Fblade_global[:, idx[0], :] = Fblade[:, i, :]
 
         return Fblade
     

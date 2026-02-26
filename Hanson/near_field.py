@@ -293,6 +293,8 @@ class NearFieldHansonModel(HansonModel):
 
         returns: p_m of size (Nx, Nm) - array of pressure modes m (NOTE: NOT m*B !!!!!!!!!) at observation points x, x is returned for convenience
 
+        Fbeam are the three-dimensional loadings on the beam, in direction: axial, z, tangential. Array of shape 3, Nk, Nr
+
         """
         if not np.all(m != 0):
             raise ValueError("m=0 is not supported")
@@ -319,26 +321,26 @@ class NearFieldHansonModel(HansonModel):
         radius, twist, chord = self.radius_c, self.twist_c, self.chord_c # all of size # Nr
         dr = self.dr # Nr, size of segment
 
-        mB = m * B # Nm
+        # mB = m * B # Nm
 
-        wavenumber = mB * Omega / c0 # Nm, issue if mb = 0?
+        wavenumber = m * Omega / c0 # Nm, issue if mb = 0?
 
-        Nk = Fbeam.shape[0] # shape Nk, Nr
+        Nk = Fbeam.shape[1] # shape 3, Nk, Nr
         k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
 
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
-        Fbeam = np.concatenate((np.conjugate(Fbeam[-1:0:-1]), Fbeam), axis=0) 
+        Fbeam = np.concatenate((np.conjugate(Fbeam[:, -1:0:-1, :]), Fbeam), axis=1) 
 
         m_int = np.asarray(m, dtype=np.int64)
 
         lookup = {val: i for i, val in enumerate(k)}
 
         Nm = len(m_int)
-        Nr = Fbeam.shape[1]
+        Nr = Fbeam.shape[2]
 
         # Preallocate with zeros (this automatically handles missing modes)
-        Fm = np.zeros((Nm, Nr), dtype=Fbeam.dtype)
+        Fm = np.zeros((3, Nm, Nr), dtype=Fbeam.dtype)
 
         # Find which requested modes exist
         valid_mask = np.array([mb in lookup for mb in m_int])
@@ -346,11 +348,10 @@ class NearFieldHansonModel(HansonModel):
         if np.any(valid_mask):
             valid_modes = m_int[valid_mask]
             idx = np.array([lookup[mb] for mb in valid_modes])
-            Fm[valid_mask, :] = Fbeam[idx, :]
+            Fm[:, valid_mask, :] = Fbeam[:, idx, :]
 
-        # Downstream projections
-        Fphi = Fm * np.sin(twist)[None, :] #Nm, Nr
-        Fz   = Fm * np.cos(twist)[None, :] #Nm, Nr
+        Fphi = Fm[2, :, :] # Nk, Nr each
+        Fz = Fm[1, :, :]
 
         # --- matrix construction ---
         matrix = (

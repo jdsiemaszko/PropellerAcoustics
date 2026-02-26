@@ -19,8 +19,8 @@ SOS = 340 # ms^-1
 OMEGA=8000/60*2*np.pi
 
 # _________ NUMERICAL INPUTS __________
-NSEG = 5
-KMAX = 32
+NSEG = 20
+KMAX = 64
 NTHETA = 18 # discretization in the polar angle
 NPHI = 36 # discretization in the azimuth
 NDIPOLES = 36 # discterization of each source mode
@@ -47,8 +47,8 @@ axis_cg = np.array([1.0, 0.0, 0.0])
 origin_cg = np.array([0.0, 0.0, -Lcylinder_m])
 cg = SF_FullCylinderGreen(radius=Dcylinder_m/2, axis=axis_cg, origin=origin_cg, dim=3, 
                         numerics={
-                    'nmax': 16,
-                    'Nq_prop': 64,
+                    'nmax': 32,
+                    'Nq_prop': 128,
                     'eps_radius' : 1e-12, # must be lower than eps_eval!
                     'Nazim' : 18, # discretization of the boundary in the azimuth
                     'Nax': 128, # in the axial direction
@@ -107,19 +107,19 @@ sma = SourceModeArray(BLH=blade_l.getBladeLoadingMagnitude(), # loading per unit
                         )
 
 
-fig = plt.figure(figsize=(7, 7))
-ax = fig.add_subplot(111, projection="3d")
-sma.plotSelf(fig, ax)
-ax.set_aspect('equal')
-# ax.set_axis_off()
+# fig = plt.figure(figsize=(7, 7))
+# ax = fig.add_subplot(111, projection="3d")
+# sma.plotSelf(fig, ax)
+# ax.set_aspect('equal')
+# # ax.set_axis_off()
+# plt.show()
+# plt.close()
+
+beam_l.plotSurfacePressureContour(m=1)
 plt.show()
 plt.close()
 
-beam_l.plotSurfacePressureContour(m=2)
-plt.show()
-plt.close()
-
-sma.plotSurfacePressureHalfCylinder(m=2, 
+sma.plotSurfacePressureFullCylinder(m=1, 
                                     extend_z=(0.016, 0.1)
                                     )
 plt.show()
