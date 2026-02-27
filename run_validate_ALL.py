@@ -47,7 +47,7 @@ BPF = np.array(datafile['BPF'][:, 0]) # in Hz?
 
 BOmega = BPF[0] #HZ !!!!
 
-OMEGA = BOmega /NBLADES * 2 * np.pi
+OMEGA = BOmega / NBLADES * 2 * np.pi
 
 Fk_phi_i = np.array(datafile["Fk_phi_imag"])
 Fk_phi_r = np.array(datafile["Fk_phi_real"])
@@ -57,33 +57,31 @@ Fk_z_r = np.array(datafile["Fk_z_real"])
 
 Nr, Nk = Fk_phi_i.shape # (20, 40)
 
-Fk_z = Fk_z_r + 1j * Fk_z_i
-Fk_phi = Fk_phi_r + 1j * Fk_phi_i
+Fk_z = Fk_z_r - 1j * Fk_z_i # conjugated because of an opposite convention for FT
+Fk_phi = Fk_phi_r - 1j * Fk_phi_i
 Fk_r = np.zeros_like(Fk_z, dtype=np.complex128)
+
 
 loading = np.stack(
     (Fk_r.T, Fk_z.T, Fk_phi.T)
 ) # (3, Nk, Nr)
-loading = np.concatenate((np.zeros((3, 1, Nr)), loading), axis=1)
-loading_per_unit_span = loading/ dr[None, None, :] # force PER UNIT LENGTH
-loading_per_unit_span_magnitude = loading_per_unit_span[1, :, :] / np.cos(np.deg2rad(TWIST)) # convert to blade-aligned loading per unit span
+
+
+loading = np.concatenate((np.zeros((3, 1, Nr)), loading), axis=1) # add the zero steady component
+loading_per_unit_span = loading / dr[None, None, :] # convert to force PER UNIT LENGTH
 
 p_i = np.array(datafile['p_imag'])
 p_r = np.array(datafile['p_real'])
 
-p_data = p_r + 1j * p_i
-
-shift = np.pi
-# shift = 0
+p_data = p_r - 1j * p_i # conjugated, same as the loading
 
 x_cartesian = R * np.array([
-    np.sin(theta) * np.cos(phi+shift),
-    np.sin(theta) * np.sin(phi+shift),
+    np.sin(theta) * np.cos(phi),
+    np.sin(theta) * np.sin(phi),
     np.cos(theta),
 ])
 
 m = np.round(BPF / BOmega)
-
 
 # _________ NUMERICAL INPUTS __________
 NSEG = len(r)
@@ -91,7 +89,6 @@ KMAX = Nk
 NTHETA = 18*2 # discretization in the polar angle
 NPHI = 36*2 # discretization in the azimuth
 NDIPOLES = 256 # discterization of each source mode
-# DATA ASSIMILATION (VELLA ET AL. 2026)
 
 # _________ SETUP ____________
 twist_array = np.deg2rad(TWIST) * np.ones(NSEG+1)
@@ -115,6 +112,10 @@ HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord
                             Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 # SOURCE MODE MODULE
+if not np.allclose(np.deg2rad(TWIST), np.arctan(Fk_phi/Fk_z)):
+    raise ValueError('Force directions incompatible with assumed source-mode orientation')
+
+loading_per_unit_span_magnitude = loading_per_unit_span[1, :, :] / np.cos(np.deg2rad(TWIST)) # extract COMPLEX force magnitude
 sourceArray = SourceModeArray(BLH=loading_per_unit_span_magnitude, # loading per unit span, magnitude only
                         B = NBLADES,
                         Omega=OMEGA, gamma = twist_array,
@@ -188,12 +189,12 @@ fig, ax = plt.subplots(figsize=(4, 3))
 for index, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
     index_data = np.where(m == mode)[0][0]
 
-    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
-    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
-    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_sourceMode))[:, index], color=color, marker='^', linestyle='dashed')
-    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(np.conjugate(p_data)))[:, index_data], color=color, marker='o', linestyle='dashdot')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_sourceMode))[:, index], color=color, marker='^', linestyle='dashed')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_data))[:, index_data], color=color, marker='o', linestyle='dashdot')
 
-    ax.plot(np.rad2deg(theta), (np.rad2deg(np.angle(p_sourceMode))[:, index] - np.rad2deg(np.angle(-np.conjugate(p_data)))[:, index_data])%360, color=color, marker='o', linestyle='dashdot')
+    # ax.plot(np.rad2deg(theta), (np.rad2deg(np.angle(p_sourceMode))[:, index] - np.rad2deg(np.angle(-np.conjugate(p_data)))[:, index_data])%360, color=color, marker='o', linestyle='dashdot')
 
 
 ax.legend()

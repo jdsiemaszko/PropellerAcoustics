@@ -140,7 +140,7 @@ class BeamLoadings():
 
         T_per_unit_span = self.Tprime # Nr
         
-        Uz = -self.Uz # Nr # negative
+        Uz = self.Uz # Nr # negative
 
 
         # stagger = np.arctan(Uz / self.Omega / self.seg_radius) # Nr

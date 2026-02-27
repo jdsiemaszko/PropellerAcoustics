@@ -90,9 +90,6 @@ class SourceMode():
         # 4) append negative harmonics along the first dimension
         loadings = np.concatenate([loadings_negative, loadings_positive], axis=0)  # shape (2*Ns-1, Nm, Ndipoles, 3)
 
-        # TODO: CHECK
-        # loadings = loadings_positive
-
         loadings *= self.dalpha / 2. / np.pi # normalize
         return loadings
     

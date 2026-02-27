@@ -27,7 +27,7 @@ def FreeSpaceGreenFunction(x, y, k, dim=3):
 
 
     if dim == 3:
-        G = np.exp(1j * k[:, None, None] * r[None, :, :]) / (4 * np.pi * r[None, :, :])
+        G = np.exp(-1j * k[:, None, None] * r[None, :, :]) / (4 * np.pi * r[None, :, :])
         return G  # shape (Nk, Nx, Ny)
     else:
         raise NotImplementedError("Only 3D Green's function is implemented as of now.")
@@ -68,7 +68,7 @@ class TailoredGreen():
         if self.dim == 3:
             G0 = self.getFreeSpaceGreen(x, y, k)  # shape (Nk, Nx, Ny)
             #Note: gradient taken w.r.t the SOURCE, i.e. y. w.r.t to x, the sign is opposite
-            gradG0 = (-1j * k[None, :, None, None] + 1 / r[None, None, :, :]) * G0[None, :, :, :] * units[:, None, :, :]  # shape (3, Nk, Nx, Ny)
+            gradG0 = (+1j * k[None, :, None, None] + 1 / r[None, None, :, :]) * G0[None, :, :, :] * units[:, None, :, :]  # shape (3, Nk, Nx, Ny)
             return gradG0  # shape (3, Nk, Nx, Ny)
 
     def getScatteringGreenGradient(self, x, y, k):
@@ -77,6 +77,10 @@ class TailoredGreen():
         return np.zeros((self.dim, k.shape[0], x.shape[1], y.shape[1]))
     
     def getGradientGreenAnalytical(self, x, y, k):
+
+        """
+        gradient with respect to source coordinates y
+        """
 
         if isinstance(k, float):
             k = np.array([k])

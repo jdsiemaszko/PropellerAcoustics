@@ -123,7 +123,7 @@ class HansonModel():
         # --- matrix construction ---
         # matrix shape: (Nx, Nm, Nk, Nr)
         matrix = (
-            + Fphi * (mB_m - k_k) / radius_r / (wavenumber_m) # positive since Fphi is positive backwards!
+            - Fphi * (mB_m - k_k) / radius_r / (wavenumber_m) # positive since Fphi is positive backwards!
             + np.cos(theta_x) * Fz
         )
 
@@ -132,8 +132,7 @@ class HansonModel():
         matrix = matrix.astype(np.complex128)
 
         matrix *= np.exp(
-           -1j * (mB_m - k_k) * (phi_x  + np.pi / 2)
-            +1j * (mB_m) * Omega * R_x / c0       
+           -1j * (mB_m - k_k) * (phi_x  - np.pi / 2)
         )
         
         # reduce by summing along Nk and Nr axes
@@ -144,9 +143,9 @@ class HansonModel():
             axis=-1
         ) # integrate along the r axis, shape (Nx, Nm, Nk)
         pmb = np.sum(pmb, axis=-1) # sum along the k axis, shape (Nx, Nm)
-
+     
         # pre-factor
-        pmb *= 1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) 
+        pmb *= -1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(-1j * wavenumber[None, :] *  R[:, None])
 
         return pmb, x
 
@@ -218,7 +217,7 @@ class HansonModel():
             -Fphi[None, :, :] * np.sin(theta[:, None, None]) * np.sin(phi[:, None, None]) # NOTE: minus sign! see docs to see where it comes from
             + np.cos(theta[:, None, None]) * Fz[None, :, :]
         ) # shape Nx, Nm, Nr
-        matrix *= np.exp(-1j * wavenumber[None, :, None] * radius[None, None, :] * np.sin(theta)[:, None, None] * np.cos(phi)[:, None, None]) # shape Nx, Nm, Nr
+        matrix *= np.exp(1j * wavenumber[None, :, None] * radius[None, None, :] * np.sin(theta)[:, None, None] * np.cos(phi)[:, None, None]) # shape Nx, Nm, Nr
 
         # reduce by summing along Nr axis
         pmb = np.sum (
@@ -229,7 +228,7 @@ class HansonModel():
         ) # integrate along the r axis
     
         # pre-factor
-        pmb *= 1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(1j * wavenumber[None, :] * R[:, None])
+        pmb *= -1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(-1j * wavenumber[None, :] * R[:, None])
 
         return pmb, x
 
