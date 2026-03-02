@@ -425,3 +425,123 @@ def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', 
         ax.set_title(title)
 
     return fig, ax
+
+import pandas as pd
+
+import pandas as pd
+import re
+
+def read_airfoil_table(filename, skip_lines=None):
+    """
+    Reads the AIRFOIL SUMMARY DATA numeric table into a pandas DataFrame.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the file.
+    skip_lines : int, optional
+        If provided, start reading numeric data after this many lines.
+        If None, the table is automatically detected.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing only the numeric table data.
+    """
+
+    with open(filename, "r") as f:
+        lines = f.readlines()
+
+    header = None
+    data_start = None
+
+    # ------------------------------------------------------------
+    # Automatic detection
+    # ------------------------------------------------------------
+    if skip_lines is None:
+
+        # 1️⃣ Find header line
+        for i, line in enumerate(lines):
+            if "STATION" in line and "CHORD" in line:
+                header = line.strip().split()
+                header_line_index = i
+                break
+
+        if header is None:
+            raise RuntimeError("Could not locate table header.")
+
+        ncols = len(header)
+
+        # 2️⃣ Find first numeric row after header
+        for i in range(header_line_index + 1, len(lines)):
+            stripped = lines[i].strip()
+            if not stripped:
+                continue
+
+            parts = stripped.split()
+
+            if len(parts) != ncols:
+                continue
+
+            try:
+                [float(x) for x in parts]
+                data_start = i
+                break
+            except ValueError:
+                continue
+
+        if data_start is None:
+            raise RuntimeError("Could not locate start of numeric table.")
+
+    # ------------------------------------------------------------
+    # Manual skip mode
+    # ------------------------------------------------------------
+    else:
+        data_start = skip_lines
+        header = None
+        ncols = None
+
+    # ------------------------------------------------------------
+    # Read numeric rows
+    # ------------------------------------------------------------
+    data_rows = []
+
+    for line in lines[data_start:]:
+        stripped = line.strip()
+        if not stripped:
+            break
+
+        parts = stripped.split()
+
+        # Stop if row length changes
+        if ncols is not None and len(parts) != ncols:
+            break
+
+        try:
+            row = [float(x) for x in parts]
+            data_rows.append(row)
+        except ValueError:
+            break
+
+    df = pd.DataFrame(data_rows)
+
+    # ------------------------------------------------------------
+    # Assign clean column names
+    # ------------------------------------------------------------
+    if header is not None and len(header) == df.shape[1]:
+
+        # Make duplicate column names unique (e.g. PITCH_1, PITCH_2)
+        counts = {}
+        clean_cols = []
+
+        for col in header:
+            if col not in counts:
+                counts[col] = 0
+                clean_cols.append(col)
+            else:
+                counts[col] += 1
+                clean_cols.append(f"{col}_{counts[col]}")
+
+        df.columns = clean_cols
+
+    return df

@@ -7,8 +7,8 @@ class BladeLoadings():
 
     def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray,
                  Uz0_mps:np.ndarray,
-                 Tprime_Npm:np.ndarray,
-                 Qprime_Npm:np.ndarray,
+                 Tprime_Npm:np.ndarray=None,
+                 Qprime_Npm:np.ndarray=None,
                   B=2, Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=1.0, rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1):
 
         """
@@ -46,8 +46,14 @@ class BladeLoadings():
         self.k = np.arange(0, kmax+1, 1) * self.nbeam  # array of modal orders, TODO: check the nbeam scaling!
 
         self.Uz = Uz0_mps # Nr
-        self.Tprime = Tprime_Npm # Nr
-        self.Qprime = Qprime_Npm # Nr
+        if Tprime_Npm is None:
+            self.Tprime = 0.0
+        else:
+            self.Tprime = Tprime_Npm # Nr
+        if Qprime_Npm is None:
+            self.Qprime = 0.0
+        else:
+            self.Qprime = Qprime_Npm # Nr
 
     def getDistortionHarmonics(self):
         # --- sizes ---

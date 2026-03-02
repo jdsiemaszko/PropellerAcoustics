@@ -837,6 +837,9 @@ class CylinderGreen(TailoredGreen):
                 gradG[1, ik, ix, :] += newterm_dphi
                 gradG[2, ik, ix, :] += newterm_dz
 
+                if np.any(np.isnan(gradG)):
+                    print('WARNING: NaN values detected in the computation')
+
         gradG *= (-1j / (4 * np.pi))
 
         gradG_cart = gradCylindricalToCartesian(

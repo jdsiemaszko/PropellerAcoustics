@@ -58,7 +58,7 @@ Fk_z_r = np.array(datafile["Fk_z_real"])
 Nr, Nk = Fk_phi_i.shape # (20, 40)
 
 Fk_z = Fk_z_r - 1j * Fk_z_i # conjugated because of an opposite convention for FT
-Fk_phi = Fk_phi_r - 1j * Fk_phi_i
+Fk_phi = (Fk_phi_r - 1j * Fk_phi_i)*1.0
 Fk_r = np.zeros_like(Fk_z, dtype=np.complex128)
 
 
@@ -101,8 +101,9 @@ gf = TailoredGreen(dim=3) # free-field version!
 # HANSON MODULE
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
+radial_prop = np.array([1.0, 0.0, 0.0])
 HANSON_VELLA = HansonModel(twist_rad = twist_array, chord_m = chord_array,
-                    axis=axis_prop, origin=origin_prop,
+                    axis=axis_prop, origin=origin_prop, radial=radial_prop,
                     radius_m=radius_array, B=NBLADES, nb=NBEAMS,
                      Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
@@ -112,6 +113,7 @@ HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord
                             Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
 # SOURCE MODE MODULE
+# check if force is oriented in the assumed direction (i.e. Fk_phi = Fk * sin(TWIST), Fz = Fk * cos(TWIST))
 if not np.allclose(np.deg2rad(TWIST), np.arctan(Fk_phi/Fk_z)):
     raise ValueError('Force directions incompatible with assumed source-mode orientation')
 
