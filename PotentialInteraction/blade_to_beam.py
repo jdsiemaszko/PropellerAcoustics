@@ -61,7 +61,13 @@ class BeamLoadings():
         tmax = D__Dref_max * dref / self.Omega / self.seg_radius # N_r ?
         tmaxmax = np.max(tmax) # should be the FIRST ENTRY
 
-        dt = period / (points_per_period * self.kmax) # timestep chosen small enough to resolve the maximum frequency!
+        
+        # T_periodic, F_beam = periodic_sum(Fhat, period, time_1d) # shapes (Np), (3, Np, Nr)
+
+        k_local_max = np.ceil(self.kmax / self.B) # only resolve up to ceil(kmax/B) multiples of B*Omega
+        k_local = np.arange(1, k_local_max+1, 1)
+
+        dt = period / (points_per_period * k_local_max) # timestep chosen small enough to resolve the maximum frequency!
 
         # tmaxmax = 0.0
 
@@ -75,21 +81,36 @@ class BeamLoadings():
         # --- expand time to (Nt, Nr)
         Fhat = self._getBeamVortexLoads(time_1d) # size (3, Nt, Nr)
 
-        # T_periodic, F_beam = periodic_sum(Fhat, period, time_1d) # shapes (Np), (3, Np, Nr)
-        k = self.k # Nk
 
-        T_periodic = np.linspace(-period/2, period/2, points_per_period * np.max(k), endpoint=False) # Np
+        T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
         T_periodic, F_beam = periodic_sum_interpolated(Fhat, period=period, time=time_1d, kind='cubic', t_new=T_periodic)
 
-        Np = T_periodic.shape[0] # should be equal to points_per_period * max(k)!
+        Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
 
         # shape (3, Nk, Nr)
         
         F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(-1j *
-                 k[None, :, None, None] * 2 * np.pi / period * 
+                 k_local[None, :, None, None] * 2 * np.pi / period * 
                  T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp
 
-        return F_beam_k
+
+        # Note: indez k corresponds to frequency k*B*Omega => need to map onto global k array!
+        # this is DIFFERENT from the propeller computation!
+
+        # fill the array with zeros where k!= multiple of nb
+        k_global = self.k
+        F_beam_k_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
+
+        # find where self.k==k_global
+        # fill these entries with value of Fblade
+        # leave the rest at zero
+        # find where self.k == k_global and fill
+        for i, k_val in enumerate(k_local):
+            idx = np.where(k_global == k_val*self.B)[0] # should be EXACTLY one entry!
+            if idx.size > 0:
+                 F_beam_k_global[:, idx[0], :] =  F_beam_k[:, i, :]
+
+        return F_beam_k_global
 
     # def getBeamLoadingMagnitude(self):
     #     Fbeam = self.getBeamLoadingHarmonics()
@@ -109,7 +130,7 @@ class BeamLoadings():
         sin_t = np.sin(thetab)[:, None, None]   # (Npoints, 1, 1)
 
 
-        Fphi = self.Dcylinder / 2 * np.sum(
+        Fphi = -self.Dcylinder / 2 * np.sum(
             pressure *
             cos_t *
             deltathetab,
@@ -117,7 +138,7 @@ class BeamLoadings():
         ) # (Nt, Nr), drag, oriented backwards
 
 
-        Fz = -self.Dcylinder / 2 * np.sum(
+        Fz = self.Dcylinder / 2 * np.sum(
             pressure *
             sin_t * 
             deltathetab,

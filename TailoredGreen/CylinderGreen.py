@@ -700,11 +700,11 @@ class CylinderGreen(TailoredGreen):
             # dG/dz
             gradG[2, ik] += newterm_dz
 
-        gradG *= (-1j / (4 * np.pi))
+        gradG *= (1j / (4 * np.pi))
 
         # transform to global cartesian coordinates, gradG = [dG/dx, dG/dy, dG/dz]
         gradG_cart = gradCylindricalToCartesian(gradG, src_r, src_phi, src_x, self.axis, self.origin, self.radial)
-        return gradG_cart
+        return np.conjugate(gradG_cart) #TODO: sign conventions!
 
     def getScatteringGreenGradient(self, x, y, k):
 
@@ -840,7 +840,7 @@ class CylinderGreen(TailoredGreen):
                 if np.any(np.isnan(gradG)):
                     print('WARNING: NaN values detected in the computation')
 
-        gradG *= (-1j / (4 * np.pi))
+        gradG *= (1j / (4 * np.pi))
 
         gradG_cart = gradCylindricalToCartesian(
             gradG,
@@ -852,7 +852,7 @@ class CylinderGreen(TailoredGreen):
             self.radial,
         )
 
-        return gradG_cart
+        return np.conjugate(gradG_cart) # TODO: sign conventions!
 
 
     # def plotFarFieldGradient(self, k, y, R=None, Nphi=36, Ntheta=18):

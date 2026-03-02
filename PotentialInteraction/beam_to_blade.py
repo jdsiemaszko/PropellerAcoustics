@@ -13,7 +13,7 @@ class BladeLoadings():
 
         """
         arrays: twist, chord, radius of size Nr+1, defined as edges of radial stations
-        Uz, Tprime, Qprime of size Nr, defined at centers of radial stations.
+        Uz, Tprime, Qprime of size Nr, defined at centers of radial stations. - T and Q are PER BLADE
         These are the  mean velocity, thrust and axial force along the blade. T and Q per unit span
 
         """
@@ -91,9 +91,22 @@ class BladeLoadings():
                 -k_k / r_r * Lc
                 + 1j * beta_r
             )
-            # * (-1.0) ** k_k
+            * (-1.0) ** k_k
             # * np.exp(1j * np.pi * k_k) #TODO: figure out this factor: it is included in Vella et al. 2026, but not in Wu et al. 2022
         )                                                 # (Nk, Nr)
+
+        # TODO: behaviour with multiple beams correct?
+        if self.nbeam > 0:
+            wk *= np.sum(
+            np.exp(
+                -1j * self.k[:, None] * 2 * np.pi / self.nbeam * 
+                np.arange(0, self.nbeam, 1)[None, :]
+            )
+            , axis=-1
+            )[:, None]
+        
+        
+         # interference function, should be self.nbeam * delta(self.k-m*self.nbeam)
 
         return wk
     
@@ -160,22 +173,12 @@ class BladeLoadings():
 
 
         # steady loads. Note: phase shift
-        Fblade[1, 0, :] = self.Tprime # axial, positive upwards
+        Fblade[1, 0, :] = self.Tprime # axial, positive upwards, NOTE: Tprime is PER BLADE, so is Qprime
         Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
 
-        Fblade = np.conjugate(Fblade) # opposite convention for FFT, need to be conjugated for our convention
 
-        # fill the array with zeros where k!= multiple of nb
-        k_global = np.arange(0, max(self.k), 1)
-        Fblade_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
-        # find where self.k==k_global
-        # fill these entries with value of Fblade
-        # leave the rest at zero
-        # find where self.k == k_global and fill
-        for i, k_val in enumerate(self.k):
-            idx = np.where(k_global == k_val)[0] # should be EXACTLY one entry!
-            if idx.size > 0:
-                Fblade_global[:, idx[0], :] = Fblade[:, i, :]
+
+        Fblade = np.conjugate(Fblade) # opposite convention for FFT, need to be conjugated for our convention
 
         return Fblade
     

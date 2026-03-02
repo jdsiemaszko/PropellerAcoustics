@@ -220,7 +220,7 @@ class HansonModel():
         matrix *= np.exp(1j * wavenumber[None, :, None] * radius[None, None, :] * np.sin(theta)[:, None, None] * np.cos(phi)[:, None, None]) # shape Nx, Nm, Nr
 
         # reduce by summing along Nr axis
-        pmb = np.sum (
+        pm = np.sum (
             matrix
             * dr[None, None, :] # integration over r, note: we assume that Fbeam is per unit span, in units N/m.
               ,
@@ -228,9 +228,9 @@ class HansonModel():
         ) # integrate along the r axis
     
         # pre-factor
-        pmb *= -1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(-1j * wavenumber[None, :] * R[:, None])
+        pm *= -1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(-1j * wavenumber[None, :] * R[:, None])
 
-        return pmb, x
+        return pm, x
 
     def getPolarMesh(self, R=1.0, Nphi=36, Ntheta=18, eps=np.pi/96):
         # angular coordinates

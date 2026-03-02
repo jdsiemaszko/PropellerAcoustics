@@ -367,7 +367,7 @@ class NearFieldHansonModel(HansonModel):
         matrix *= -1j * wavenumber[None, :, None] / (4*np.pi) / Rprime[:, None, :]
 
         # reduce by summing along Nr axis
-        pmb = np.sum (
+        pm = np.sum (
             matrix
             * dr[None, None, :] # integration over r, note: we assume that Fbeam is per unit span, in units N/m.
               ,
@@ -375,5 +375,5 @@ class NearFieldHansonModel(HansonModel):
         ) # integrate along the r axis, result of shape Nx, Nm
     
         # pre-factor
-        pmb *= multiplier
-        return pmb, x
+        pm *= multiplier
+        return pm, x

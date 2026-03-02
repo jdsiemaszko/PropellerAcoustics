@@ -19,7 +19,7 @@ Dcylinder_m = 0.04
 Lcylinder_m = 0.014 + Dcylinder_m/2
 
 NBEAMS = 1 # does nothing
-RHO = 1.2#kgm^-3
+RHO = 1.225 #kgm^-3
 SOS = 340 # ms^-1
 OMEGA=6420/60*2*np.pi
 
@@ -59,7 +59,9 @@ axis_cg = np.array([1.0, 0.0, 0.0])
 origin_cg = np.array([0.0, 0.0, -Lcylinder_m])
 radial_cg = np.array([0.0, 1.0, 0.0]) # for consistency with potentialinteraction convention
 
-cg = SF_FullCylinderGreen(radius=Dcylinder_m/2, axis=axis_cg, origin=origin_cg, radial=radial_cg, dim=3, 
+cg = HalfCylinderGreen(
+#cg = SF_FullCylinderGreen(
+    radius=Dcylinder_m/2, axis=axis_cg, origin=origin_cg, radial=radial_cg, dim=3, 
                         numerics={
                     'nmax': 32,
                     'Nq_prop': 128,
@@ -112,7 +114,7 @@ ax.set_aspect('equal')
 plt.show()
 plt.close()
 
-sma.plotSurfacePressureFullCylinder(m=5, 
+sma.plotSurfacePressureFullCylinder(m=1, 
                                     extend_z=(0.03, 0.12)
                                     )
 plt.show()
