@@ -1,4 +1,4 @@
-from scipy.special import jv
+from scipy.special import jv, jve
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ class HansonModel():
 
     def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray,
                     axis:np.ndarray=np.array([0, 0, 1]), origin:np.ndarray=np.array([0, 0, 0]), radial:np.ndarray=None,
-                  B:int=2, Omega_rads:float=1.0, rho_kgm3:float=1.0, c_mps:float = 340., nb:int = 1):
+                  B:int=2, Omega_rads:float=1.0, rho_kgm3:float=1.2, c_mps:float = 340., nb:int = 1):
 
         """
         Hanson model for propeller noise propagation
@@ -99,8 +99,8 @@ class HansonModel():
         Nk = Fblade.shape[1] # shape 3, Nk, Nr
         k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
 
-        k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
-        Fblade = np.concatenate((np.conjugate(Fblade[:, -1:0:-1, :]), Fblade), axis=1) # minus loadings are conjugates of positive!
+        # k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
+        # Fblade = np.concatenate((np.conjugate(Fblade[:, -1:0:-1, :]), Fblade), axis=1) # minus loadings are conjugates of positive!
         # Fblade and k are now of shape (2Nk-1, Nr) with negative modes first
 
         # --- explicit broadcasting ---
@@ -122,14 +122,13 @@ class HansonModel():
         
         # --- matrix construction ---
         # matrix shape: (Nx, Nm, Nk, Nr)
+        matrix = np.zeros((x.shape[0], m.shape[0], Nk, radius.shape[0]), dtype=np.complex128)
         matrix = (
             - Fphi * (mB_m - k_k) / radius_r / (wavenumber_m) # positive since Fphi is positive backwards!
             + np.cos(theta_x) * Fz
         )
 
         matrix *= jv(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x))
-
-        matrix = matrix.astype(np.complex128)
 
         matrix *= np.exp(
            -1j * (mB_m - k_k) * (phi_x  - np.pi / 2)
@@ -138,7 +137,7 @@ class HansonModel():
         # reduce by summing along Nk and Nr axes
         pmb = np.sum (
             matrix
-              * dr_r # integrate over r! NOTE: this should be omitted if loading is given in NEWTONS
+              * dr_r # integrate over r! NOTE: the factor dr should be omitted if loading is given in NEWTONS
               ,
             axis=-1
         ) # integrate along the r axis, shape (Nx, Nm, Nk)
@@ -232,7 +231,7 @@ class HansonModel():
 
         return pm, x
 
-    def getPolarMesh(self, R=1.0, Nphi=36, Ntheta=18, eps=np.pi/96):
+    def getPolarMesh(self, R=1.0, Nphi=36, Ntheta=18, eps=0):
         # angular coordinates
         theta = np.linspace(0.0+eps, np.pi-eps, Ntheta, endpoint=True)
         phi   = np.linspace(0.0, 2.0 * np.pi, Nphi, endpoint=True)

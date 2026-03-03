@@ -91,9 +91,9 @@ class BladeLoadings():
                 -k_k / r_r * Lc
                 + 1j * beta_r
             )
-            * (-1.0) ** k_k
-            # * np.exp(1j * np.pi * k_k) #TODO: figure out this factor: it is included in Vella et al. 2026, but not in Wu et al. 2022
-        )                                                 # (Nk, Nr)
+            * (-1.0) ** k_k # difference is centering the loads at 0
+            # * np.exp(1j * np.pi * k_k) 
+        )
 
         # TODO: behaviour with multiple beams correct?
         if self.nbeam > 0:
@@ -173,8 +173,8 @@ class BladeLoadings():
 
 
         # steady loads. Note: phase shift
-        Fblade[1, 0, :] = self.Tprime # axial, positive upwards, NOTE: Tprime is PER BLADE, so is Qprime
-        Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
+        # Fblade[1, 0, :] = self.Tprime # axial, positive upwards, NOTE: Tprime is PER BLADE, so is Qprime
+        # Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
 
 
 

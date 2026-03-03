@@ -130,16 +130,17 @@ Fblade_phi = Fblade * np.cos(alpha)
 
 
 # MY CODE
-dr = r0[1] - r0[0]
-r_outer = np.concatenate((r0-dr/2, [r0[-1]+dr/2]))
+ddr = r0[1] - r0[0]
+r_outer = np.concatenate((r0-ddr/2, [r0[-1]+ddr/2]))
+ddr = np.diff(r_outer)
 
 blade_l = BladeLoadings(
-    twist_rad=np.deg2rad(10)* np.ones(r_outer.shape),
+    twist_rad=np.deg2rad(pitch)* np.ones(r_outer.shape),
     chord_m=c* np.ones(r_outer.shape),
     radius_m=r_outer,
     Uz0_mps=U_flow,
-    Tprime_Npm= dT / dr,
-    Qprime_Npm= dQ / dr,
+    Tprime_Npm= dT / ddr,
+    Qprime_Npm= dQ / ddr,
     B=B,
     Dcylinder_m=D_bras,
     Lcylinder_m=g,
@@ -160,67 +161,102 @@ nr = 15
 period = 2 * np.pi / B / Omega
 
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-ax.plot(k_local, np.real(Fblade_x[:, nr]), color='b',linestyle='dashed', marker='s')
-ax.plot(k_local, np.real(Fblade_phi[:, nr]), color='r',linestyle='dashed', marker='s') # opposite sign ?
-ax.plot(k_local, np.real(F_blade_k[1, 1:, nr]), color='b', label='$F_x$'
-        # , marker='^'
-        )
-ax.plot(k_local, np.real(F_blade_k[2, 1:, nr]), color='r', label='$F_\phi$'
-        # , marker='^'
-        )
+# ax.scatter(k_local, np.imag(Fblade_x[:, nr]), color='b',
+#         #    linestyle='dashed',
+#              marker='s')
+# ax.scatter(k_local, -np.imag(Fblade_phi[:, nr]), color='r',
+#         #    linestyle='dashed',
+#              marker='s') # opposite sign
+# ax.plot(k_local, np.imag(F_blade_k[1, 1:, nr]), color='b', label='$F_x$'
+#         # , marker='^'
+#         )
+# ax.plot(k_local, np.imag(F_blade_k[2, 1:, nr]), color='r', label='$F_\phi$'
+#         # , marker='^'
+#         )
 
-ax.set_xlabel('$k$')
-ax.set_ylabel('$F$ [N/m]')
-ax.set_xlim(0, 20)
-ax.legend()
-ax.grid()
-plt.tight_layout()
-plt.show()
+
+print(np.max(np.abs(F_blade_k[1, 1:, :] - np.conjugate(Fblade_x[:, :]))))
+print(np.max(np.abs(F_blade_k[2, 1:, :] + np.conjugate(Fblade_phi[:, :]))))
+
+
+# ax.set_xlabel('$k$')
+# ax.set_ylabel('$F$ [N/m]')
+# ax.set_xlim(0, 20)
+# ax.legend()
+# ax.grid()
+# plt.tight_layout()
+# plt.show()
+
+# fig, ax = plt.subplots()
+
+# ax.plot(k_local, np.abs(F_blade_k[1, 1:, nr] - np.conjugate(Fblade_x[:, nr])), color='b', label='$F_x$'
+#         # , marker='^'
+#         )
+# ax.plot(k_local, np.abs(F_blade_k[2, 1:, nr]+ np.conjugate(Fblade_phi[:, nr])), color='r', label='$F_\phi$'
+#         # , marker='^'
+#         )
+
+# ax.set_xlabel('$k$')
+# ax.set_ylabel('$\Delta F$ [N/m]')
+# ax.set_xlim(0, 20)
+# ax.legend()
+# ax.grid()
+# plt.tight_layout()
+# plt.show()
+
 
 # Initialize Module
 NSEG = len(r0)
 hm = HansonModel(twist_rad = np.deg2rad(10 * np.ones(NSEG+1)), # blade twist array [rad] of size Nr+1 (segment edges)
-                chord_m = 0.025 * np.ones(NSEG+1), # blade chord array [m] of size Nr+1
+                chord_m = c * np.ones(NSEG+1), # blade chord array [m] of size Nr+1
                 radius_m=r_outer, # blade radius stations [m] of size Nr + 1
                 axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0]), # coordinate system (not needed here)
                 B=2, # number of blades
                 Omega_rads=Omega, # rotation speed [rad/s]
                 rho_kgm3=rho0, # fluid density [kg/m^3]
                 c_mps= c0, # speed of sound [m/s]
-                nb = 0 # number of beams (irrelevant)
+                nb = 1 # number of beams (irrelevant)
                 )
-
+hm.dr = np.ones(NSEG) # overwrite cell size to pass loadings as per-unit-span
 
 # 1) Plot directivity (3D)
-fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(111, projection="3d")
-hm.plot3Ddirectivity(
-    fig=fig,
-    ax=ax1,
-    m=5, # harmonic to plot
-    R=R, # observation radius
-    Nphi=36*2, # plotting params
-    Ntheta=18*2,
-    valmin=10,
-    valmax=65,
-    # title='far-field',
-    mode='rotor', # 'rotor' or 'stator'
-    loadings=F_blade_k # blade loading harmonics
-)
-plt.tight_layout()
-plt.show()
+# fig = plt.figure(figsize=(7, 7))
+# ax1 = fig.add_subplot(111, projection="3d")
+# hm.plot3Ddirectivity(
+#     fig=fig,
+#     ax=ax1,
+#     m=4, # harmonic to plot
+#     R=R, # observation radius
+#     Nphi=36*2, # plotting params
+#     Ntheta=18*2,
+#     valmin=10,
+#     valmax=65,
+#     # title='far-field',
+#     mode='rotor', # 'rotor' or 'stator'
+#     loadings=F_blade_k # blade loading harmonics
+# )
+# plt.tight_layout()
+# plt.show()
 
 # 2) Plot directivity (2D contour)
 # not yet implemented!
 
+data = scipy.io.loadmat('Data/Vella2026/SPL0.mat')
+SPL_REF = data['SPL_REF'][:, 0] 
+
+data = scipy.io.loadmat('Data/Vella2026/BPF.mat')
+BPF_REF = data['BPF'][0] / Omega / B * 2 * np.pi
+
+
 # 3) Plot spectrum at a point
 fig, ax = plt.subplots()
 hm.plotPressureSpectrum(fig=fig, ax=ax, 
-                        x =np.array([0.0, 1.62, 0.0]).T, # position to plot the spectrum at
-                        m = np.arange(1, 10, 1), # modes to compute
-                        loadings=F_blade_k # blade loading harmonics
+                        x = np.array([0.0, 1.62, 0.0]).T, # position to plot the spectrum at
+                        m = np.arange(1, 11, 1), # modes to compute
+                        loadings=F_blade_k * dr # blade loading harmonics
                             )
+ax.plot(BPF_REF, SPL_REF, color='k', linestyle='dashed', marker='^')
 plt.tight_layout()
 plt.show()
