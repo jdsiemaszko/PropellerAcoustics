@@ -87,8 +87,7 @@ Mr = U / c0
 # Observer
 # ----------------------------------------------------------
 R = 1.62
-theta = 0.0
-theta = np.pi/2 - theta
+theta = 0 * np.pi/180
 phi = 90 * np.pi/180
 phi = np.pi - phi
 
@@ -183,8 +182,8 @@ ax.plot(k_local, np.imag(F_blade_k[2, 1:, nr]), color='r', label='$F_\phi$'
         )
 
 
-print(np.max(np.abs(F_blade_k[1, 1:, :] - np.conjugate(Fblade_x[:, :]))))
-print(np.max(np.abs(F_blade_k[2, 1:, :] + np.conjugate(Fblade_phi[:, :]))))
+print(np.max(np.abs(F_blade_k[1, 1:, :] - Fblade_x[:, :])))
+print(np.max(np.abs(F_blade_k[2, 1:, :] + Fblade_phi[:, :])))
 
 
 ax.set_xlabel('$k$')
@@ -259,9 +258,10 @@ BPF_REF = data['BPF'][0] / Omega / B * 2 * np.pi
 # 3) Plot spectrum at a point
 fig, ax = plt.subplots()
 hm.plotPressureSpectrum(fig=fig, ax=ax, 
-                        x = np.array([0.0, 1.62, 0.0]).T, # position to plot the spectrum at
+                        x = np.array([R * np.cos(theta) * np.cos(phi), R * np.cos(theta) * np.sin(phi), R*np.sin(theta)]).T, # position to plot the spectrum at
                         m = np.arange(1, 11, 1), # modes to compute
-                        loadings=F_blade_k * dr # blade loading harmonics
+                        loadings=F_blade_k * dr, # blade loading harmonics
+                        plot_kwargs={'color': 'r', 'marker':'x', 'markersize':10}
                             )
 ax.plot(BPF_REF, SPL_REF, color='k', linestyle='dashed', marker='^')
 plt.tight_layout()

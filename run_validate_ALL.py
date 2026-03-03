@@ -57,8 +57,8 @@ Fk_z_r = np.array(datafile["Fk_z_real"])
 
 Nr, Nk = Fk_phi_i.shape # (20, 40)
 
-Fk_z = Fk_z_r - 1j * Fk_z_i # conjugated because of an opposite convention for FT
-Fk_phi = (Fk_phi_r - 1j * Fk_phi_i)*1.0
+Fk_z = Fk_z_r + 1j * Fk_z_i
+Fk_phi = (Fk_phi_r + 1j * Fk_phi_i)*1.0 # opposite sign convention?
 Fk_r = np.zeros_like(Fk_z, dtype=np.complex128)
 
 
@@ -73,7 +73,7 @@ loading_per_unit_span = loading / dr[None, None, :] # convert to force PER UNIT 
 p_i = np.array(datafile['p_imag'])
 p_r = np.array(datafile['p_real'])
 
-p_data = p_r - 1j * p_i # conjugated, same as the loading
+p_data = p_r + 1j * p_i # conjugated, same as the loading
 
 x_cartesian = R * np.array([
     np.sin(theta) * np.cos(phi),
@@ -169,7 +169,7 @@ fig, ax = plt.subplots(figsize=(4, 3))
 for ind, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
 
     index_data = np.where(m == mode)[0][0]
-    ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, ind] , color=color, marker='x', label=f'm={mode}')
+    ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, ind] , color=color, marker='x', label=f'm={mode}', markersize=10)
     ax.plot(np.rad2deg(theta), p_to_SPL(p_nf)[:, ind] , color=color, marker='s', linestyle='dotted')
     ax.plot(np.rad2deg(theta), p_to_SPL(p_sourceMode)[:, ind], color=color, marker='^', linestyle='dashed')
     # ax.plot(np.rad2deg(theta), p_to_SPL(p_data)[:, index], color=color, marker='o', linestyle='dashdot')

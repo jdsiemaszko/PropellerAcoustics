@@ -542,7 +542,7 @@ class CylinderGreen(TailoredGreen):
 
                 G[ik, ix, :] += newterm
 
-        G *= (-1j / (4 * np.pi))
+        G *= (1j / (4 * np.pi))
         return G
 
     def getScatteringGreenGradientHighMemory(self, x, y, k,):
@@ -704,7 +704,7 @@ class CylinderGreen(TailoredGreen):
 
         # transform to global cartesian coordinates, gradG = [dG/dx, dG/dy, dG/dz]
         gradG_cart = gradCylindricalToCartesian(gradG, src_r, src_phi, src_x, self.axis, self.origin, self.radial)
-        return np.conjugate(gradG_cart) #TODO: sign conventions!
+        return gradG_cart
 
     def getScatteringGreenGradient(self, x, y, k):
 
@@ -852,7 +852,7 @@ class CylinderGreen(TailoredGreen):
             self.radial,
         )
 
-        return np.conjugate(gradG_cart) # TODO: sign conventions!
+        return gradG_cart
 
 
     # def plotFarFieldGradient(self, k, y, R=None, Nphi=36, Ntheta=18):

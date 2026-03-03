@@ -176,10 +176,6 @@ class BladeLoadings():
         Fblade[1, 0, :] = self.Tprime # axial, positive upwards, NOTE: Tprime is PER BLADE, so is Qprime
         Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
 
-
-
-        Fblade = np.conjugate(Fblade) # opposite convention for FFT, need to be conjugated for our convention
-
         return Fblade
     
     def getBladeLoadingMagnitude(self):

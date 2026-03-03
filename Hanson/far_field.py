@@ -131,7 +131,7 @@ class HansonModel():
         matrix *= jv(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x))
 
         matrix *= np.exp(
-           -1j * (mB_m - k_k) * (phi_x  - np.pi / 2)
+           +1j * (mB_m - k_k) * (phi_x  - np.pi / 2)
         )
         
         # reduce by summing along Nk and Nr axes
@@ -144,7 +144,7 @@ class HansonModel():
         pmb = np.sum(pmb, axis=-1) # sum along the k axis, shape (Nx, Nm)
      
         # pre-factor
-        pmb *= -1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(-1j * wavenumber[None, :] *  R[:, None])
+        pmb *= +1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(+1j * wavenumber[None, :] *  R[:, None])
 
         return pmb, x
 
@@ -216,7 +216,7 @@ class HansonModel():
             -Fphi[None, :, :] * np.sin(theta[:, None, None]) * np.sin(phi[:, None, None]) # NOTE: minus sign! see docs to see where it comes from
             + np.cos(theta[:, None, None]) * Fz[None, :, :]
         ) # shape Nx, Nm, Nr
-        matrix *= np.exp(1j * wavenumber[None, :, None] * radius[None, None, :] * np.sin(theta)[:, None, None] * np.cos(phi)[:, None, None]) # shape Nx, Nm, Nr
+        matrix *= np.exp(-1j * wavenumber[None, :, None] * radius[None, None, :] * np.sin(theta)[:, None, None] * np.cos(phi)[:, None, None]) # shape Nx, Nm, Nr
 
         # reduce by summing along Nr axis
         pm = np.sum (
@@ -227,7 +227,7 @@ class HansonModel():
         ) # integrate along the r axis
     
         # pre-factor
-        pm *= -1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(-1j * wavenumber[None, :] * R[:, None])
+        pm *= 1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(1j * wavenumber[None, :] * R[:, None])
 
         return pm, x
 
@@ -283,7 +283,7 @@ class HansonModel():
         fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
             blending=blending,
-            title=f"Far-field directivity of $p_{{mB}}$",
+            title=f"Far-field directivity of $p_{int(m* self.B)}$",
             valmin=valmin,
             valmax=valmax,
             fig=fig,
