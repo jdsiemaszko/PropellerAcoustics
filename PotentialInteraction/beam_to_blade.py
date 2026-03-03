@@ -173,8 +173,8 @@ class BladeLoadings():
 
 
         # steady loads. Note: phase shift
-        # Fblade[1, 0, :] = self.Tprime # axial, positive upwards, NOTE: Tprime is PER BLADE, so is Qprime
-        # Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
+        Fblade[1, 0, :] = self.Tprime # axial, positive upwards, NOTE: Tprime is PER BLADE, so is Qprime
+        Fblade[2, 0, :] = self.Qprime # tangential, positive backwards
 
 
 

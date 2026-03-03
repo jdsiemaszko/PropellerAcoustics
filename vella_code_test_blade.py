@@ -6,8 +6,8 @@ import scipy.io
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from Hanson.far_field import HansonModel
-
 from PotentialInteraction.beam_to_blade import BladeLoadings
+
 # ==========================================================
 # Hanson Far-field formula for a fixed distortion case
 # ==========================================================
@@ -31,6 +31,8 @@ FA = 0
 MCA = 0
 pitch = 10
 alpha = (90 - pitch) * np.pi / 180
+
+TREF = 1.075
 
 # ----------------------------------------------------------
 # Radial discretization
@@ -65,6 +67,8 @@ dQ = np.interp(r_rT, x_load[:-1], Fy_tour_bis)
 # replicate MATLAB edge correction
 dT[-2:] = Fz_tour_bis[-1]
 dQ[-2:] = Fy_tour_bis[-1]
+
+dT *= TREF / np.sum(dT)
 
 # ----------------------------------------------------------
 # Aerodynamic coefficients
@@ -120,7 +124,7 @@ points = np.array([[rr, zz_i] for zz_i in z for rr in r_rT])
 U_flow_interp = interp_func(points)
 U_flow_interp = U_flow_interp.reshape(len(z), len(r_rT))
 
-U_flow = np.abs(U_flow_interp[0, :])
+U_flow = -U_flow_interp[0, :]
 
 
 data = scipy.io.loadmat('Data/Vella2026/Fblade.mat')
@@ -139,8 +143,10 @@ blade_l = BladeLoadings(
     chord_m=c* np.ones(r_outer.shape),
     radius_m=r_outer,
     Uz0_mps=U_flow,
-    Tprime_Npm= dT / ddr,
-    Qprime_Npm= dQ / ddr,
+    Tprime_Npm= np.zeros(r_outer.shape[0] - 1),
+    # dT / dr,
+    Qprime_Npm= np.zeros(r_outer.shape[0] - 1),
+    #   dQ / dr,
     B=B,
     Dcylinder_m=D_bras,
     Lcylinder_m=g,
@@ -161,33 +167,33 @@ nr = 15
 period = 2 * np.pi / B / Omega
 
 
-# fig, ax = plt.subplots()
+fig, ax = plt.subplots()
 
-# ax.scatter(k_local, np.imag(Fblade_x[:, nr]), color='b',
-#         #    linestyle='dashed',
-#              marker='s')
-# ax.scatter(k_local, -np.imag(Fblade_phi[:, nr]), color='r',
-#         #    linestyle='dashed',
-#              marker='s') # opposite sign
-# ax.plot(k_local, np.imag(F_blade_k[1, 1:, nr]), color='b', label='$F_x$'
-#         # , marker='^'
-#         )
-# ax.plot(k_local, np.imag(F_blade_k[2, 1:, nr]), color='r', label='$F_\phi$'
-#         # , marker='^'
-#         )
+ax.scatter(k_local, np.imag(Fblade_x[:, nr]), color='b',
+        #    linestyle='dashed',
+             marker='s')
+ax.scatter(k_local, -np.imag(Fblade_phi[:, nr]), color='r',
+        #    linestyle='dashed',
+             marker='s') # opposite sign
+ax.plot(k_local, np.imag(F_blade_k[1, 1:, nr]), color='b', label='$F_x$'
+        # , marker='^'
+        )
+ax.plot(k_local, np.imag(F_blade_k[2, 1:, nr]), color='r', label='$F_\phi$'
+        # , marker='^'
+        )
 
 
 print(np.max(np.abs(F_blade_k[1, 1:, :] - np.conjugate(Fblade_x[:, :]))))
 print(np.max(np.abs(F_blade_k[2, 1:, :] + np.conjugate(Fblade_phi[:, :]))))
 
 
-# ax.set_xlabel('$k$')
-# ax.set_ylabel('$F$ [N/m]')
-# ax.set_xlim(0, 20)
-# ax.legend()
-# ax.grid()
-# plt.tight_layout()
-# plt.show()
+ax.set_xlabel('$k$')
+ax.set_ylabel('$F$ [N/m]')
+ax.set_xlim(0, 20)
+ax.legend()
+ax.grid()
+plt.tight_layout()
+plt.show()
 
 # fig, ax = plt.subplots()
 
