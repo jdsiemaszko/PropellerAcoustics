@@ -57,7 +57,7 @@ nb = NBEAMS
 # full cylinder
 axis_cg = np.array([1.0, 0.0, 0.0])
 origin_cg = np.array([0.0, 0.0, -Lcylinder_m])
-radial_cg = np.array([0.0, 1.0, 0.0]) # for consistency with potentialinteraction convention
+radial_cg = np.array([0.0, 0.0, -1.0]) # for consistency with potentialinteraction convention
 
 cg = HalfCylinderGreen(
 #cg = SF_FullCylinderGreen(
