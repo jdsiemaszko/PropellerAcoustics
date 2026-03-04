@@ -259,17 +259,18 @@ class TailoredGreen():
         x = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])  # shape (3, N)
         if fig is None or axs is None:   
 
-            fig, axs = plt.subplots(1, 2, figsize=(12, 5),  sharey=True,constrained_layout=True)
+            fig, axs = plt.subplots(1, 3, figsize=(16, 5),  sharey=True,constrained_layout=True)
 
         G0 = self.getFreeSpaceGreen(x, y, k)
         G1 = self.getScatteringGreen(x, y, k)
         G_total = G0 + G1
 
         G0_reshaped = G0.reshape(Y.shape)
+        G1_reshaped = G1.reshape(Y.shape)
         G_total = G_total.reshape(Y.shape)
 
-        eps0 = np.abs(G0_reshaped)[np.abs(G0_reshaped) > 0].min()
-        eps1 = np.abs(G_total)[np.abs(G_total) > 0].min()
+        # eps0 = np.abs(G0_reshaped)[np.abs(G0_reshaped) > 0].min()
+        # eps1 = np.abs(G_total)[np.abs(G_total) > 0].min()
 
         # Plot G0
         im0 = axs[0].pcolormesh(
@@ -278,17 +279,33 @@ class TailoredGreen():
             shading='auto',
             cmap='viridis',
             # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
-            norm=colors.CenteredNorm(halfrange = np.max(G0_reshaped) * 0.01),
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
             edgecolor='k',
         )
-        axs[0].set_title('G0 on the yz plane')
+        axs[0].set_title('$G_0$ on the yz plane')
         axs[0].set_xlabel('y')
         axs[0].set_ylabel('z')
         fig.colorbar(im0, ax=axs[0])
         axs[0].axis('equal')
 
-        # Plot G0 + G1
+        # Plot G1
         im1 = axs[1].pcolormesh(
+            Y, Z,
+            np.real(G1_reshaped),
+            shading='auto',
+            cmap='viridis',
+            # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
+            edgecolor='k',
+        )
+        axs[1].set_title('$G_s$ on the yz plane')
+        axs[1].set_xlabel('y')
+        axs[1].set_ylabel('z')
+        fig.colorbar(im1, ax=axs[1])
+        axs[1].axis('equal')
+
+        # Plot G0 + G1
+        im2 = axs[2].pcolormesh(
             Y, Z,
             np.real(G_total),
             shading='auto',
@@ -297,14 +314,14 @@ class TailoredGreen():
             norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
             edgecolor='k',
         )
-        axs[1].set_title('G0+G1 on the yz plane')
-        axs[1].set_xlabel('y')
-        axs[1].set_ylabel('z')
-        axs[1].plot(y[1], y[2], 'ro', label='Source')
-        axs[1].axis('equal')
-        fig.colorbar(im1, ax=axs[1])
+        axs[2].set_title('$G_0+G_s$ on the yz plane')
+        axs[2].set_xlabel('y')
+        axs[2].set_ylabel('z')
+        axs[2].plot(y[1], y[2], 'ro', label='Source')
+        axs[2].axis('equal')
+        fig.colorbar(im2, ax=axs[2])
 
-        plt.show()
+
         return fig, axs
 
     def plot3Ddirectivity(

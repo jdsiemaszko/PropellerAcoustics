@@ -8,12 +8,12 @@ from Constants.helpers import p_to_SPL, getCylindricalCoordinates
 import matplotlib.pyplot as plt
 
 
-def gradCylindricalToCartesian(gradient, r, phi, z, axis, origin, radial):
+def gradCylindricalToCartesian(gradient, r, phi, z, axis, origin, radial, normal):
     """
     Convert gradient from cylindrical to Cartesian coordinates.
 
-    gradient - gradient in cylindrical coordinates of size (3, N)
-    r, phi, z - cylindrical coordinates of size (N,)
+    gradient - gradient in cylindrical coordinates of size (3, N) d/dr, 1/r*d/dphi, d/dz
+    r, phi, z - cylindrical coordinates of size (N,) at evaluation points
     axis - cylinder axis vector of size (3,)
     origin - point on the cylinder axis of size (3,)
     radial - radial direction vector of size (3,)
@@ -24,9 +24,7 @@ def gradCylindricalToCartesian(gradient, r, phi, z, axis, origin, radial):
     # Normalize axis and radial vectors
     axis = axis / np.linalg.norm(axis)
     radial = radial / np.linalg.norm(radial)
-    
-    # Compute the normal vector
-    normal = np.cross(axis, radial)
+    normal = normal / np.linalg.norm(normal)
 
     # reshape phi for broadcasting
     phi_ = phi[None, None, None, :]   # (1,1,1,Ny)
@@ -47,178 +45,19 @@ def gradCylindricalToCartesian(gradient, r, phi, z, axis, origin, radial):
     e_r   * gradient[0]
     + e_phi * gradient[1]   # assuming term is already (1/r) d/dphi
     + e_z   * gradient[2]
-    )
+    ) # 3, Nk, Nx, Ny
 
     return grad_cart
 
+def beta_safe(m_qm, x):
+    Jm0 = jv(m_qm - 1, x)
+    Jm1 = jv(m_qm + 1, x) 
+    Hm0 = hankel1(m_qm - 1, x)
+    Hm1 = hankel1(m_qm + 1, x)
 
-def beta_safe(m, x):
-    """
-    Safely compute beta = (J_{m-1} - J_{m+1}) / (H_{m-1} - H_{m+1})
-    
-    Parameters
-    ----------
-    m : int, float, or array_like
-        Order(s) of the Bessel functions
-    x : float, complex, or array_like
-        Argument(s) of the Bessel functions
-        
-    Returns
-    -------
-    beta : complex or ndarray
-        The ratio (J_{m-1} - J_{m+1}) / (H_{m-1} - H_{m+1})
-        Shape is broadcast shape of m and x
-        
-    Examples
-    --------
-    >>> beta_safe(2, 5.0)  # Single values
-    >>> beta_safe([1, 2, 3], 5.0)  # Multiple orders, single x
-    >>> beta_safe(2, [1.0, 5.0, 10.0])  # Single order, multiple x
-    >>> beta_safe([1, 2], [5.0, 10.0])  # Paired values
-    >>> beta_safe([[1, 2], [3, 4]], [5.0, 10.0])  # Broadcasting
-    """
-    # Convert inputs to arrays
-    m = np.asarray(m)
-    x = np.asarray(x)
-    
-    # Store original shapes for output
-    m_scalar = m.ndim == 0
-    x_scalar = x.ndim == 0
-    
-    # Ensure at least 1D for processing
-    m = np.atleast_1d(m)
-    x = np.atleast_1d(x)
-    
-    # Broadcast to common shape
-    try:
-        m_bc, x_bc = np.broadcast_arrays(m, x)
-    except ValueError as e:
-        raise ValueError(f"Cannot broadcast m with shape {m.shape} and x with shape {x.shape}") from e
-    
-    # Flatten for iteration
-    m_flat = m_bc.ravel()
-    x_flat = x_bc.ravel()
-    
-    # Initialize output
-    beta = np.zeros(m_flat.shape, dtype=complex)
-    
-    # Process each (m, x) pair
-    for i, (mi, xi) in enumerate(zip(m_flat, x_flat)):
-        beta[i] = _beta_single(mi, xi)
-    
-    # Reshape to broadcast shape
-    beta = beta.reshape(m_bc.shape)
-    
-    # Return scalar if both inputs were scalar
-    if m_scalar and x_scalar:
-        return beta.item()
-    
+    beta = (Jm0 - Jm1) / (Hm0 - Hm1)             # (q, m)
+
     return beta
-
-def _beta_single(m, x):
-    """
-    Compute beta for a single (m, x) pair.
-    
-    Parameters
-    ----------
-    m : float
-        Order of the Bessel functions
-    x : float or complex
-        Argument of the Bessel functions
-        
-    Returns
-    -------
-    beta : complex
-        The ratio
-    """
-    # Handle edge case: x ≈ 0
-    if np.abs(x) < 1e-10:
-        if m == 0:
-            return 0.0 + 0.0j
-        else:
-            return 0.0 + 0.0j
-    
-    abs_x = np.abs(x)
-    
-    # Strategy depends on argument magnitude
-    if abs_x < 50:
-        # Direct computation for moderate arguments
-        return _beta_direct(m, x)
-    else:
-        # Asymptotic approach for large arguments
-        return _beta_asymptotic(m, x)
-
-def _beta_direct(m, x):
-    """
-    Direct computation of beta using Bessel functions.
-    """
-    try:
-        Jm_minus = jv(m - 1, x)
-        Jm_plus = jv(m + 1, x)
-        Hm_minus = hankel1(m - 1, x)
-        Hm_plus = hankel1(m + 1, x)
-        
-        numerator = Jm_minus - Jm_plus
-        denominator = Hm_minus - Hm_plus
-        
-        # Check for numerical issues in denominator
-        if np.abs(denominator) < 1e-100:
-            # Use derivative formulation instead
-            # f_{m-1} - f_{m+1} = 2*f'_m
-            try:
-                numerator = 2 * jvp(m, x, 1)
-                denominator = 2 * h1vp(m, x, 1)
-            except:
-                # If derivatives fail, fall back to asymptotic
-                return _beta_asymptotic(m, x)
-        
-        # Check for overflow/underflow
-        if not np.isfinite(numerator) or not np.isfinite(denominator):
-            return _beta_asymptotic(m, x)
-        
-        result = numerator / denominator
-        
-        # Sanity check
-        if not np.isfinite(result):
-            return _beta_asymptotic(m, x)
-        
-        return result
-        
-    except (RuntimeWarning, FloatingPointError, OverflowError):
-        return _beta_asymptotic(m, x)
-
-def _beta_asymptotic(m, x):
-    """
-    Asymptotic formula for beta when |x| is large.
-    """
-    try:
-        # Use derivative formulation for better numerical stability
-        Jm_deriv = jvp(m, x, 1)
-        Hm_deriv = h1vp(m, x, 1)
-        
-        if np.abs(Hm_deriv) > 1e-100 and np.isfinite(Jm_deriv) and np.isfinite(Hm_deriv):
-            result = Jm_deriv / Hm_deriv
-            if np.isfinite(result):
-                return result
-        
-        # Fallback: compute ratio of main functions
-        Jm = jv(m, x)
-        Hm = hankel1(m, x)
-        
-        if np.abs(Hm) > 1e-100 and np.isfinite(Jm) and np.isfinite(Hm):
-            result = Jm / Hm
-            if np.isfinite(result):
-                return result
-        
-        # Ultimate fallback for very large x
-        # As x -> infinity, beta approaches exp(-2i*x) for real x
-        if np.isreal(x) and x > 0:
-            return np.exp(-2j * x)
-        else:
-            return 1.0 + 0.0j
-            
-    except:
-        return 1.0 + 0.0j
 class CylinderGreen(TailoredGreen):
     """
     Class for computing and plotting the Tailored Green's function
@@ -471,6 +310,9 @@ class CylinderGreen(TailoredGreen):
                 )
 
                 G[ik, ix, :] += newterm
+                
+                if np.any(np.isnan(G)):
+                    print('WARNING: NaN values detected in the computation')
 
         G *= (-1j / (4 * np.pi))
         return G
@@ -576,15 +418,15 @@ class CylinderGreen(TailoredGreen):
             denom = Km1 + Kp1
             # Guard against near-zero denominator (very large u → K explodes,
             # but ratio I/K → 0 exponentially, so set beta=0 there).
-            safe  = np.abs(denom) > 1e-300
-            beta  = np.where(safe, (Im1 + Ip1) / np.where(safe, denom, 1.0), 0.0)
+            safe  = np.abs(denom) > 1e-50
+            beta  = np.where(safe, (Im1 + Ip1) / np.where(safe, denom, 1.0), 0.0) * np.pi / 2 * (-1j) * (-1)**m_qm
             # (Nq, mmax)
 
             # --- source K_m values (Nq, mmax, Ny) ---
-            K_src = kv(
+            H_src = kv(
                 m_qm[:, :, None],
                 kappa_qm[:, :, None] * src_r[None, None, :]
-            )
+            ) * 2 / np.pi * (-1j)**(m_qm[:, :, None] + 1)
 
             for ix in range(Nx):
 
@@ -605,14 +447,14 @@ class CylinderGreen(TailoredGreen):
                 if r_obs <= self.radius * (1 + eps_r):
                     continue                    # inside or on the cylinder boundary
 
-                K_obs = kv(
+                H_obs = kv(
                     m_qm[:, :, None],
                     kappa_qm[:, :, None] * r_obs
-                )                               # (Nq, mmax, 1)
+                )    * 2 / np.pi * (-1j)**(m_qm[:, :, None] + 1)                           # (Nq, mmax, 1)
 
                 # The full kernel:
                 #   beta(q,m) * K_obs(q,m) * K_src(q,m,n) * cos0(q,n) * cos1(m,n) * epsm(m)
-                A = beta[:, :, None] * K_obs * K_src   # (Nq, mmax, Ny)
+                A = beta[:, :, None] * H_obs * H_src   # (Nq, mmax, Ny)
 
                 newterm = np.einsum(
                     "q,qmn,qn,mn,m->n",
@@ -626,12 +468,10 @@ class CylinderGreen(TailoredGreen):
 
                 G[ik, ix, :] += newterm
 
+                if np.any(np.isnan(G)):
+                    print('WARNING: NaN values detected in the computation')
+
         # Prefactor: same (-i/4pi) as propagating part, but the evanescent
-        # Bessel identity introduces an extra factor of (2/pi) relative to the
-        # H_m^(1) → K_m substitution (H_m^(1)(iz) = (2/pi)(-i)^{m+1} K_m(z)).
-        # For the *scattering* Green's function the overall prefactor is the same
-        # because beta already absorbs the modal conversion factor; only the
-        # integration measure changes (handled by jac above).
         G *= (-1j / (4 * np.pi))
         return G
     
@@ -797,7 +637,7 @@ class CylinderGreen(TailoredGreen):
         gradG *= (-1j / (4 * np.pi))
 
         # transform to global cartesian coordinates, gradG = [dG/dx, dG/dy, dG/dz]
-        gradG_cart = gradCylindricalToCartesian(gradG, src_r, src_phi, src_x, self.axis, self.origin, self.radial)
+        gradG_cart = gradCylindricalToCartesian(gradG, src_r, src_phi, src_x, self.axis, self.origin, self.radial, self.normal)
         return gradG_cart
 
     def getScatteringGreenGradientPropagating(self, x, y, k):
@@ -838,9 +678,9 @@ class CylinderGreen(TailoredGreen):
 
             print(f"[k-loop] {ik+1}/{Nk}  k={k0:.4e}")
 
-            kz = k0 * cos_t
-            kk = k0 * sin_t
-            w = k0 * sin_t * w_theta
+            kz = k0 * cos_t # from k0 to 0
+            kk = k0 * sin_t # from 0 to k0
+            w = k0 * sin_t * w_theta # jacobian * weights + change of integration direction
 
             kk_qm = kk[:, None]
             m_qm = m[None, :]
@@ -944,6 +784,7 @@ class CylinderGreen(TailoredGreen):
             self.axis,
             self.origin,
             self.radial,
+            self.normal
         )
 
         return gradG_cart
@@ -1009,9 +850,9 @@ class CylinderGreen(TailoredGreen):
 
             print(f"[evan grad k-loop] {ik+1}/{Nk}  k={k0:.4e}")
 
-            kz    = k0 / sin_t                      # (Nq,)  k_z > k
-            kappa = k0 * cos_t / sin_t              # (Nq,)  kappa > 0
-            jac   = k0 * cos_t / sin_t**2           # (Nq,)  |dk_z/dt|
+            kz    = k0 / cos_t                      # (Nq,)  k_z > k
+            kappa = k0 * sin_t / cos_t              # (Nq,)  kappa > 0
+            jac   = k0 * sin_t / cos_t**2           # (Nq,)  |dk_z/dt|
             ww    = w * jac                         # effective quadrature weights
 
             kappa_qm = kappa[:, None]               # (Nq, 1)
@@ -1025,20 +866,20 @@ class CylinderGreen(TailoredGreen):
             Kp1 = kv(m_qm + 1, u)
             denom = Km1 + Kp1
             safe  = np.abs(denom) > 1e-50
-            beta  = np.where(safe, (Im1 + Ip1) / np.where(safe, denom, 1.0), 0.0)
+            beta  = np.where(safe, (Im1 + Ip1) / np.where(safe, denom, 1.0), 0.0) * np.pi / 2 * (-1j) * (-1)**m_qm
             # (Nq, mmax)
 
             # --- source K_m and its radial derivative (Nq, mmax, Ny) ---
             kappa_src = kappa_qm[:, :, None] * src_r[None, None, :]   # (Nq, mmax, Ny)
 
-            K_src      = kv(m_qm[:, :, None], kappa_src)
+            H_src      = kv(m_qm[:, :, None], kappa_src) * 2 / np.pi * (-1j)**(m_qm[:, :, None] + 1)
             K_src_m1   = kv(m_qm[:, :, None] - 1, kappa_src)
             K_src_p1   = kv(m_qm[:, :, None] + 1, kappa_src)
 
             # K_m'(u) = -1/2 * (K_{m-1}(u) + K_{m+1}(u))
             # Chain rule: d/dr [K_m(kappa*r)] = kappa * K_m'(kappa*r)
             #           = -kappa/2 * (K_{m-1}(kappa*r) + K_{m+1}(kappa*r))
-            dK_src_dr = -kappa_qm[:, :, None] * 0.5 * (K_src_m1 + K_src_p1)
+            dH_src_dr = -kappa_qm[:, :, None] * (K_src_m1 + K_src_p1) / np.pi / 1j * np.exp(-1j * np.pi * m_qm[:, :, None] / 2)
             # (Nq, mmax, Ny)
 
             for ix in range(Nx):
@@ -1059,11 +900,11 @@ class CylinderGreen(TailoredGreen):
 
                 # observer K_m (Nq, mmax, 1) — scalar, no Ny axis needed
                 kappa_obs = kappa_qm[:, :, None] * obs_r[ix]
-                K_obs     = kv(m_qm[:, :, None], kappa_obs)                 # (Nq, mmax, 1)
+                H_obs     = kv(m_qm[:, :, None], kappa_obs) * 2 / np.pi * (-1j)**(m_qm[:, :, None] + 1)                # (Nq, mmax, 1)
 
                 # --- three gradient components ---
-                A = beta[:, :, None] * K_obs * dK_src_dr   # radial:   d/dr_src
-                B = beta[:, :, None] * K_obs * K_src        # angular and axial
+                A = beta[:, :, None] * H_obs * dH_src_dr  # radial:   d/dr_src
+                B = beta[:, :, None] * H_obs * H_src        # angular and axial
 
                 # d/dr_src
                 newterm_dr = np.einsum(
@@ -1072,7 +913,7 @@ class CylinderGreen(TailoredGreen):
                     optimize=True
                 )
 
-                # d/dphi_src  (1/r factor converts arc-length to angle)
+                # 1/r * d/dphi_src
                 newterm_dphi = np.einsum(
                     "q,qmn,qn,mn,m->n",
                     ww, B, cos0,
@@ -1105,6 +946,7 @@ class CylinderGreen(TailoredGreen):
             self.axis,
             self.origin,
             self.radial,
+            self.normal
         )
 
         return gradG_cart
