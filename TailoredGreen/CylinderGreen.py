@@ -1,7 +1,7 @@
 from matplotlib import axis
 from .TailoredGreen import TailoredGreen
 import numpy as np
-from scipy.special import hankel1, jv, kv, h1vp, hankel1e, jvp
+from scipy.special import hankel1, jv, iv, kv, h1vp, hankel1e, jvp
 from numpy.polynomial.legendre import leggauss
 from Constants.const import PREF
 from Constants.helpers import p_to_SPL, getCylindricalCoordinates
@@ -219,76 +219,6 @@ def _beta_asymptotic(m, x):
             
     except:
         return 1.0 + 0.0j
-
-# Vectorized version using scipy's vectorization
-def beta_safe_vectorized(m, x):
-    """
-    Fully vectorized version using scipy's internal vectorization.
-    Generally faster but may be less robust for edge cases.
-    
-    Parameters
-    ----------
-    m : int, float, or array_like
-        Order(s) of the Bessel functions
-    x : float, complex, or array_like
-        Argument(s) of the Bessel functions
-        
-    Returns
-    -------
-    beta : complex or ndarray
-        The ratio (J_{m-1} - J_{m+1}) / (H_{m-1} - H_{m+1})
-    """
-    m = np.asarray(m)
-    x = np.asarray(x)
-    
-    # Store if inputs were scalar
-    return_scalar = (m.ndim == 0 and x.ndim == 0)
-    
-    # Broadcast
-    m, x = np.broadcast_arrays(np.atleast_1d(m), np.atleast_1d(x))
-    
-    # Compute all Bessel functions (vectorized)
-    Jm_minus = jv(m - 1, x)
-    Jm_plus = jv(m + 1, x)
-    Hm_minus = hankel1(m - 1, x)
-    Hm_plus = hankel1(m + 1, x)
-    
-    numerator = Jm_minus - Jm_plus
-    denominator = Hm_minus - Hm_plus
-    
-    # Handle small denominators
-    small_denom = np.abs(denominator) < 1e-100
-    
-    if np.any(small_denom):
-        # Use derivatives where needed
-        Jm_deriv = 2 * jvp(m, x, 1)
-        Hm_deriv = 2 * h1vp(m, x, 1)
-        
-        numerator = np.where(small_denom, Jm_deriv, numerator)
-        denominator = np.where(small_denom, Hm_deriv, denominator)
-    
-    # Regularize remaining small denominators
-    epsilon = np.finfo(complex).eps
-    denominator_safe = np.where(
-        np.abs(denominator) < epsilon,
-        epsilon * (1 + 1j),
-        denominator
-    )
-    
-    result = numerator / denominator_safe
-    
-    # Handle non-finite results
-    if np.any(~np.isfinite(result)):
-        # For non-finite values, try asymptotic approximation
-        Jm = jv(m, x)
-        Hm = hankel1(m, x)
-        fallback = np.where(np.abs(Hm) > epsilon, Jm / Hm, 1.0 + 0.0j)
-        result = np.where(np.isfinite(result), result, fallback)
-    
-    if return_scalar:
-        return result.item()
-    
-    return result
 class CylinderGreen(TailoredGreen):
     """
     Class for computing and plotting the Tailored Green's function
@@ -448,11 +378,11 @@ class CylinderGreen(TailoredGreen):
 
         return G
 
-    def getScatteringGreen(self, x, y, k):
+    def getScatteringGreenPropagating(self, x, y, k):
 
         mmax = self._numerics.get("nmax", int(k.max() * self.radius) + 10)
         Nq_prop = self._numerics.get("Nq_prop", 100)
-        eps_radius = self._numerics.get("eps_radius", 1e-3)
+        eps_radius = self._numerics.get("eps_radius", 1e-12)
 
         if self.dim != 3:
             raise NotImplementedError
@@ -542,9 +472,173 @@ class CylinderGreen(TailoredGreen):
 
                 G[ik, ix, :] += newterm
 
-        G *= (1j / (4 * np.pi))
+        G *= (-1j / (4 * np.pi))
         return G
 
+    def getScatteringGreenEvanescent(self, x, y, k):
+        """
+        Evanescent (k_z > k) contribution to the cylinder scattering Green's function.
+
+        For k_z > k the in-plane wavenumber is imaginary:
+            kk = sqrt(k^2 - k_z^2)  →  purely imaginary
+        We write  kk = i*kappa,  kappa = sqrt(k_z^2 - k^2) > 0.
+
+        Bessel functions of imaginary argument:
+            J_m(i*kappa*r)  =  i^m  I_m(kappa*r)
+            H_m^(1)(i*kappa*r)  =  (2/pi) * (-i)^(m+1)  K_m(kappa*r)
+
+        For the scattering problem (observer AND source outside the cylinder)
+        only K_m appears in the physical solution, because K_m(kappa*r) → 0
+        as r → ∞ while I_m diverges.
+
+        The scattering coefficient becomes (stability: use modified Bessel ratio):
+            beta_evan(m, kappa*a) = -I_m'(kappa*a) / K_m'(kappa*a)
+                                = (I_{m-1} + I_{m+1}) / (K_{m-1} + K_{m+1})
+        (derivative recurrences: I_m' = (I_{m-1}+I_{m+1})/2,
+                                K_m' = -(K_{m-1}+K_{m+1})/2)
+
+        Integration variable: k_z = k / sin(theta)  with theta in (0, pi/2)
+        maps [k, ∞) onto a finite interval amenable to Gauss-Legendre quadrature.
+        """
+
+        mmax     = self._numerics.get("nmax",      int(k.max() * self.radius) + 10)
+        Nq_evan  = self._numerics.get("Nq_evan",   100)
+        eps_r    = self._numerics.get("eps_radius", 1e-12)
+
+        if self.dim != 3:
+            raise NotImplementedError
+
+        k   = np.atleast_1d(k)
+        Nk  = k.size
+        Nx  = x.shape[1]
+        Ny  = y.shape[1]
+
+        obs_r, obs_phi, obs_x = getCylindricalCoordinates(
+            x, self.axis, self.origin, self.radial, self.normal
+        )
+        src_r, src_phi, src_x = getCylindricalCoordinates(
+            y, self.axis, self.origin, self.radial, self.normal
+        )
+
+        G = np.zeros((Nk, Nx, Ny), dtype=np.complex128)
+
+        m    = np.arange(0, mmax)
+        epsm = np.ones(mmax);  epsm[1:] = 2
+
+        # Map k_z in [k, ∞) via  k_z = k / sin(t),  t in (0, pi/2).
+        # dt  →  dk_z :  dk_z = -k cos(t)/sin^2(t) dt
+        # Jacobian factor:  |dk_z/dt| = k cos(t)/sin^2(t)
+        # After the change of variables the integral over t runs (0, pi/2).
+        # We map Gauss-Legendre nodes from [-1,1] to (0, pi/2).
+        t_gl, w_gl = leggauss(Nq_evan)
+        t    = 0.25 * np.pi * (t_gl + 1.0)       # t in (0, pi/2)
+        w    = w_gl * 0.25 * np.pi               # raw GL weights
+
+        sin_t  = np.sin(t)
+        cos_t  = np.cos(t)
+
+        for ik, k0 in enumerate(k):
+
+            print(f"[evan k-loop] {ik+1}/{Nk}  k={k0:.4e}")
+
+            # k_z = k0/sin(t),   kappa = k_z * cos(t)/... wait, let's be explicit:
+            #   k_z   = k0 / sin_t                          shape (Nq,)
+            #   kappa = sqrt(k_z^2 - k0^2) = k0*cos_t/sin_t  shape (Nq,)
+            kz    = k0 / sin_t                              # (Nq,)
+            kappa = k0 * cos_t / sin_t                      # (Nq,)  always >= 0
+
+            # Jacobian:  dk_z = k0 * cos_t / sin_t^2 * dt
+            jac   = k0 * cos_t / sin_t**2                  # (Nq,)
+            ww    = w * jac                                 # effective quadrature weights
+
+            # We also need exp(-kz * |dz|) from the z-integral; that factor is
+            # already encoded in the cos0 term below via the imaginary kz:
+            #   cos(kz * dz)  with kz real  →  oscillatory (propagating)
+            # For the evanescent part kz is real and > k, so cos(kz*dz) is still
+            # real and oscillatory in z — the evanescence is purely radial (kappa).
+            # The kernel is therefore:
+            #   K_m(kappa * r_obs) * K_m(kappa * r_src) * cos(kz * dz) * cos(m*dphi)
+            # with the beta coefficient ensuring the scattering BC at r=a.
+
+            kappa_qm = kappa[:, None]           # (Nq, 1)  for broadcasting with m
+            m_qm     = m[None, :]               # (1, mmax)
+
+            # --- scattering coefficient for evanescent modes ---
+            #   beta = [I_{m-1}(u) + I_{m+1}(u)] / [K_{m-1}(u) + K_{m+1}(u)]
+            # where u = kappa * radius.
+            u = kappa_qm * self.radius          # (Nq, mmax)
+
+            Im1 = iv(m_qm - 1, u)              # I_{m-1}
+            Ip1 = iv(m_qm + 1, u)              # I_{m+1}
+            Km1 = kv(m_qm - 1, u)              # K_{m-1}
+            Kp1 = kv(m_qm + 1, u)              # K_{m+1}
+
+            denom = Km1 + Kp1
+            # Guard against near-zero denominator (very large u → K explodes,
+            # but ratio I/K → 0 exponentially, so set beta=0 there).
+            safe  = np.abs(denom) > 1e-300
+            beta  = np.where(safe, (Im1 + Ip1) / np.where(safe, denom, 1.0), 0.0)
+            # (Nq, mmax)
+
+            # --- source K_m values (Nq, mmax, Ny) ---
+            K_src = kv(
+                m_qm[:, :, None],
+                kappa_qm[:, :, None] * src_r[None, None, :]
+            )
+
+            for ix in range(Nx):
+
+                print(f"    observer {ix+1}/{Nx}")
+
+                if obs_r[ix] < self.radius:
+                    continue                    # observer inside cylinder — skip
+
+                dz   = obs_x[ix]  - src_x      # (Ny,)
+                dphi = obs_phi[ix] - src_phi    # (Ny,)
+
+                # z-oscillation (kz is real even for evanescent modes)
+                cos0 = np.cos(kz[:, None]  * dz[None,   :])   # (Nq, Ny)
+                cos1 = np.cos(m[:,  None]  * dphi[None, :])    # (mmax, Ny)
+
+                # observer K_m:  (Nq, mmax, 1)
+                r_obs = obs_r[ix]
+                if r_obs <= self.radius * (1 + eps_r):
+                    continue                    # inside or on the cylinder boundary
+
+                K_obs = kv(
+                    m_qm[:, :, None],
+                    kappa_qm[:, :, None] * r_obs
+                )                               # (Nq, mmax, 1)
+
+                # The full kernel:
+                #   beta(q,m) * K_obs(q,m) * K_src(q,m,n) * cos0(q,n) * cos1(m,n) * epsm(m)
+                A = beta[:, :, None] * K_obs * K_src   # (Nq, mmax, Ny)
+
+                newterm = np.einsum(
+                    "q,qmn,qn,mn,m->n",
+                    ww,          # (Nq,)
+                    A,           # (Nq, mmax, Ny)
+                    cos0,        # (Nq, Ny)
+                    cos1,        # (mmax, Ny)
+                    epsm,        # (mmax,)
+                    optimize=True
+                )                               # (Ny,)
+
+                G[ik, ix, :] += newterm
+
+        # Prefactor: same (-i/4pi) as propagating part, but the evanescent
+        # Bessel identity introduces an extra factor of (2/pi) relative to the
+        # H_m^(1) → K_m substitution (H_m^(1)(iz) = (2/pi)(-i)^{m+1} K_m(z)).
+        # For the *scattering* Green's function the overall prefactor is the same
+        # because beta already absorbs the modal conversion factor; only the
+        # integration measure changes (handled by jac above).
+        G *= (-1j / (4 * np.pi))
+        return G
+    
+    def getScatteringGreen(self, x, y, k):
+        # TODO: implement the evernescent near-field terms!
+        return self.getScatteringGreenPropagating(x, y, k) + self.getScatteringGreenEvanescent(x, y, k)
+    
     def getScatteringGreenGradientHighMemory(self, x, y, k,):
 
         #  mmax=16, Nq_prop=100, maxKmultiple=5
@@ -700,17 +794,17 @@ class CylinderGreen(TailoredGreen):
             # dG/dz
             gradG[2, ik] += newterm_dz
 
-        gradG *= (1j / (4 * np.pi))
+        gradG *= (-1j / (4 * np.pi))
 
         # transform to global cartesian coordinates, gradG = [dG/dx, dG/dy, dG/dz]
         gradG_cart = gradCylindricalToCartesian(gradG, src_r, src_phi, src_x, self.axis, self.origin, self.radial)
         return gradG_cart
 
-    def getScatteringGreenGradient(self, x, y, k):
+    def getScatteringGreenGradientPropagating(self, x, y, k):
 
         mmax = self._numerics.get("nmax", int(k.max() * self.radius) + 10)
         Nq_prop = self._numerics.get("Nq_prop", 100)
-        eps_radius = self._numerics.get("eps_radius", 1e-3)
+        eps_radius = self._numerics.get("eps_radius", 1e-12)
 
         if self.dim != 3:
             raise NotImplementedError
@@ -840,7 +934,7 @@ class CylinderGreen(TailoredGreen):
                 if np.any(np.isnan(gradG)):
                     print('WARNING: NaN values detected in the computation')
 
-        gradG *= (1j / (4 * np.pi))
+        gradG *= (-1j / (4 * np.pi))
 
         gradG_cart = gradCylindricalToCartesian(
             gradG,
@@ -853,10 +947,172 @@ class CylinderGreen(TailoredGreen):
         )
 
         return gradG_cart
+ 
+    def getScatteringGreenGradientEvanescent(self, x, y, k):
+        """
+        Evanescent (k_z > k) contribution to the gradient of the cylinder
+        scattering Green's function, with respect to the SOURCE coordinates y.
 
+        Variable substitution:  k_z = k/sin(t),  t in (0, pi/2)
+        kappa = sqrt(k_z^2 - k^2) = k*cos(t)/sin(t)
+        Jacobian: dk_z = k*cos(t)/sin^2(t) dt
 
-    # def plotFarFieldGradient(self, k, y, R=None, Nphi=36, Ntheta=18):
-    #     super().plotFarFieldGradient(k, y, R=R, Nphi=Nphi, Ntheta=Ntheta)
+        Radial Bessel functions (outside cylinder, r > a):
+        K_m(kappa*r)   — decays as r→∞, physically admissible
+        K_m'(kappa*r) = -kappa/2 * (K_{m-1} + K_{m+1})  [recurrence]
+
+        Angular derivative:
+        d/dphi [cos(m*dphi)] = m * sin(m*dphi)
+        then divide by src_r to convert to the phi unit-vector component
+
+        Axial derivative:
+        d/dz_src [cos(kz*(z_obs - z_src))] = kz * sin(kz*dz)
+        (note sign: derivative w.r.t. z_src flips the sign of dz,
+        but cos is even so the sin picks up the minus from the chain rule —
+        however the propagating code uses +kz*sin, matching d/dz_src of
+        cos(kz*(z_obs-z_src)) = +kz*sin(kz*dz), consistent convention)
+        """
+
+        mmax    = self._numerics.get("nmax",       int(k.max() * self.radius) + 10)
+        Nq_evan = self._numerics.get("Nq_evan",    100)
+        eps_r   = self._numerics.get("eps_radius", 1e-12)
+
+        if self.dim != 3:
+            raise NotImplementedError
+
+        k  = np.atleast_1d(k)
+        Nk = k.size
+        Nx = x.shape[1]
+        Ny = y.shape[1]
+
+        obs_r, obs_phi, obs_x = getCylindricalCoordinates(
+            x, self.axis, self.origin, self.radial, self.normal
+        )
+        src_r, src_phi, src_x = getCylindricalCoordinates(
+            y, self.axis, self.origin, self.radial, self.normal
+        )
+
+        gradG = np.zeros((3, Nk, Nx, Ny), dtype=np.complex128)
+
+        m    = np.arange(0, mmax)
+        epsm = np.ones(mmax);  epsm[1:] = 2
+
+        # Map k_z in [k,∞) via k_z = k/sin(t), t in (0, pi/2)
+        t_gl, w_gl = leggauss(Nq_evan)
+        t  = 0.25 * np.pi * (t_gl + 1.0)
+        w  = w_gl * 0.25 * np.pi
+
+        sin_t = np.sin(t)
+        cos_t = np.cos(t)
+
+        for ik, k0 in enumerate(k):
+
+            print(f"[evan grad k-loop] {ik+1}/{Nk}  k={k0:.4e}")
+
+            kz    = k0 / sin_t                      # (Nq,)  k_z > k
+            kappa = k0 * cos_t / sin_t              # (Nq,)  kappa > 0
+            jac   = k0 * cos_t / sin_t**2           # (Nq,)  |dk_z/dt|
+            ww    = w * jac                         # effective quadrature weights
+
+            kappa_qm = kappa[:, None]               # (Nq, 1)
+            m_qm     = m[None, :]                   # (1, mmax)
+
+            # --- scattering coefficient beta (same as in scalar evanescent) ---
+            u   = kappa_qm * self.radius            # (Nq, mmax)
+            Im1 = iv(m_qm - 1, u)
+            Ip1 = iv(m_qm + 1, u)
+            Km1 = kv(m_qm - 1, u)
+            Kp1 = kv(m_qm + 1, u)
+            denom = Km1 + Kp1
+            safe  = np.abs(denom) > 1e-50
+            beta  = np.where(safe, (Im1 + Ip1) / np.where(safe, denom, 1.0), 0.0)
+            # (Nq, mmax)
+
+            # --- source K_m and its radial derivative (Nq, mmax, Ny) ---
+            kappa_src = kappa_qm[:, :, None] * src_r[None, None, :]   # (Nq, mmax, Ny)
+
+            K_src      = kv(m_qm[:, :, None], kappa_src)
+            K_src_m1   = kv(m_qm[:, :, None] - 1, kappa_src)
+            K_src_p1   = kv(m_qm[:, :, None] + 1, kappa_src)
+
+            # K_m'(u) = -1/2 * (K_{m-1}(u) + K_{m+1}(u))
+            # Chain rule: d/dr [K_m(kappa*r)] = kappa * K_m'(kappa*r)
+            #           = -kappa/2 * (K_{m-1}(kappa*r) + K_{m+1}(kappa*r))
+            dK_src_dr = -kappa_qm[:, :, None] * 0.5 * (K_src_m1 + K_src_p1)
+            # (Nq, mmax, Ny)
+
+            for ix in range(Nx):
+
+                print(f"    observer {ix+1}/{Nx}")
+
+                if obs_r[ix] <= self.radius * (1 + eps_r):
+                    continue                        # observer inside/on cylinder
+
+                dz   = obs_x[ix]  - src_x          # (Ny,)
+                dphi = obs_phi[ix] - src_phi        # (Ny,)
+
+                cos1        = np.cos(m[:, None]  * dphi[None, :])           # (mmax, Ny)
+                dcos1_dphi  = m[:, None] * np.sin(m[:, None] * dphi[None,:])# (mmax, Ny)
+
+                cos0        = np.cos(kz[:, None]  * dz[None, :])            # (Nq, Ny)
+                dcos0_dz    = kz[:, None] * np.sin(kz[:, None] * dz[None,:])# (Nq, Ny)
+
+                # observer K_m (Nq, mmax, 1) — scalar, no Ny axis needed
+                kappa_obs = kappa_qm[:, :, None] * obs_r[ix]
+                K_obs     = kv(m_qm[:, :, None], kappa_obs)                 # (Nq, mmax, 1)
+
+                # --- three gradient components ---
+                A = beta[:, :, None] * K_obs * dK_src_dr   # radial:   d/dr_src
+                B = beta[:, :, None] * K_obs * K_src        # angular and axial
+
+                # d/dr_src
+                newterm_dr = np.einsum(
+                    "q,qmn,qn,mn,m->n",
+                    ww, A, cos0, cos1, epsm,
+                    optimize=True
+                )
+
+                # d/dphi_src  (1/r factor converts arc-length to angle)
+                newterm_dphi = np.einsum(
+                    "q,qmn,qn,mn,m->n",
+                    ww, B, cos0,
+                    dcos1_dphi / src_r[None, :],
+                    epsm,
+                    optimize=True
+                )
+
+                # d/dz_src
+                newterm_dz = np.einsum(
+                    "q,qmn,qn,mn,m->n",
+                    ww, B, dcos0_dz, cos1, epsm,
+                    optimize=True
+                )
+
+                gradG[0, ik, ix, :] += newterm_dr
+                gradG[1, ik, ix, :] += newterm_dphi
+                gradG[2, ik, ix, :] += newterm_dz
+
+                if np.any(np.isnan(gradG)):
+                    print('WARNING: NaN values detected in the computation')
+
+        gradG *= (-1j / (4 * np.pi))
+
+        gradG_cart = gradCylindricalToCartesian(
+            gradG,
+            src_r,
+            src_phi,
+            src_x,
+            self.axis,
+            self.origin,
+            self.radial,
+        )
+
+        return gradG_cart
+    
+    def getScatteringGreenGradient(self, x, y, k):
+        # TODO: implement the evernescent near-field terms!
+        return self.getScatteringGreenGradientPropagating(x, y, k) + self.getScatteringGreenGradientEvanescent(x, y, k) 
+    
 
     def plot3Ddirectivity(
         self, k, y, R=None, Nphi=36, Ntheta=18,

@@ -1,4 +1,5 @@
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
+from TailoredGreen.CylinderGreen import CylinderGreen
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -10,7 +11,7 @@ tangential = np.cross(axis, radial)
 
 RAD = 0.5
 # cg = HalfCylinderGreen(radius=RAD, axis=axis, origin=origin, radial=radial, dim=3, 
-cg = SF_FullCylinderGreen(radius=RAD, axis=axis, origin=origin,radial=radial,  dim=3, 
+cg_sf = SF_FullCylinderGreen(radius=RAD, axis=axis, origin=origin,radial=radial,  dim=3, 
                         numerics={
                     'nmax': 32,
                     'Nq_prop': 128,
@@ -23,8 +24,14 @@ cg = SF_FullCylinderGreen(radius=RAD, axis=axis, origin=origin,radial=radial,  d
                     'eps_eval' : 1e-6 # evaluation distance from the actual surface, as a fraction of cylinder radius!
                     # Note: the function is currently NOT checking if the panels are compact!
                  })
-
-
+cg = CylinderGreen(
+    radius=RAD, axis=axis, origin=origin,radial=radial,  dim=3, 
+                     numerics={
+                    'nmax': 20,
+                    'Nq_prop': 16, #discretization of the propagating part
+                    'Nq_evan': 16 # discretization of the evanescent part
+                 }
+)
 
 
 z = np.linspace(-RAD, RAD, 10)
@@ -33,48 +40,41 @@ eps = 1e-6
 Z, PHI = np.meshgrid(z, phi)
 
 N = radial[:, None, None]  * np.cos(PHI[None, :, :] ) + tangential[:, None, None]  * np.sin(PHI[None, :, :] )
-X = axis[:, None, None] * Z[None, :, :] + N * (RAD+eps) # shape 3, Nz, Nphi
+X = axis[:, None, None] * Z[None, :, :] + N * RAD * (1+eps) # shape 3, Nz, Nphi
 
 zz = Z.flatten()
 x = X.reshape(3,zz.shape[0])
 n = N.reshape(3, zz.shape[0])
 
-fig = plt.figure(figsize=(7, 7))
-ax = fig.add_subplot(111, projection="3d")
-cg.plotSelf(fig, ax, show_normals=False)
-ax.scatter(x[0], x[1], x[2], color='m')
-ax.quiver(x[0], x[1], x[2], n[0], n[1], n[2], color='k')
+# fig = plt.figure(figsize=(7, 7))
+# ax = fig.add_subplot(111, projection="3d")
+# cg.plotSelf(fig, ax)
+# ax.scatter(x[0], x[1], x[2], color='m')
+# ax.quiver(x[0], x[1], x[2], n[0], n[1], n[2], color='k')
 
 
-ax.set_aspect('equal')
-# ax.set_axis_off()
-plt.show()
-plt.close()
-gradG = cg.getGradientGreenAnalytical(x,y=np.array([[0], [0.0], [1.0]]), k=np.array([10.0]))
-
-
-
-dGdn = np.einsum(
-    'dn, dmno-> n',
-    n,
-    gradG
-)
-
-pass
-# cg.plot3Ddirectivity(k=np.array([10.0]), y=np.array([[0], [0.0], [RAD1]]), R=5.0, Nphi=36*2, Ntheta=18*2,
-#                    valmin=40, valmax=65)
-
-# plt.show()
-
-
-# fig, ax = plt.subplots()
-
-# cg.plotSurfaceGreen(fig=fig, ax=ax, k=np.array([1.0]),  y=np.array([[0], [0.0], [RAD1]]), levels=20, cmap='viridis')
-# # ax.set_aspect('equal')
+# ax.set_aspect('equal')
 # # ax.set_axis_off()
 # plt.show()
 # plt.close()
-# cg.plotFarFieldGradient(k=np.array([10.0]), y=np.array([[0], [1.0], [0.]]), R=2.0, Nphi=36, Ntheta=18)
+
+gradG0 = cg.getFreeSpaceGreenGradient(x,y=np.array([[0], [0.0], [1.0]]), k=np.array([10.0]))
+gradGs = cg.getScatteringGreenGradient(x,y=np.array([[0], [0.0], [1.0]]), k=np.array([10.0]))
 
 
-# TODO: plot comparision cylinder full with the two formulations!
+dG0dn = np.einsum(
+    'dn, dmno-> n',
+    n,
+    gradG0
+)
+
+dGsdn = np.einsum(
+    'dn, dmno-> n',
+    n,
+    gradGs
+)
+
+print(np.max(np.abs(dG0dn)))
+print(np.max(np.abs(dGsdn)))
+print(np.max(np.abs(dGsdn+dG0dn)))
+
