@@ -50,6 +50,7 @@ def gradCylindricalToCartesian(gradient, r, phi, z, axis, origin, radial, normal
     return grad_cart
 
 def beta_safe(m_qm, x):
+    # TODO: make safe(r)?
     Jm0 = jv(m_qm - 1, x)
     Jm1 = jv(m_qm + 1, x) 
     Hm0 = hankel1(m_qm - 1, x)
@@ -290,7 +291,7 @@ class CylinderGreen(TailoredGreen):
                 dphi = obs_phi[ix] - src_phi
 
                 cos1 = np.cos(m[:, None] * dphi[None, :])
-                cos0 = np.cos(kz[:, None] * dz[None, :])
+                cos0 = np.exp(1j * kz[:, None] * dz[None, :])
 
                 H_obs = hankel1(
                     m_qm[:, :, None],
@@ -439,7 +440,7 @@ class CylinderGreen(TailoredGreen):
                 dphi = obs_phi[ix] - src_phi    # (Ny,)
 
                 # z-oscillation (kz is real even for evanescent modes)
-                cos0 = np.cos(kz[:, None]  * dz[None,   :])   # (Nq, Ny)
+                cos0 = np.exp(1j * kz[:, None]  * dz[None,   :])   # (Nq, Ny)
                 cos1 = np.cos(m[:,  None]  * dphi[None, :])    # (mmax, Ny)
 
                 # observer K_m:  (Nq, mmax, 1)
@@ -476,7 +477,6 @@ class CylinderGreen(TailoredGreen):
         return G
     
     def getScatteringGreen(self, x, y, k):
-        # TODO: implement the evernescent near-field terms!
         return self.getScatteringGreenPropagating(x, y, k) + self.getScatteringGreenEvanescent(x, y, k)
     
     def getScatteringGreenGradientHighMemory(self, x, y, k,):
@@ -726,8 +726,11 @@ class CylinderGreen(TailoredGreen):
                 cos1 = np.cos(m[:, None] * dphi[None, :])
                 dcos1_dphi = m[:, None] * np.sin(m[:, None] * dphi[None, :])
 
-                cos0 = np.cos(kz[:, None] * dz[None, :])
-                dcos0_dz = kz[:, None] * np.sin(kz[:, None] * dz[None, :])
+                cos0 = np.exp(1j * kz[:, None] * dz[None, :])
+                dcos0_dz = -1j * kz[:, None] * np.exp(1j * kz[:, None] * dz[None, :]) # mind this is w.r.t z', not z
+
+                # cos0 = np.cos(kz[:, None] * dz[None, :])
+                # dcos0_dz = kz[:, None] * np.sin(kz[:, None] * dz[None, :]) # mind this is w.r.t z', not z
 
                 H_obs = hankel1(
                     m_qm[:, :, None],
@@ -774,7 +777,7 @@ class CylinderGreen(TailoredGreen):
                 if np.any(np.isnan(gradG)):
                     print('WARNING: NaN values detected in the computation')
 
-        gradG *= (-1j / (4 * np.pi))
+        gradG *= (-1j / (4 * np.pi)) #TODO: figure out the sign
 
         gradG_cart = gradCylindricalToCartesian(
             gradG,
@@ -895,8 +898,11 @@ class CylinderGreen(TailoredGreen):
                 cos1        = np.cos(m[:, None]  * dphi[None, :])           # (mmax, Ny)
                 dcos1_dphi  = m[:, None] * np.sin(m[:, None] * dphi[None,:])# (mmax, Ny)
 
-                cos0        = np.cos(kz[:, None]  * dz[None, :])            # (Nq, Ny)
-                dcos0_dz    = kz[:, None] * np.sin(kz[:, None] * dz[None,:])# (Nq, Ny)
+                cos0        = np.exp(1j * kz[:, None] * dz[None, :])             # (Nq, Ny)
+                dcos0_dz    = -1j * kz[:, None] * np.exp(1j * kz[:, None] * dz[None,:]) # (Nq, Ny)
+
+                # cos0 = np.cos(kz[:, None] * dz[None, :])
+                # dcos0_dz = kz[:, None] * np.sin(kz[:, None] * dz[None, :]) # mind this is w.r.t z', not z
 
                 # observer K_m (Nq, mmax, 1) — scalar, no Ny axis needed
                 kappa_obs = kappa_qm[:, :, None] * obs_r[ix]
