@@ -834,7 +834,7 @@ class CylinderGreen(TailoredGreen):
             denom = Km1 + Kp1
             num = Im1 + Ip1
             safe  = np.logical_and(np.abs(denom) > 1e-100, np.abs(denom) < 1e100)
-            beta  = np.where(safe,  num/ np.where(safe, denom, 1.0), 0.0) * np.pi / 2 * (1j)**(2 * m_qm + 1)
+            beta  = np.where(safe,  num/ np.where(safe, denom, 1.0), 0.0) * np.pi / 2 * (1j)**(2 * m_qm + 1) * (-1)
             # (Nq, mmax)
 
             # --- source K_m and its radial derivative (Nq, mmax, Ny) ---
@@ -847,7 +847,9 @@ class CylinderGreen(TailoredGreen):
             # K_m'(u) = -1/2 * (K_{m-1}(u) + K_{m+1}(u))
             # Chain rule: d/dr [K_m(kappa*r)] = kappa * K_m'(kappa*r)
             #           = -kappa/2 * (K_{m-1}(kappa*r) + K_{m+1}(kappa*r))
-            dH_src_dr = -1j * kappa_qm[:, :, None] * (K_src_m1 + K_src_p1) / np.pi * (1j) ** (-m_qm[:, :, None])
+
+            dH_src_dr = 1j * kappa_qm[:, :, None] * (K_src_m1 + K_src_p1) / np.pi * (1j) ** (-m_qm[:, :, None])
+            
             # (Nq, mmax, Ny)
 
             for ix in range(Nx):
