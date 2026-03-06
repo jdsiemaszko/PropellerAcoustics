@@ -8,13 +8,13 @@ from Constants.helpers import p_to_SPL, compute_distance_matrix, plot_3D_directi
 
 def FreeSpaceGreenFunction(x, y, k, dim=3):
     """
-    x - observer position of size (3, Nx)
-    y - source position of size (3, Ny)
-    k - wavenumber
-    dim - dimension (default is 3)
+    x - observer position of size (dim, Nx)
+    y - source position of size (dim, Ny)
+    k - wavenumber of size (Nk)
+    dim - dimension
 
     returns:
-    G - Green's function matrix of size (Nx, Ny)
+    G - Green's function matrix of size (Nk, Nx, Ny)
     """
 
     r = compute_distance_matrix(x, y)
@@ -27,10 +27,17 @@ def FreeSpaceGreenFunction(x, y, k, dim=3):
 
 
     if dim == 3:
+        # 3D solution
         G = np.exp(1j * k[:, None, None] * r[None, :, :]) / (4 * np.pi * r[None, :, :])
-        return G  # shape (Nk, Nx, Ny)
+
+    elif dim == 2:
+        # 2D solution
+        G = 1j / 4 * hankel1(0, k[:, None, None] * r[None, :, :])
     else:
-        raise NotImplementedError("Only 3D Green's function is implemented as of now.")
+        raise NotImplementedError(f"dimension {dim} Free-field Green's function not implemented")
+    
+    return G  # shape (Nk, Nx, Ny)
+
 class TailoredGreen():
     """
     Generic class for computing and plotting the Tailored Green's function
@@ -80,6 +87,7 @@ class TailoredGreen():
 
         """
         gradient with respect to source coordinates y
+        returns: grad(G) = grad(G_0 + G_s) of size (self.dim, Nk, Nx, Ny) 
         """
 
         if isinstance(k, float):
