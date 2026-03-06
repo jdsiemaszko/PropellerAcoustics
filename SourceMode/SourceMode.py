@@ -370,7 +370,7 @@ class SourceModeArray():
         return pmB
     
     
-    def plotSelf(self, fig, ax):
+    def plotSelf(self, fig, ax, plot_normals='last'):
         for child in self.children:
             child.plotRing(fig, ax)
 
@@ -391,7 +391,13 @@ class SourceModeArray():
                 linewidth=3.0,
                 alpha=0.5
             )
-        self.children[-1].plotNormals(fig, ax)
+        if plot_normals == 'last':
+            self.children[-1].plotNormals(fig, ax)
+        elif plot_normals == 'all':
+            for child in self.children:
+                child.plotNormals(fig, ax)
+        else:
+            print(f'plot_normals value of {plot_normals} not recognized, not plotting any normals')
         ax.set_box_aspect([1, 1, 1])
 
     def plotRing(self, fig, ax):

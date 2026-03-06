@@ -36,9 +36,9 @@ cg = CylinderGreen(
 K = np.array([10])
 YPOS = np.array([[0], [0.0], [1.0]])
 
-cg.plotScatteringYZ(K, YPOS, eps=1e-6, rmin = 0.51, rmax= 1.5, Nr=30, Ntheta=36*2)
-# plt.tight_layout()
-plt.show()
+# cg.plotScatteringYZ(K, YPOS, eps=1e-6, rmin = 0.51, rmax= 1.5, Nr=30, Ntheta=36*2)
+# # plt.tight_layout()
+# plt.show()
 
 
 # for k in [1, 2, 3, 4, 5]:
