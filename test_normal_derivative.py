@@ -27,9 +27,9 @@ cg_sf = SF_FullCylinderGreen(radius=RAD, axis=axis, origin=origin,radial=radial,
 cg = CylinderGreen(
     radius=RAD, axis=axis, origin=origin,radial=radial,  dim=3, 
                      numerics={
-                    'nmax': 16,
-                    'Nq_prop': 32*2, #discretization of the propagating part
-                    'Nq_evan': 32*2, # discretization of the evanescent part
+                    'mmax': 32,
+                    'Nq_prop': 32, #discretization of the propagating part
+                    'Nq_evan': 32, # discretization of the evanescent part
                     'eps_radius' : 1e-32, # cut-off distance
                  }
 )
@@ -44,8 +44,8 @@ YPOS = np.array([[0], [0.0], [1.0]])
 # for k in [1, 2, 3, 4, 5]:
 er_ar = []
 eps_ar = [
-    # 1e-0, 1e-1,
-        #    1e-2, 1e-3, 1e-6,
+    1e-0, 1e-1,
+           1e-2, 1e-3, 1e-6,
              1e-12
            ]
 for eps in eps_ar:

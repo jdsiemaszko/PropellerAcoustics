@@ -168,11 +168,14 @@ def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float
         dcosm_dphiy / src_r[None, None, :], 
         epsm,
         optimize=True
-    ) * (-1j / 4)  #mind the convention is different by (-1) from Zamponi et al. 2024 and Gloerfelt et al. 2005
+    )    #mind the convention is different by (-1) from Zamponi et al. 2024 and Gloerfelt et al. 2005
 
     gradG  = np.stack([
         dG_dry, dG_dphiy_ry
-    ]) # shape 2, Nk, Nx, Ny
+    ])  # shape 2, Nk, Nx, Ny
+
+    gradG *= (-1j / 4) # NOTE: IMPORTANT: Python is buggy when applying this pre-factor directly on the einsum, do this explicitly afterwards
+
 
     if return_G:
         G = np.einsum(
@@ -183,7 +186,8 @@ def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float
         cosm,
         epsm,
         optimize=True
-    ) * (-1j / 4)
+        ) 
+        G *= (-1j / 4)
 
     if np.any(np.isnan(gradG)):
         print('WARNING: NaN values detected in the computation')
@@ -622,7 +626,7 @@ class CylinderGreen(TailoredGreen):
 
                     G[ik, :, :] += G_2D[0, :, :] * cosz * wval # increment
             
-            G *= 1/np.pi/2 # rescale the integral (see appendix on cylinder green's function)
+            G *= 1/np.pi # rescale the integral (see appendix on cylinder green's function)
 
             return G
     
@@ -964,7 +968,7 @@ class CylinderGreen(TailoredGreen):
                     gradG_cylindrical[1, ik, :, :] += grad_2D_polar[1, 0, :, :] * cosz * wval # 1/r dG/dphi - same as above
                     gradG_cylindrical[2, ik, :, :] += G_2D[0, :, :] * dcosz_dz * wval # dG/dz -  actually computing the z gradient based on G_2D
             
-            gradG_cylindrical *= 1/np.pi/2 # rescale the integral (see appendix on cylinder green's function)
+            gradG_cylindrical *= 1/np.pi # rescale the integral (see appendix on cylinder green's function)
 
             gradG_cart = gradCylindricalToCartesian(
                 gradG_cylindrical,

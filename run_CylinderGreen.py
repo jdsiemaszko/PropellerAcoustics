@@ -24,6 +24,6 @@ cg = CylinderGreen(radius=0.5, axis=axis, origin=origin, dim=3,
 # plt.show()
 # plt.close()
 
-cg.plot3Ddirectivity(k=np.array([10.0]), y=np.array([[0], [0.51], [0.]]), R=5.0, Nphi=36, Ntheta=18,
+cg.plot3Ddirectivity(k=np.array([10.0]), y=np.array([[0], [1.0], [0.]]), R=5.0, Nphi=36, Ntheta=18,
                    valmin=10, valmax=65)
 plt.show()
