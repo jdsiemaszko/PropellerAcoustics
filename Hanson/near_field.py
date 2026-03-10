@@ -194,10 +194,10 @@ class NearFieldHansonModel(HansonModel):
         # Precompute alpha-phase matrices
         # --------------------------------------------
         # (Nm, Nα)
-        E_m = np.exp(-1j * np.outer(mB, alpha))
+        E_m = np.exp(+1j * np.outer(mB, alpha))
 
         # (Nk, Nα)
-        E_k = np.exp(1j * np.outer(k, alpha))
+        E_k = np.exp(-1j * np.outer(k, alpha))
 
         # --------------------------------------------
         # Loadings (pre-rotated)
@@ -236,9 +236,9 @@ class NearFieldHansonModel(HansonModel):
             k_exp = wavenumber[:, None, None]  # (Nm,1,1)
 
             G1 = (
-                np.exp(-1j * k_exp * R_exp)
+                np.exp(+1j * k_exp * R_exp)
                 / (R_exp**2)
-                * (1 + 1/(1j*k_exp*R_exp))
+                * (1 - 1/(1j*k_exp*R_exp))
             )  # (Nm, Nα, Nr)
 
             G2 = G1 * np.sin(alpha - phi)[None, :, None]
@@ -276,7 +276,7 @@ class NearFieldHansonModel(HansonModel):
                 Fphi[None, :, :] * np.sin(theta) * G2_int
             ) * dr[None, None, :]
 
-            contrib *= -1j * wavenumber[:, None, None] / (4*np.pi) * r
+            contrib *= 1j * wavenumber[:, None, None] / (4*np.pi) * r
 
             # sum over k and r
             pmb[ix] = np.sum(contrib, axis=(1, 2))
@@ -359,12 +359,12 @@ class NearFieldHansonModel(HansonModel):
             + np.cos(theta[:, None, None]) * Fz[None, :, :]
         ) # shape Nx, Nm, Nr
 
-        matrix *= np.exp(+1j * wavenumber[None, :, None] * radius[None, None, :] * np.sin(theta)[:, None, None] * np.cos(phi)[:, None, None]) # shape Nx, Nm, Nr
+        matrix *= np.exp(-1j * wavenumber[None, :, None] * radius[None, None, :] * np.sin(theta)[:, None, None] * np.cos(phi)[:, None, None]) # shape Nx, Nm, Nr
 
         matrix *= R[:, None, None] / Rprime[:, None, :]
-        matrix *= (np.ones(matrix.shape) + 1/(1j*wavenumber[None, :, None]*Rprime[:, None, :]))
-        matrix *= np.exp(-1j * wavenumber[None, :, None] * Rprime[:, None, :])
-        matrix *= -1j * wavenumber[None, :, None] / (4*np.pi) / Rprime[:, None, :]
+        matrix *= (np.ones(matrix.shape) - 1/(1j*wavenumber[None, :, None]*Rprime[:, None, :]))
+        matrix *= np.exp(1j * wavenumber[None, :, None] * Rprime[:, None, :])
+        matrix *= 1j * wavenumber[None, :, None] / (4*np.pi) / Rprime[:, None, :]
 
         # reduce by summing along Nr axis
         pm = np.sum (

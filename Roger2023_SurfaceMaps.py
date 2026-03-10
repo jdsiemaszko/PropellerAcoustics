@@ -39,10 +39,7 @@ chord_array = 0.0254 * np.interp(radius_array, df['STATION'] * 0.0254, df["CHORD
 KMAX = 32
 # NTHETA = 3 # discretization in the polar angle
 # NPHI = 3 # discretization in the azimuth
-NDIPOLES = 36 # discterization of each source mode
-# DATA ASSIMILATION (VELLA ET AL. 2026)
-
-
+NDIPOLES = 18 # discterization of each source mode
 
 data_roger = np.loadtxt('Data/Roger2023/RogerUz.csv', skiprows=1, delimiter=',').T
 Uz0_mps = np.interp(radius_c, data_roger[0], data_roger[1])
@@ -65,12 +62,13 @@ cg = HalfCylinderGreen(
                         numerics={
                     'nmax': 32,
                     'Nq_prop': 128,
+                    'Nq_evan': 128,
                     'eps_radius' : 1e-12, # must be lower than eps_eval!
                     'Nazim' : 36, # discretization of the boundary in the azimuth
-                    'Nax': 128, # in the axial direction
-                    'RMAX': 20, # max radius!
+                    'Nax': 32, # in the axial direction
+                    'RMAX': 10, # max radius!
                     'mode': 'geometric', # uniform or geometric, defines the spacing of the surface panels!
-                    'geom_factor': 1.05, # geometric stretching factor, only used if mode is 'geometric'
+                    'geom_factor': 1.02, # geometric stretching factor, only used if mode is 'geometric'
                     'eps_eval' : 1e-3 # evaluation distance from the actual surface, as a fraction of cylinder radius!
                     # Note: the function is currently NOT checking if the panels are compact!
                  })
@@ -108,9 +106,9 @@ sma = SourceModeArray(BLH=blade_l.getBladeLoadingMagnitude(), # loading per unit
 
 fig = plt.figure(figsize=(7, 7))
 ax = fig.add_subplot(111, projection="3d")
-sma.plotSelf(fig, ax)
+sma.plotSelf(fig, ax, plot_normals=None)
 ax.set_aspect('equal')
-# ax.set_axis_off()
+ax.set_axis_off()
 plt.show()
 plt.close()
 

@@ -89,7 +89,7 @@ class BeamLoadings():
 
         # shape (3, Nk, Nr)
         
-        F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(-1j *
+        F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
                  k_local[None, :, None, None] * 2 * np.pi / period * 
                  T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp
 
@@ -245,7 +245,7 @@ class BeamLoadings():
         T_periodic, pressure_periodic = periodic_sum_interpolated(pressure, period=period, time=time_1d, kind='cubic', t_new=T_periodic)
 
         # shape (Npoints, Nk, Nr)
-        p_k = 1/period * np.sum(pressure_periodic[:, None, :, :] * np.exp(-1j *
+        p_k = 1/period * np.sum(pressure_periodic[:, None, :, :] * np.exp(+1j *
                  k[None, :, None, None] * 2 * np.pi / period *
                  T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp        
         

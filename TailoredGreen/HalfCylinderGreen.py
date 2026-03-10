@@ -43,6 +43,10 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
         self.panel_positions, self.panel_normals, self.panel_areas, self.panel_z_edges, self.panel_th_edges = self.getBoundaryDiscretization()
 
+        self.panel_z_centers = (self.panel_z_edges[1:]+self.panel_z_edges[:-1])/2
+        self.panel_th_centers = (self.panel_th_edges[1:]+self.panel_th_edges[:-1])/2
+
+
     def getBoundaryDiscretization(self):
         # boundary discretization for the geometry
         # leave arbitrary in the parent class
@@ -244,12 +248,12 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
     
     def plotSurfaceGreen(self, fig, ax, y, k, levels=20, cmap='viridis', title=None):
         gr = self.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k)
-        self._plotSurfaceSolution(fig, ax, p_to_SPL(gr), self.panel_z_centers, self.panel_th_centers, levels=levels, cmap=cmap, title=title)
+        self._plotSurfaceSolution(p_to_SPL(gr), self.panel_z_centers, self.panel_th_centers, fig=fig, ax=ax,  levels=levels, cmap=cmap, title=title)
         return fig, ax
     
     def plotSurfaceFFGreen(self, fig, ax, y, k, levels=20, cmap='viridis', title=None):
         gr = self.getFreeSpaceGreen(self.getBoundaryEvaluationPoints(), y, k)
-        self._plotSurfaceSolution(fig, ax, p_to_SPL(gr), self.panel_z_centers, self.panel_th_centers, levels=levels, cmap=cmap, title=title)
+        self._plotSurfaceSolution(p_to_SPL(gr), self.panel_z_centers, self.panel_th_centers, fig=fig, ax=ax,  levels=levels, cmap=cmap, title=title)
         return fig, ax
 
 class HalfCylinderGreen(SurfacePotentialGreen):
@@ -372,7 +376,7 @@ class HalfCylinderGreen(SurfacePotentialGreen):
     
     def plotSurfaceGreen(self, fig, ax, y, k, levels=20, cmap='viridis', title=None):
         gr = self.full_cylinder_green.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k)
-        self._plotSurfaceSolution(fig, ax, p_to_SPL(gr), levels=levels, cmap=cmap, title=title)
+        self._plotSurfaceSolution(p_to_SPL(gr),self.panel_z_centers, self.panel_th_centers, fig=fig, ax=ax,  levels=levels, cmap=cmap, title=title)
         return fig, ax
 
 class SF_FullCylinderGreen(HalfCylinderGreen):
