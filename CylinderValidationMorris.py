@@ -34,6 +34,7 @@ y = np.array([
 ]) # source positions of shape (2, NPth * NPr)
 
 # Cylinder Module
+# TODO: set this up in 2 dimensions!
 axis = np.array([1.0, 0.0, 0.0])
 origin = np.array([0.0, 0.0, 0.0])
 radial = np.array([0.0, 0.0, -1.0])
