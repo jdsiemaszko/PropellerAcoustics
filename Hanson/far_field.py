@@ -283,7 +283,7 @@ class HansonModel():
         fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
             blending=blending,
-            title=f"Far-field directivity of $p_{int(m* self.B)}$",
+            title=f"Far-field directivity of $p_{{{int(m * self.B)}}}$",
             valmin=valmin,
             valmax=valmax,
             fig=fig,
@@ -322,7 +322,7 @@ class HansonModel():
         # ax.legend()
 
         ax.set_xscale('log')
-        ax.set_xlabel('$f^+$')
+        ax.set_xlabel('$f^+ = \omega/B\Omega$')
         ax.set_ylabel('SPL w.r.t 20e-6 Pa')
         plt.tight_layout()
 

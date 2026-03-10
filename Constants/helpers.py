@@ -6,9 +6,13 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from scipy.interpolate import interp1d
 
-def p_to_SPL(p, pref=PREF):
+def p_to_SPL(p, pref=PREF, upper=200, lower=-200):
+    SPLdB = 20 * np.log10(np.abs(p) / pref) + SPLSHIFT
 
-    return 20 * np.log10(np.abs(p) / pref) + SPLSHIFT
+    SPLdB = np.minimum(SPLdB, upper)
+    SPLdB = np.maximum(SPLdB, lower)
+
+    return SPLdB
 
 def getCylindricalCoordinates(x, axis:np.ndarray, origin:np.ndarray, radial:np.ndarray, normal:np.ndarray):
     """
@@ -342,9 +346,9 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
         mag_db = p_to_SPL(mag)
         if valmax is None:
-            valmax = mag_db.max()
+            valmax = min(mag_db.max(), 200)
         if valmin is None:
-            valmin = mag_db.min()
+            valmin = max(mag_db.min(), -120)
             
         print(f'maximum magnitude: {np.max(mag_db)} [dB]')
 
@@ -353,7 +357,7 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
         mag_db0 = mag_db.reshape(Ntheta, Nphi)
         r0 = r0.reshape(Ntheta, Nphi)
 
-        r_c = r0
+        r_c = np.maximum(r0, blending)
         Theta_c = Theta
         Phi_c = Phi
         mag_db_c = mag_db0
