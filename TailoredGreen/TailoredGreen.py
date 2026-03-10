@@ -38,13 +38,48 @@ def FreeSpaceGreenFunction(x, y, k, dim=3):
     
     return G  # shape (Nk, Nx, Ny)
 
+def FreeSpaceGreenGradient(x, y, k, dim=3):
+    """
+    x - observer position of size (dim, Nx)
+    y - source position of size (dim, Ny)
+    k - wavenumber of size (Nk)
+    dim - dimension
+
+    returns:
+    gradG - Green's function gradient w.r.t source coordinates. matrix of size (dim, Nk, Nx, Ny)
+    """
+
+    r = compute_distance_matrix(x, y)
+    units = (x[:, :, None] - y[:, None, :]) / r[None, :, :]  # shape (dim, Nx, Ny)
+
+    if np.any(r == 0):
+        #TODO: clip values instead
+        raise ValueError("Source and field points cannot be the same.")
+    
+    if isinstance(k, float):
+        k = np.array([k])
+
+    if dim == 3:
+        G0 = FreeSpaceGreenFunction(x, y, k, dim=3)  # shape (Nk, Nx, Ny)
+        #Note: gradient taken w.r.t the SOURCE, i.e. y. w.r.t to x, the sign is opposite
+        gradG0 = (-1j * k[None, :, None, None] + 1 / r[None, None, :, :]) * G0[None, :, :, :] * units[:, None, :, :]  # shape (3, Nk, Nx, Ny)
+
+    elif dim == 2:
+        gradG0 -k[None, :, None, None] * 1j / 4 * hankel1(1, k[None, :, None, None] * r[None, None, :, :]) * units[:, None, :, :]  # shape (dim, Nk, Nx, Ny)
+    
+    else:
+        raise NotImplementedError(f"dimension {dim} Free-field Green's function not implemented")
+    
+    return gradG0  # shape (3, Nk, Nx, Ny)
+
 class TailoredGreen():
     """
     Generic class for computing and plotting the Tailored Green's function
     """
     def __init__(self, dim=3):
         self.dim = dim
-        self.G_base = FreeSpaceGreenFunction
+        self.G_base = FreeSpaceGreenFunction # pass base functions
+        self.G_grad_base = FreeSpaceGreenGradient
 
     def getGreenFunction(self, x, y, k):
         """
@@ -69,14 +104,7 @@ class TailoredGreen():
     def getFreeSpaceGreenGradient(self, x, y, k):
         if isinstance(k, float):
             k = np.array([k])
-
-        r = compute_distance_matrix(x, y)  # shape (Nx, Ny)
-        units = (x[:, :, None] - y[:, None, :]) / r[None, :, :]  # shape (3, Nx, Ny)
-        if self.dim == 3:
-            G0 = self.getFreeSpaceGreen(x, y, k)  # shape (Nk, Nx, Ny)
-            #Note: gradient taken w.r.t the SOURCE, i.e. y. w.r.t to x, the sign is opposite
-            gradG0 = (-1j * k[None, :, None, None] + 1 / r[None, None, :, :]) * G0[None, :, :, :] * units[:, None, :, :]  # shape (3, Nk, Nx, Ny)
-            return gradG0  # shape (3, Nk, Nx, Ny)
+        return self.G_grad_base(x, y, k, dim=self.dim)
 
     def getScatteringGreenGradient(self, x, y, k):
         if isinstance(k, float):
@@ -256,7 +284,7 @@ class TailoredGreen():
 
         return fig, ax
 
-    def plotScatteringYZ(self, k, y, eps=1e-6, rmin=None, rmax=None, Nr=50, Ntheta=90, fig=None, axs=None):
+    def plotScatteringYZ(self, k, y, rmin=None, rmax=None, Nr=50, Ntheta=90, fig=None, axs=None):
 
         theta = np.linspace(0, 2 * np.pi, Ntheta, endpoint=False)
         R = np.linspace(rmin, rmax, Nr)
