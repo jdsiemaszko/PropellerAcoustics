@@ -38,13 +38,48 @@ def FreeSpaceGreenFunction(x, y, k, dim=3):
     
     return G  # shape (Nk, Nx, Ny)
 
+def FreeSpaceGreenGradient(x, y, k, dim=3):
+    """
+    x - observer position of size (dim, Nx)
+    y - source position of size (dim, Ny)
+    k - wavenumber of size (Nk)
+    dim - dimension
+
+    returns:
+    gradG - Green's function gradient w.r.t source coordinates. matrix of size (dim, Nk, Nx, Ny)
+    """
+
+    r = compute_distance_matrix(x, y)
+    units = (x[:, :, None] - y[:, None, :]) / r[None, :, :]  # shape (dim, Nx, Ny)
+
+    if np.any(r == 0):
+        #TODO: clip values instead
+        raise ValueError("Source and field points cannot be the same.")
+    
+    if isinstance(k, float):
+        k = np.array([k])
+
+    if dim == 3:
+        G0 = FreeSpaceGreenFunction(x, y, k, dim=3)  # shape (Nk, Nx, Ny)
+        #Note: gradient taken w.r.t the SOURCE, i.e. y. w.r.t to x, the sign is opposite
+        gradG0 = (-1j * k[None, :, None, None] + 1 / r[None, None, :, :]) * G0[None, :, :, :] * units[:, None, :, :]  # shape (3, Nk, Nx, Ny)
+
+    elif dim == 2:
+        gradG0 -k[None, :, None, None] * 1j / 4 * hankel1(1, k[None, :, None, None] * r[None, None, :, :]) * units[:, None, :, :]  # shape (dim, Nk, Nx, Ny)
+    
+    else:
+        raise NotImplementedError(f"dimension {dim} Free-field Green's function not implemented")
+    
+    return gradG0  # shape (3, Nk, Nx, Ny)
+
 class TailoredGreen():
     """
     Generic class for computing and plotting the Tailored Green's function
     """
     def __init__(self, dim=3):
         self.dim = dim
-        self.G_base = FreeSpaceGreenFunction
+        self.G_base = FreeSpaceGreenFunction # pass base functions
+        self.G_grad_base = FreeSpaceGreenGradient
 
     def getGreenFunction(self, x, y, k):
         """
@@ -69,14 +104,7 @@ class TailoredGreen():
     def getFreeSpaceGreenGradient(self, x, y, k):
         if isinstance(k, float):
             k = np.array([k])
-
-        r = compute_distance_matrix(x, y)  # shape (Nx, Ny)
-        units = (x[:, :, None] - y[:, None, :]) / r[None, :, :]  # shape (3, Nx, Ny)
-        if self.dim == 3:
-            G0 = self.getFreeSpaceGreen(x, y, k)  # shape (Nk, Nx, Ny)
-            #Note: gradient taken w.r.t the SOURCE, i.e. y. w.r.t to x, the sign is opposite
-            gradG0 = (-1j * k[None, :, None, None] + 1 / r[None, None, :, :]) * G0[None, :, :, :] * units[:, None, :, :]  # shape (3, Nk, Nx, Ny)
-            return gradG0  # shape (3, Nk, Nx, Ny)
+        return self.G_grad_base(x, y, k, dim=self.dim)
 
     def getScatteringGreenGradient(self, x, y, k):
         if isinstance(k, float):
@@ -256,38 +284,72 @@ class TailoredGreen():
 
         return fig, ax
 
-    def plotScatteringYZ(self, k, y, eps=1e-6, rmin=None, rmax=None, Nr=50, Ntheta=90, fig=None, axs=None):
+    def plotGreenOnPlane(self, k:float, y, rmin=None, rmax=None, Nr=50, Ntheta=90, fig=None, axs=None, mode='yz', alpha=0.1):
+        """
+        plotting the green's function on a plane specified by 'mode'
+        if multiple sources y are specified, the plotted variable is the SUM of green's functions, i.e. sum G(x, y_i)
+        this is equivalent to the solution to L(p(x)) = sum(delta(x-y_i))
+        """
 
         theta = np.linspace(0, 2 * np.pi, Ntheta, endpoint=False)
         R = np.linspace(rmin, rmax, Nr)
         Theta, R_grid = np.meshgrid(theta, R)
-        Y = R_grid * np.cos(Theta)
-        Z = R_grid * np.sin(Theta)
-        X = np.zeros_like(Y)
-        x = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])  # shape (3, N)
+        if self.dim == 3:
+            if mode == ['yz', 'zy']:
+                Y = val1 = R_grid * np.cos(Theta)
+                Z = val2 = R_grid * np.sin(Theta)
+                X = np.zeros_like(Y)
+                ii = 1
+                jj = 2
+            elif mode in ['xy', 'yx']:
+                X = val1 = R_grid * np.cos(Theta)
+                Y = val2 = R_grid * np.sin(Theta)
+                Z = np.zeros_like(Y)
+                ii = 0
+                jj = 1
+            elif mode in ['xz', 'zx']:
+                X = val1 = R_grid * np.cos(Theta)
+                Z = val2 = R_grid * np.sin(Theta)
+                Y = np.zeros_like(Y)
+                ii = 0
+                jj = 2
+            else:
+                raise ValueError(f'mode {mode} not recognized')
+            x = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])  # shape (3, N)
+            
+        elif self.dim==2:
+            val1 = R_grid * np.cos(Theta)
+            val2 = R_grid * np.sin(Theta)
+            ii = 0
+            jj = 1
+            x = np.vstack([val1.ravel(), val2.ravel()])  # shape (2, N)
+
         if fig is None or axs is None:   
 
             fig, axs = plt.subplots(1, 3, figsize=(16, 5),  sharey=True,constrained_layout=True)
 
-        G0 = self.getFreeSpaceGreen(x, y, k)
-        G1 = self.getScatteringGreen(x, y, k)
+        G0 = self.getFreeSpaceGreen(x, y, k) # Nk, Nx, Ny, note that Nk=1
+        G1 = self.getScatteringGreen(x, y, k) # Nk, Nx, Ny
+        G0  = np.sum(G0, axis=-1) # Nk, Nx
+        G1  = np.sum(G1, axis=-1) # Nk, Nx
+
         G_total = G0 + G1
 
-        G0_reshaped = G0.reshape(Y.shape)
-        G1_reshaped = G1.reshape(Y.shape)
-        G_total = G_total.reshape(Y.shape)
+        G0_reshaped = G0.reshape(val1.shape)
+        G1_reshaped = G1.reshape(val1.shape)
+        G_total = G_total.reshape(val1.shape)
 
         # eps0 = np.abs(G0_reshaped)[np.abs(G0_reshaped) > 0].min()
         # eps1 = np.abs(G_total)[np.abs(G_total) > 0].min()
 
         # Plot G0
         im0 = axs[0].pcolormesh(
-            Y, Z,
+            val1, val2,
             np.real(G0_reshaped),
             shading='auto',
             cmap='viridis',
             # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
-            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             edgecolor='k',
         )
         axs[0].set_title('$G_0$ on the yz plane')
@@ -298,12 +360,12 @@ class TailoredGreen():
 
         # Plot G1
         im1 = axs[1].pcolormesh(
-            Y, Z,
+            val1, val2,
             np.real(G1_reshaped),
             shading='auto',
             cmap='viridis',
             # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
-            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             edgecolor='k',
         )
         axs[1].set_title('$G_s$ on the yz plane')
@@ -314,20 +376,24 @@ class TailoredGreen():
 
         # Plot G0 + G1
         im2 = axs[2].pcolormesh(
-            Y, Z,
+            val1, val2,
             np.real(G_total),
             shading='auto',
             cmap='viridis',
             # norm=colors.LogNorm(vmin=eps1, vmax=np.abs(G_total).max())
-            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             edgecolor='k',
         )
         axs[2].set_title('$G_0+G_s$ on the yz plane')
         axs[2].set_xlabel('y')
         axs[2].set_ylabel('z')
-        axs[2].plot(y[1], y[2], 'ro', label='Source')
         axs[2].axis('equal')
         fig.colorbar(im2, ax=axs[2])
+
+        axs[0].plot(y[ii], y[jj], 'ro')
+        axs[1].plot(y[ii], y[jj], 'ro')
+        axs[2].plot(y[ii], y[jj], 'ro')
+
 
 
         return fig, axs

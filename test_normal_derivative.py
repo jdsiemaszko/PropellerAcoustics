@@ -27,23 +27,27 @@ cg_sf = SF_FullCylinderGreen(radius=RAD, axis=axis, origin=origin,radial=radial,
 cg = CylinderGreen(
     radius=RAD, axis=axis, origin=origin,radial=radial,  dim=3, 
                      numerics={
-                    'nmax': 16,
-                    'Nq_prop': 32*8, #discretization of the propagating part
-                    'Nq_evan': 32*2, # discretization of the evanescent part
+                    'mmax': 32,
+                    'Nq_prop': 32, #discretization of the propagating part
+                    'Nq_evan': 32, # discretization of the evanescent part
                     'eps_radius' : 1e-32, # cut-off distance
                  }
 )
 K = np.array([10])
 YPOS = np.array([[0], [0.0], [1.0]])
 
-# cg.plotScatteringYZ(K, YPOS, eps=1e-6, rmin = 0.51, rmax= 1.5, Nr=30, Ntheta=36*2)
+# cg.plotScatteringYZ(K, YPOS, rmin = 0.51, rmax= 1.5, Nr=30, Ntheta=36*2)
 # # plt.tight_layout()
 # plt.show()
 
 
 # for k in [1, 2, 3, 4, 5]:
 er_ar = []
-eps_ar = [1e-0, 1e-1, 1e-2, 1e-3, 1e-6, 1e-12]
+eps_ar = [
+    1e-0, 1e-1,
+           1e-2, 1e-3, 1e-6,
+             1e-12
+           ]
 for eps in eps_ar:
 # [1, 2, 3, 4, 5]
     # eps = 1e-3
@@ -114,19 +118,19 @@ for eps in eps_ar:
     error = dGsdn+dG0dn
     area= 2 * np.pi  * (z.max() - z.min())
 
-    # error2D = error.reshape((z.shape[0], phi.shape[0]))
-    # plt.plot(np.real(dG0dn))
-    # plt.plot(np.real(dGsdn))
-    # plt.plot(np.real(error), color='k', linestyle='dashed')
-    # plt.show()
-    # plt.close()
-    # plt.contourf(Z, np.rad2deg(PHI),np.abs(error2D))
-    # plt.colorbar()
-    # plt.show()
+    error2D = error.reshape((z.shape[0], phi.shape[0]))
+    plt.plot(np.real(dG0dn))
+    plt.plot(np.real(dGsdn))
+    plt.plot(np.real(error), color='k', linestyle='dashed')
+    plt.show()
+    plt.close()
+    plt.contourf(Z, np.rad2deg(PHI),np.abs(error2D))
+    plt.colorbar()
+    plt.show()
 
-    # print(np.max(np.abs(dG0dn)))
-    # print(np.max(np.abs(dGsdn)))
-    # print(np.max(np.abs(error)))
+    print(np.max(np.abs(dG0dn)))
+    print(np.max(np.abs(dGsdn)))
+    print(np.max(np.abs(error)))
     L2_error = np.linalg.norm(error) / len(error) * area
     er_ar.append(L2_error)
     print(L2_error)
