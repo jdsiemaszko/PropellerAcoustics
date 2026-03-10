@@ -36,11 +36,11 @@ y = np.array([
 # Cylinder Module
 # TODO: set this up in 2 dimensions!
 axis = np.array([1.0, 0.0, 0.0])
-origin = np.array([0.0, 0.0, 0.0])
-radial = np.array([0.0, 0.0, -1.0])
+origin = np.array([0.0, 0.0])
+radial = np.array([0.0, -1.0])
 tangential = np.cross(axis, radial)
 cg = CylinderGreen(
-    radius=a, axis=axis, origin=origin,radial=radial,  dim=3, 
+    radius=a, axis=axis, origin=origin,radial=radial,  dim=2, 
                      numerics={
                     'nmax': 16,
                     'Nq_prop': 32*8, #discretization of the propagating part

@@ -4,7 +4,7 @@ import numpy as np
 from scipy.special import hankel1, jv, iv, kv, h1vp, hankel1e, jvp
 from numpy.polynomial.legendre import leggauss
 from Constants.const import PREF
-from Constants.helpers import p_to_SPL, getCylindricalCoordinates
+from Constants.helpers import p_to_SPL, getCylindricalCoordinates, getPolarCoordinates
 import matplotlib.pyplot as plt
 
 def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24):
@@ -280,6 +280,44 @@ def gradCylindricalToCartesian(gradient, r, phi, z, axis, origin, radial, normal
 
     return grad_cart
 
+def gradPolarToCartesian(gradient, r, phi, origin, radial, normal):
+    """
+    Convert gradient from cylindrical to Cartesian coordinates.
+
+    gradient - gradient in cylindrical coordinates of size (2, N) d/dr, 1/r*d/dphi,
+    r, phi - polaar coordinates of size (N,) at evaluation points
+    origin - point on the cylinder axis of size (2,)
+    radial - radial direction vector of size (2,)
+    normal - phi direction vector of size (2, )
+
+    returns:
+    grad_cart - gradient in Cartesian coordinates of size (2, N): dG/dx, dG/dy
+    """
+    # Normalize axis and radial vectors
+    axis = axis / np.linalg.norm(axis)
+    radial = radial / np.linalg.norm(radial)
+    normal = normal / np.linalg.norm(normal)
+
+    # reshape phi for broadcasting
+    phi_ = phi[None, None, None, :]   # (1,1,1,Ny)
+
+    e_r = (
+        np.cos(phi_) * radial[:, None, None, None]
+    + np.sin(phi_) * normal[:, None, None, None]
+    )
+
+    e_phi = (
+    -np.sin(phi_) * radial[:, None, None, None]
+    + np.cos(phi_) * normal[:, None, None, None]
+    )
+
+    grad_cart = (
+    e_r   * gradient[0]
+    + e_phi * gradient[1]   # assuming term is (1/r) d/dphi
+    ) # 3, Nk, Nx, Ny
+
+    return grad_cart
+
 def beta_safe(m_qm, x):
     # TODO: make safe(r)?
     Jm0 = jv(m_qm - 1, x)
@@ -337,10 +375,11 @@ class CylinderGreen(TailoredGreen):
         super().__init__(dim=dim)
         self.radius = radius
         self._numerics = numerics
-        self.axis = axis / np.linalg.norm(axis) # axis vector of the cylinder
         self.origin = origin # a point on the cylinder axis, taken as the origin of the cylindrical coordinate system
 
         if dim==3:
+            self.axis = axis / np.linalg.norm(axis) # axis vector of the cylinder
+
             if radial is None:
                 # choose an arbitrary radial direction perpendicular to the axis
                 if np.allclose(self.axis, np.array([1,0,0])):
@@ -355,6 +394,7 @@ class CylinderGreen(TailoredGreen):
             self.normal = np.cross(self.axis, self.radial) # normal vector of the cylinder, completing the right-handed coordinate system
 
         elif dim==2:
+            self.axis=0.0 # should not be used
             if radial is None:
                 # choose an arbitrary radial direction perpendicular to the axis
                 if np.allclose(self.axis, np.array([1,0])):
@@ -365,6 +405,8 @@ class CylinderGreen(TailoredGreen):
                 self.radial /= np.linalg.norm(self.radial)
             else:
                 self.radial = radial / np.linalg.norm(radial) # radial vector of the cylinder, taken as the zero azimuth direction
+
+            self.normal = np.stack([-self.radial[1], self.radial[0]]) # cross product in 2D between [0,0,1] and self.radial!
         else:
             raise ValueError(f'dimension {self.dim} not implemented!')
         
@@ -378,18 +420,25 @@ class CylinderGreen(TailoredGreen):
         Nq_evan  = self._numerics.get("Nq_evan",   128)
 
         k = np.atleast_1d(k)
-        obs_r, obs_phi, obs_x = getCylindricalCoordinates(
-            x, self.axis, self.origin, self.radial, self.normal
-        )
-        src_r, src_phi, src_x = getCylindricalCoordinates(
-            y, self.axis, self.origin, self.radial, self.normal
-        )
 
         if self.dim == 2: # in 2D, use the functions directly!
+            obs_r, obs_phi = getPolarCoordinates(
+            x, self.origin, self.radial, self.normal
+            )
+            src_r, src_phi= getPolarCoordinates(
+            y, self.origin, self.radial, self.normal
+            )
 
             return self.G_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], k, self.radius, mmax=mmax, eps_radius=eps_radius)
 
         elif self.dim == 3: # in 3D, integrate over the extrusion direction!
+            obs_r, obs_phi, obs_x = getCylindricalCoordinates(
+            x, self.axis, self.origin, self.radial, self.normal
+            )
+            src_r, src_phi, src_x = getCylindricalCoordinates(
+                y, self.axis, self.origin, self.radial, self.normal
+            )
+
             Nk = k.size
             Nx = x.shape[1]
             Ny = y.shape[1]
@@ -419,21 +468,39 @@ class CylinderGreen(TailoredGreen):
         Nq_evan  = self._numerics.get("Nq_evan",   128)
 
         k = np.atleast_1d(k)
-        obs_r, obs_phi, obs_x = getCylindricalCoordinates(
-            x, self.axis, self.origin, self.radial, self.normal
-        )
-        src_r, src_phi, src_x = getCylindricalCoordinates(
-            y, self.axis, self.origin, self.radial, self.normal
-        )
+
 
         if self.dim == 2: # in 2D, use the functions directly!
 
+            obs_r, obs_phi = getPolarCoordinates(
+            x, self.origin, self.radial, self.normal
+            )
+            src_r, src_phi= getPolarCoordinates(
+            y, self.origin, self.radial, self.normal
+            )
+
             gradG_polar = self.G_grad_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], k, self.radius, mmax=mmax, eps_radius=eps_radius, return_G=False) # shape 2, Nk, Nx, Ny
-            gradG_cart = None # TODO: ????
+            gradG_cart = gradPolarToCartesian(
+                gradG_cylindrical,
+                src_r,
+                src_phi,
+                src_x,
+                self.origin,
+                self.radial,
+                self.normal
+            )
 
             return gradG_cart
 
         elif self.dim == 3: # in 3D, integrate over the extrusion direction!
+
+            obs_r, obs_phi, obs_x = getCylindricalCoordinates(
+            x, self.axis, self.origin, self.radial, self.normal
+            )
+            src_r, src_phi, src_x = getCylindricalCoordinates(
+            y, self.axis, self.origin, self.radial, self.normal
+            )
+
             Nk = k.size
             Nx = x.shape[1]
             Ny = y.shape[1]
@@ -483,22 +550,24 @@ class CylinderGreen(TailoredGreen):
         )
 
     def plotSelf(self, fig, ax):
-            """
-            Plot a cylindrical outline for reference.
-            """
+        """
+        Plot a cylindrical outline for reference.
+        """
+        axis = self.axis
+        e0 = self.radial 
+        e1 = self.normal   # completes right-handed basis
+        R = self.radius
+        phi = np.linspace(0, 2*np.pi, 36)
 
-            axis = self.axis / np.linalg.norm(self.axis)
-            e0 = self.radial / np.linalg.norm(self.radial)
-            e1 = np.cross(axis, e0)   # completes right-handed basis
+        if self.dim==3:
 
-            R = self.radius
+
 
             zmin, zmax = ax.get_xlim()
             # two end caps along axis (for outline only)
             # zmin, zmax = -1.0, 1.0   # purely visual extent
 
             # angular parameter
-            phi = np.linspace(0, 2*np.pi, 36)
 
 
 
@@ -531,6 +600,22 @@ class CylinderGreen(TailoredGreen):
             )
 
             ax.set_box_aspect([1, 1, 1])
+
+        elif self.dim==2:
+            ring = (
+                R * np.cos(phi)[:, None] * e0[None, :]
+            + R * np.sin(phi)[:, None] * e1[None, :]
+            ) + self.origin[None, :]
+
+            ax.plot(
+                ring[:, 0],
+                ring[:, 1],
+                color="k",
+                linewidth=3.0,
+                alpha=1.0
+            )
+
+        return fig, ax
 
     def plotAxis(self, fig, ax):
 

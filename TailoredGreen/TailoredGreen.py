@@ -284,38 +284,72 @@ class TailoredGreen():
 
         return fig, ax
 
-    def plotScatteringYZ(self, k, y, rmin=None, rmax=None, Nr=50, Ntheta=90, fig=None, axs=None):
+    def plotGreenOnPlane(self, k:float, y, rmin=None, rmax=None, Nr=50, Ntheta=90, fig=None, axs=None, mode='yz', alpha=0.1):
+        """
+        plotting the green's function on a plane specified by 'mode'
+        if multiple sources y are specified, the plotted variable is the SUM of green's functions, i.e. sum G(x, y_i)
+        this is equivalent to the solution to L(p(x)) = sum(delta(x-y_i))
+        """
 
         theta = np.linspace(0, 2 * np.pi, Ntheta, endpoint=False)
         R = np.linspace(rmin, rmax, Nr)
         Theta, R_grid = np.meshgrid(theta, R)
-        Y = R_grid * np.cos(Theta)
-        Z = R_grid * np.sin(Theta)
-        X = np.zeros_like(Y)
-        x = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])  # shape (3, N)
+        if self.dim == 3:
+            if mode == ['yz', 'zy']:
+                Y = val1 = R_grid * np.cos(Theta)
+                Z = val2 = R_grid * np.sin(Theta)
+                X = np.zeros_like(Y)
+                ii = 1
+                jj = 2
+            elif mode in ['xy', 'yx']:
+                X = val1 = R_grid * np.cos(Theta)
+                Y = val2 = R_grid * np.sin(Theta)
+                Z = np.zeros_like(Y)
+                ii = 0
+                jj = 1
+            elif mode in ['xz', 'zx']:
+                X = val1 = R_grid * np.cos(Theta)
+                Z = val2 = R_grid * np.sin(Theta)
+                Y = np.zeros_like(Y)
+                ii = 0
+                jj = 2
+            else:
+                raise ValueError(f'mode {mode} not recognized')
+            x = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])  # shape (3, N)
+            
+        elif self.dim==2:
+            val1 = R_grid * np.cos(Theta)
+            val2 = R_grid * np.sin(Theta)
+            ii = 0
+            jj = 1
+            x = np.vstack([val1.ravel(), val2.ravel()])  # shape (2, N)
+
         if fig is None or axs is None:   
 
             fig, axs = plt.subplots(1, 3, figsize=(16, 5),  sharey=True,constrained_layout=True)
 
-        G0 = self.getFreeSpaceGreen(x, y, k)
-        G1 = self.getScatteringGreen(x, y, k)
+        G0 = self.getFreeSpaceGreen(x, y, k) # Nk, Nx, Ny, note that Nk=1
+        G1 = self.getScatteringGreen(x, y, k) # Nk, Nx, Ny
+        G0  = np.sum(G0, axis=-1) # Nk, Nx
+        G1  = np.sum(G1, axis=-1) # Nk, Nx
+
         G_total = G0 + G1
 
-        G0_reshaped = G0.reshape(Y.shape)
-        G1_reshaped = G1.reshape(Y.shape)
-        G_total = G_total.reshape(Y.shape)
+        G0_reshaped = G0.reshape(val1.shape)
+        G1_reshaped = G1.reshape(val1.shape)
+        G_total = G_total.reshape(val1.shape)
 
         # eps0 = np.abs(G0_reshaped)[np.abs(G0_reshaped) > 0].min()
         # eps1 = np.abs(G_total)[np.abs(G_total) > 0].min()
 
         # Plot G0
         im0 = axs[0].pcolormesh(
-            Y, Z,
+            val1, val2,
             np.real(G0_reshaped),
             shading='auto',
             cmap='viridis',
             # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
-            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             edgecolor='k',
         )
         axs[0].set_title('$G_0$ on the yz plane')
@@ -326,12 +360,12 @@ class TailoredGreen():
 
         # Plot G1
         im1 = axs[1].pcolormesh(
-            Y, Z,
+            val1, val2,
             np.real(G1_reshaped),
             shading='auto',
             cmap='viridis',
             # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
-            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             edgecolor='k',
         )
         axs[1].set_title('$G_s$ on the yz plane')
@@ -342,20 +376,24 @@ class TailoredGreen():
 
         # Plot G0 + G1
         im2 = axs[2].pcolormesh(
-            Y, Z,
+            val1, val2,
             np.real(G_total),
             shading='auto',
             cmap='viridis',
             # norm=colors.LogNorm(vmin=eps1, vmax=np.abs(G_total).max())
-            norm=colors.CenteredNorm(halfrange = np.max(G_total) * 0.01),
+            norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             edgecolor='k',
         )
         axs[2].set_title('$G_0+G_s$ on the yz plane')
         axs[2].set_xlabel('y')
         axs[2].set_ylabel('z')
-        axs[2].plot(y[1], y[2], 'ro', label='Source')
         axs[2].axis('equal')
         fig.colorbar(im2, ax=axs[2])
+
+        axs[0].plot(y[ii], y[jj], 'ro')
+        axs[1].plot(y[ii], y[jj], 'ro')
+        axs[2].plot(y[ii], y[jj], 'ro')
+
 
 
         return fig, axs

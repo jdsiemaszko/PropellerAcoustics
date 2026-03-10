@@ -50,6 +50,43 @@ def getCylindricalCoordinates(x, axis:np.ndarray, origin:np.ndarray, radial:np.n
 
     return r, phi, z
 
+def getPolarCoordinates(x, origin:np.ndarray, radial:np.ndarray, normal:np.ndarray):
+    """
+    Convert Cartesian coordinates to polar coordinates (2D)
+    relative to a system defined by its axis, origin, and radial direction.
+
+    x - points of size (2, N), all subsequent axes are ignored
+    origin - point on the cylinder axis of size (2,)
+    radial - radial direction vector of size (2,), defining the zero-azimuth direction
+    normal = - normal direction, defining the direction of positive azimuth
+
+    returns:
+    r - radial distances of size (N,)
+    phi - radial angles of size (N,)
+    """
+
+    # Normalize axis and radial vectors
+    radial = radial / np.linalg.norm(radial)
+    # Compute the normal vector
+    normal = normal / np.linalg.norm(normal)
+
+    # Shift points by origin
+    x_shifted = x - origin[:, None]
+
+    # Project onto the cylinder coordinate system
+    r_vec = x_shifted
+    r = np.linalg.norm(r_vec, axis=0)
+
+    # Compute radial angle
+    cos_phi = np.dot(radial, r_vec) / r
+    sin_phi = np.dot(normal, r_vec) / r
+    phi = np.arctan2(sin_phi, cos_phi)
+
+    # replace nans with zeros (happens when r=0)
+    phi = np.nan_to_num(phi)
+
+    return r, phi
+
 def getSphericalCoordinates(x, axis: np.ndarray, origin: np.ndarray, radial: np.ndarray, normal:np.ndarray):
     """
     Convert Cartesian coordinates to spherical coordinates
