@@ -23,8 +23,6 @@ class BladeLoadings():
         self.Omega=Omega_rads
         self.rho = rho_kgm3
         self.c = c_mps # speed of sound
-        if nb!=1:
-            raise ValueError("WARNING: case nb>1 not implemented yet!")
         self.nbeam = nb
 
 

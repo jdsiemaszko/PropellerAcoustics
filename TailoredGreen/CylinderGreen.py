@@ -63,14 +63,21 @@ def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24):
 
     # A = beta[:, :, None, None] * H_obs[:, :, :, None] * H_src[:, :, None, :] # Nk, Nm, Nx, Ny
 
+    # write this step-by-step to avoid overflows!
+    beta_H_obs = beta[:, :, None] * H_obs
+    beta_H_obs_H_src = beta_H_obs[:, :, :, None] * H_src[:, :, None, :]
+    del beta, H_obs, H_src
+    
     G = np.einsum(
-        "km,kmx,kmy,mxy,m->kxy",
-        beta,
-        H_obs,
-        H_src,
+        # "km,kmx,kmy,mxy,m->kxy",
+        # beta,
+        # H_obs,
+        # H_src,
+        "kmxy, mxy, m->kxy",
+        beta_H_obs_H_src,
         cosm,
         epsm,
-        optimize=True
+        optimize=True,
     )
 
     if np.any(np.isnan(G)):
@@ -150,24 +157,33 @@ def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float
 
     # A = beta[:, :, None, None] * H_obs[:, :, :, None] * H_src[:, :, None, :] # Nk, Nm, Nx, Ny
 
+    # write this step-by-step to avoid overflows!
+    beta_H_obs = beta[:, :, None] * H_obs
+    beta_H_obs_H_src = beta_H_obs[:, :, :, None] * H_src[:, :, None, :]
+    del beta, H_obs, H_src
+
     dG_dry = np.einsum( # dG/dr
-        "km,kmx,kmy,mxy,m->kxy",
-        beta,
-        H_obs,
+        # "km,kmx,kmy,mxy,m->kxy",
+        # beta,
+        # H_obs,
+        "kmx, kmy, mxy, m-> kxy",
+        beta_H_obs,
         dH_src_dry,
         cosm,
         epsm,
-        optimize=True
+        optimize=True,
     )
 
     dG_dphiy_ry = np.einsum( # 1/r dG/dphi_y
-        "km,kmx,kmy,mxy,m->kxy",
-        beta,
-        H_obs,
-        H_src,
+        # "km,kmx,kmy,mxy,m->kxy",
+        # beta,
+        # H_obs,
+        # H_src,
+        "kmxy, mxy, m->kxy",
+        beta_H_obs_H_src,
         dcosm_dphiy / src_r[None, None, :], 
         epsm,
-        optimize=True
+        optimize=True,
     )    #mind the convention is different by (-1) from Zamponi et al. 2024 and Gloerfelt et al. 2005
 
     gradG  = np.stack([
@@ -179,13 +195,15 @@ def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float
 
     if return_G:
         G = np.einsum(
-        "km,kmx,kmy,mxy,m->kxy",
-        beta,
-        H_obs,
-        H_src,
+        # "km,kmx,kmy,mxy,m->kxy",
+        # beta,
+        # H_obs,
+        # H_src,
+        "kmxy, mxy, m->kxy",
+        beta_H_obs_H_src,
         cosm,
         epsm,
-        optimize=True
+        optimize=True,
         ) 
         G *= (-1j / 4)
 

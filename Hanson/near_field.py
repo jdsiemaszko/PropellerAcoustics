@@ -374,6 +374,15 @@ class NearFieldHansonModel(HansonModel):
             axis=-1
         ) # integrate along the r axis, result of shape Nx, Nm
     
-        # pre-factor
-        pm *= multiplier
+        #TODO: verify interference function!
+        if self.nbeam > 0:
+            pm *= np.sum(
+            np.exp(
+                -1j * m[None, :, None] * 2 * np.pi / self.nbeam * 
+                np.arange(0, self.nbeam, 1)[None, None, :]
+            )
+            , axis=-1
+            )[:, None]
+
+            
         return pm, x

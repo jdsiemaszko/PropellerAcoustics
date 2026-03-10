@@ -465,7 +465,7 @@ class SourceModeArray():
 
         SPL_mb = p_to_SPL(pmB)
         self.green._plotSurfaceSolution(SPL_mb, z_centers, th_centers, fig=fig, ax=ax, levels=20, cmap='viridis', title=None, extent_z=extend_z, )
-        return fig, ax
+        return fig, ax, pmB, z_centers, th_centers
 
         
 if __name__ == "__main__":
