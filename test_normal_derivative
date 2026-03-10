@@ -27,73 +27,122 @@ cg_sf = SF_FullCylinderGreen(radius=RAD, axis=axis, origin=origin,radial=radial,
 cg = CylinderGreen(
     radius=RAD, axis=axis, origin=origin,radial=radial,  dim=3, 
                      numerics={
-                    'nmax': 20,
-                    'Nq_prop': 30, #discretization of the propagating part
-                    'Nq_evan': 30, # discretization of the evanescent part
-                    'eps_radius' : 1e-24, # cut-off distance
+                    'nmax': 16,
+                    'Nq_prop': 32*8, #discretization of the propagating part
+                    'Nq_evan': 32*2, # discretization of the evanescent part
+                    'eps_radius' : 1e-32, # cut-off distance
                  }
 )
-
-
+K = np.array([10])
 YPOS = np.array([[0], [0.0], [1.0]])
-K = np.array([5.0])
 
-# cg.plotScatteringYZ(K, YPOS, eps=1e-6, rmin = 0.51, rmax= 1.5, Nr=20, Ntheta=36*2)
+# cg.plotScatteringYZ(K, YPOS, eps=1e-6, rmin = 0.51, rmax= 1.5, Nr=30, Ntheta=36*2)
 # # plt.tight_layout()
 # plt.show()
 
-z = np.linspace(-2 * RAD, 2 * RAD, 10)
-phi = np.linspace(0, 2 * np.pi, 18)
-eps = 1e-1
-Z, PHI = np.meshgrid(z, phi, indexing='ij')
 
-N = radial[:, None, None]  * np.cos(PHI[None, :, :] ) + tangential[:, None, None]  * np.sin(PHI[None, :, :] )
-X = axis[:, None, None] * Z[None, :, :] + N * RAD * (1+eps) # shape 3, Nz, Nphi
-
-zz = Z.flatten()
-x = X.reshape(3,zz.shape[0])
-n = N.reshape(3, zz.shape[0])
-
-# fig = plt.figure(figsize=(7, 7))
-# ax = fig.add_subplot(111, projection="3d")
-# cg.plotSelf(fig, ax)
-# ax.scatter(x[0], x[1], x[2], color='m')
-# ax.quiver(x[0], x[1], x[2], n[0], n[1], n[2], color='k')
+# for k in [1, 2, 3, 4, 5]:
+er_ar = []
+eps_ar = [1e-0, 1e-1, 1e-2, 1e-3, 1e-6, 1e-12]
+for eps in eps_ar:
+# [1, 2, 3, 4, 5]
+    # eps = 1e-3
+    #
 
 
-# ax.set_aspect('equal')
-# # ax.set_axis_off()
-# plt.show()
-# plt.close()
+    z = np.linspace(-2 * RAD, 2 * RAD, 16)
+    phi = np.linspace(0, 2 * np.pi, 18)
+    Z, PHI = np.meshgrid(z, phi, indexing='ij')
 
-gradG0 = cg.getFreeSpaceGreenGradient(x,y=YPOS, k=K)
-gradGs = cg.getScatteringGreenGradient(x,y=YPOS, k=K)
+    N = radial[:, None, None]  * np.cos(PHI[None, :, :] ) + tangential[:, None, None]  * np.sin(PHI[None, :, :] )
+    X = axis[:, None, None] * Z[None, :, :] + N * RAD * (1+eps) # shape 3, Nz, Nphi
+
+    zz = Z.flatten()
+    x = X.reshape(3, zz.shape[0])
+    n = N.reshape(3, zz.shape[0])
+
+    # fig = plt.figure(figsize=(7, 7))
+    # ax = fig.add_subplot(111, projection="3d")
+    # cg.plotSelf(fig, ax)
+    # ax.scatter(x[0], x[1], x[2], color='m')
+    # ax.quiver(x[0], x[1], x[2], n[0], n[1], n[2], color='k')
+    # ax.set_aspect('equal')
+    # # ax.set_axis_off()
+    # plt.show()
+    # plt.close()
 
 
-dG0dn = np.einsum(
-    'dn, dmno-> n',
-    n,
-    gradG0
-)
+    ############## DIRECT - INCORRECT!!!!
+    # gradG0 = cg.getFreeSpaceGreenGradient(x,y=YPOS, k=K) # nabla_y G(x|y) = nabla_y G(y|x), evaluated explicitly
+    # gradGs = cg.getScatteringGreenGradient(x,y=YPOS, k=K) # shape 3, Nk, Nx, Ny 
 
-dGsdn = np.einsum(
-    'dn, dmno-> n',
-    n,
-    gradGs
-)
+    # # would need: y on the boundary and x somewhere in the domain
 
-error = dGsdn+dG0dn
-error2D = error.reshape((z.shape[0], phi.shape[0]))
-plt.plot(dG0dn)
-plt.plot(dGsdn)
-plt.plot(error, color='k', linestyle='dashed')
+    # # construct d/dn_x G(x|y) = n_x * nabla_x G(x|y)
+    # dG0dn = np.einsum(
+    #     'dx, dxyo-> x',
+    #     n,
+    #     gradG0
+    # )
+
+    # dGsdn = np.einsum(
+    #     'dx, dxyo-> x',
+    #     n,
+    #     gradGs
+    # ) 
+
+
+    ############# USING RECIPROCITY
+    gradG0 = cg.getFreeSpaceGreenGradient(YPOS, x, k=K)  # nabla_x G(y|x) = nabla_x G(x|y) by reciprocity, x approx. on del Omega
+    gradGs = cg.getScatteringGreenGradient(YPOS, x, k=K) # shape 3, Nk, Ny, Nx 
+
+
+    # construct d/dn_x G(x|y) = n_x * nabla_x G(x|y)
+    # x approx on the boundary!
+    dG0dn = np.einsum(
+        'dx, dkyx-> x',
+        n,
+        gradG0
+    )
+
+    dGsdn = np.einsum(
+        'dx, dkyx-> x',
+        n,
+        gradGs
+    ) 
+
+    error = dGsdn+dG0dn
+    area= 2 * np.pi  * (z.max() - z.min())
+
+    # error2D = error.reshape((z.shape[0], phi.shape[0]))
+    # plt.plot(np.real(dG0dn))
+    # plt.plot(np.real(dGsdn))
+    # plt.plot(np.real(error), color='k', linestyle='dashed')
+    # plt.show()
+    # plt.close()
+    # plt.contourf(Z, np.rad2deg(PHI),np.abs(error2D))
+    # plt.colorbar()
+    # plt.show()
+
+    # print(np.max(np.abs(dG0dn)))
+    # print(np.max(np.abs(dGsdn)))
+    # print(np.max(np.abs(error)))
+    L2_error = np.linalg.norm(error) / len(error) * area
+    er_ar.append(L2_error)
+    print(L2_error)
+
+fig, ax = plt.subplots()
+
+ax.plot(eps_ar, er_ar, color='g', marker='s')
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+ax.grid()
+
+ax.set_xlabel('$\delta r / a$')
+ax.set_ylabel('$\|\epsilon \|_2$')
+
+plt.tight_layout()
 plt.show()
-plt.close()
-plt.contourf(Z, np.rad2deg(PHI),np.abs(error2D))
-plt.colorbar()
-plt.show()
 
-print(np.max(np.abs(dG0dn)))
-print(np.max(np.abs(dGsdn)))
-print(np.max(np.abs(error)))
 
