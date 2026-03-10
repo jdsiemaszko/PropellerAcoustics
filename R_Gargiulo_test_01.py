@@ -43,14 +43,14 @@ data = read_tecplot_block_dat("Data/Gargiulo2026/raw_01.dat")
 
 print(data.keys())
 
-r = data["R_middle"] # segment centers
+r = data["R_middle"] # segment centers, in units meter
 
 dr = np.diff(r)
 dr = np.append(dr, dr[-1]) # segment lengths
 
 r_outer = np.append(r-dr/2, r[-1]+dr[-1]/2) # segment edges
 
-F_radial = data["Fr_fR"]
+F_radial = data["Fr_fR"] # in units Newton
 F_tan = data["Ft_fR"]
 F_ax = data["Tx_fR"]
 F_amplitude = data["F1P_fR"]
@@ -80,11 +80,13 @@ plt.show()
 # fill the loading-per-unit-span array (steady loading only)
 Fblade = np.zeros((3, 1, len(r)), dtype=np.complex128)
 Fblade[0, 0, :] = F_radial / dr # not used
-Fblade[1, 0, :] = F_ax / dr
-Fblade[2, 0, :] = F_tan / dr
+Fblade[1, 0, :] = F_ax / dr # unit Newton per meter
+Fblade[2, 0, :] = -F_tan / dr # force oriented backwards -> positive in our sign convention
 
 twist = np.arctan2(-F_tan, F_ax) # not exact, but should be good enough, replace by actual geometry if possible
 twist = np.append(twist, twist[-1])
+
+chord = 0.025 * np.ones_like(r_outer) # REPLACE BY ACTUAL CHORD LENGTH PER SEGMENT!
 
 from Hanson.far_field import HansonModel
 
@@ -92,9 +94,8 @@ ROBS = 10. # observation radius, in meters
 
 # Initialize Module
 hm = HansonModel(twist_rad = twist,
-                chord_m = 0.025 * np.ones_like(r_outer), # REPLACE BY ACTUAL CHORD LENGTH PER SEGMENT!
+                chord_m = chord,
                 radius_m = r_outer, # blade radius stations [m] of size Nr + 1\
-
                 axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0]), # coordinate system (not needed here)
                 B=8, # number of blades
                 Omega_rads = 9505 / 60 * 2 * np.pi, # rotation speed [rad/s]
@@ -106,7 +107,7 @@ hm = HansonModel(twist_rad = twist,
 
 # 1) Plot directivity (3D)
 
-for m in [1, 2, 3, 4, 5]:
+for m in [1, 2]:
     fig = plt.figure(figsize=(7, 7))
     ax1 = fig.add_subplot(111, projection="3d")
     hm.plot3Ddirectivity(
