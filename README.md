@@ -16,4 +16,4 @@ Full "blind" model is then constructed by interfacing the modules:
 
 4, 2 -> 3 for a tailored model
 
-For usage, see scripts "Hanson_example.py". Mind that other scripts may be depricated.
+For usage, see scripts "Hanson_example.py". Mind that other scripts may be deprecated.
