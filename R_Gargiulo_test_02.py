@@ -8,7 +8,7 @@ from R_Gargiulo_test_01 import read_tecplot_block_dat
 
 time_indices = np.arange(1,121,1)
 Nt = time_indices.shape[0]
-Nr = 41
+Nr = 40
 force_time = np.zeros((3, Nt, Nr))
 B = 8
 timestep = 5.26e-5 # s
@@ -36,6 +36,7 @@ for ind, t in enumerate(time_indices):
     F_ax = data["Tz_fR"][:Nr]
 
     force_time[0, ind, :] = F_radial
+    force_time[0, ind, :13] = 0 # ignore the erreneous loading near the root
     force_time[1, ind, :] = F_ax
     force_time[2, ind, :] = F_tan
 

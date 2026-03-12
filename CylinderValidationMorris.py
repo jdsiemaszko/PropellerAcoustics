@@ -46,14 +46,17 @@ cg = CylinderGreen(
                     'eps_radius' : 1e-32, # cut-off distance
                  })
 
-fig, ax = plt.subplots()
-cg.plotSelf(fig, ax) # plot the cylinder
-ax.scatter(y[0], y[1], color='m', marker='^') # and the sources
-ax.set_aspect('equal')
-# ax.set_axis_off()
-ax.grid()
+# fig, ax = plt.subplots()
+# cg.plotSelf(fig, ax) # plot the cylinder
+# ax.scatter(y[0], y[1], color='m', marker='^') # and the sources
+# ax.set_aspect('equal')
+# # ax.set_axis_off()
+# ax.grid()
+# plt.show()
+# plt.close()
+
+cg.plot2DDirectivity(k, y, R=5*a)
 plt.show()
-plt.close()
 
 Ntheta= 36 * 4
 Nr = 50 * 4
@@ -80,6 +83,8 @@ ind_global1 = index_r * Ntheta + index1_th
 pref = p[ind_global1]
 
 p /= pref # normalize
+
+
 
 fig, ax = plt.subplots()
 

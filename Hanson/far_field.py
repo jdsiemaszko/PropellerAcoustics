@@ -1,4 +1,4 @@
-from scipy.special import jv, jve
+from scipy.special import jv, jve, jvp
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
@@ -118,6 +118,8 @@ class HansonModel():
 
         Fphi = Fblade[2, :, :][None, None, :, :] # (1, 1, Nk, Nr) NOTE: this is drag, oriented opposite to direction of travel
         Fz = Fblade[1, :, :][None, None, :, :] # (1, 1, Nk, Nr)
+        Fr = Fblade[0, :, :][None, None, :, :] # (1, 1, Nk, Nr) # TODO: add radial component
+
         
         
         # --- matrix construction ---
@@ -129,6 +131,8 @@ class HansonModel():
         )
 
         matrix *= jv(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x))
+
+        matrix += jvp(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x)) * Fr
 
         matrix *= np.exp(
            +1j * (mB_m - k_k) * (phi_x  - np.pi / 2)

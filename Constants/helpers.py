@@ -428,6 +428,43 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
     return fig, ax
 
+def plot_2D_directivity(
+    G, Theta,
+    fig=None,
+    ax=None,
+    title=None,
+    normalize=False,
+    kwargs={'color':'k',}
+):
+    """
+    Generic polar plot for a 2D directivity pattern.
+    
+    Parameters
+    ----------
+    G : array
+        Complex far-field values on the angular grid
+    Theta : array
+        Angular coordinates
+    normalize : bool
+        Normalize pattern to max value
+    db : bool
+        Plot in dB
+    """
+
+    pattern = np.abs(G)
+
+    if normalize:
+        pattern = pattern / pattern.max()
+
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(subplot_kw={"projection": "polar"}, figsize=(6,6))
+
+    ax.plot(Theta, pattern, **kwargs)
+    if title is not None:
+        ax.set_title(title)
+    ax.grid(True)
+
+    return fig, ax
 
 def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel=None, ylabel=None, fig=None, ax=None,):
     """

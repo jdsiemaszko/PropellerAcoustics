@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Constants.const import PREF
-from Constants.helpers import p_to_SPL, compute_distance_matrix, plot_3D_directivity, plot_directivity_contour
+from Constants.helpers import p_to_SPL, compute_distance_matrix, plot_3D_directivity, plot_directivity_contour, plot_2D_directivity
 
 def FreeSpaceGreenFunction(x, y, k, dim=3):
     """
@@ -301,18 +301,21 @@ class TailoredGreen():
                 X = np.zeros_like(Y)
                 ii = 1
                 jj = 2
+                mode = 'yz'
             elif mode in ['xy', 'yx']:
                 X = val1 = R_grid * np.cos(Theta)
                 Y = val2 = R_grid * np.sin(Theta)
                 Z = np.zeros_like(Y)
                 ii = 0
                 jj = 1
+                mode = 'xy'
             elif mode in ['xz', 'zx']:
                 X = val1 = R_grid * np.cos(Theta)
                 Z = val2 = R_grid * np.sin(Theta)
                 Y = np.zeros_like(Y)
                 ii = 0
                 jj = 2
+                mode = 'yz'
             else:
                 raise ValueError(f'mode {mode} not recognized')
             x = np.vstack([X.ravel(), Y.ravel(), Z.ravel()])  # shape (3, N)
@@ -352,9 +355,9 @@ class TailoredGreen():
             norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             # edgecolor='k',
         )
-        axs[0].set_title('$G_0$ on the yz plane')
-        axs[0].set_xlabel('y')
-        axs[0].set_ylabel('z')
+        axs[0].set_title(f'$G_0$ on the {mode} plane')
+        axs[0].set_xlabel(mode[0])
+        axs[0].set_xlabel(mode[1])
         fig.colorbar(im0, ax=axs[0])
         axs[0].axis('equal')
 
@@ -368,9 +371,9 @@ class TailoredGreen():
             norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             # edgecolor='k',
         )
-        axs[1].set_title('$G_s$ on the yz plane')
-        axs[1].set_xlabel('y')
-        axs[1].set_ylabel('z')
+        axs[1].set_title(f'$G_s$ on the {mode} plane')
+        axs[1].set_xlabel(mode[0])
+        axs[1].set_xlabel(mode[1])
         fig.colorbar(im1, ax=axs[1])
         axs[1].axis('equal')
 
@@ -384,9 +387,9 @@ class TailoredGreen():
             norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
             # edgecolor='k',
         )
-        axs[2].set_title('$G_0+G_s$ on the yz plane')
-        axs[2].set_xlabel('y')
-        axs[2].set_ylabel('z')
+        axs[2].set_title(f'$G_0+G_s$ on the {mode} plane')
+        axs[2].set_xlabel(mode[0])
+        axs[2].set_xlabel(mode[1])
         axs[2].axis('equal')
         fig.colorbar(im2, ax=axs[2])
 
@@ -422,6 +425,125 @@ class TailoredGreen():
         
         return fig, ax
 
+    def plot2DDirectivity(
+        self,
+        k,
+        y,
+        R=None,
+        Ntheta=360,
+        mode='yz',
+        normalize=True,
+        db=False,
+        fig=None,
+        ax=None
+    ):
+        """
+        Plot a 2D polar directivity in a specified plane.
+
+        Parameters
+        ----------
+        mode : str
+            Plane of observation ('xy','yz','xz')
+        """
+
+        theta = np.linspace(0, 2*np.pi, Ntheta, endpoint=False)
+
+        if self.dim == 3:
+
+            if mode in ['yz', 'zy']:
+                X = np.zeros_like(theta)
+                Y = np.cos(theta)
+                Z = np.sin(theta)
+                mode = 'yz'
+
+            elif mode in ['xy', 'yx']:
+                X = np.cos(theta)
+                Y = np.sin(theta)
+                Z = np.zeros_like(theta)
+                mode = 'xy'
+
+            elif mode in ['xz', 'zx']:
+                X = np.cos(theta)
+                Y = np.zeros_like(theta)
+                Z = np.sin(theta)
+                mode = 'xz'
+
+            else:
+                raise ValueError(f"mode {mode} not recognized")
+
+            dirs = np.vstack([X, Y, Z])
+
+        elif self.dim == 2:
+
+            dirs = np.vstack([
+                np.cos(theta),
+                np.sin(theta)
+            ])
+
+        R = R if R is not None else (1e3 / k)
+
+        x = R * dirs
+
+        G0 = self.getFreeSpaceGreen(x, y, k)
+        G1 = self.getScatteringGreen(x, y, k)
+
+        G0 = np.sum(G0, axis=-1)
+        G1 = np.sum(G1, axis=-1)
+        G = G0 + G1
+
+        G0 = p_to_SPL(G0)
+        G1 = p_to_SPL(G1)
+        G = p_to_SPL(G)
+
+        if fig is None or axs is None:   
+            fig, axs = plt.subplots(1, 3, figsize=(16, 5), subplot_kw={"projection": "polar"},  sharey=True,constrained_layout=True)
+
+
+
+        # Plot G0
+        fig, _ = plot_2D_directivity(
+            G0.flatten(),
+            theta,
+            fig=fig,
+            ax=axs[0],
+            # title=f"2D Directivity ({mode}-plane)",
+            normalize=normalize,
+        )
+        axs[0].set_title(f'$G_0$ on the {mode} plane')
+        # axs[0].set_xlabel(mode[0])
+        # axs[0].set_ylabel(mode[1])
+        # axs[0].axis('equal')
+
+        # Plot G1
+        fig, _ = plot_2D_directivity(
+            G1.flatten(),
+            theta,
+            fig=fig,
+            ax=axs[1],
+            # title=f"2D Directivity ({mode}-plane)",
+            normalize=normalize,
+        )
+        axs[1].set_title(f'$G_1$ on the {mode} plane')
+        # axs[1].set_xlabel(mode[0])
+        # axs[1].set_ylabel(mode[1])
+        # axs[1].axis('equal')
+
+        # Plot G0
+        fig, _ = plot_2D_directivity(
+            G.flatten(),
+            theta,
+            fig=fig,
+            ax=axs[2],
+            # title=f"2D Directivity ({mode}-plane)",
+            normalize=normalize,
+        )
+        axs[2].set_title(f'$G_0+G_1$ on the {mode} plane')
+        # axs[2].set_xlabel(mode[0])
+        # axs[2].set_ylabel(mode[1])
+        # axs[1].axis('equal')
+
+        return fig, ax
+    
     def plotDirectivityContour():
         pass
 
