@@ -2,7 +2,7 @@ import numpy as np
 import numpy as np
 from Constants.helpers import p_to_SPL, theodorsen
 from scipy.special import jv
-
+import matplotlib.pyplot as plt
 class BladeLoadings():
 
     def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray,
@@ -23,8 +23,6 @@ class BladeLoadings():
         self.Omega=Omega_rads
         self.rho = rho_kgm3
         self.c = c_mps # speed of sound
-        if nb!=1:
-            raise ValueError("WARNING: case nb>1 not implemented yet!")
         self.nbeam = nb
 
 

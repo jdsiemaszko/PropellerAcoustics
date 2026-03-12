@@ -225,9 +225,21 @@ class HansonModel():
               ,
             axis=-1
         ) # integrate along the r axis
+
+
     
         # pre-factor
-        pm *= 1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(1j * wavenumber[None, :] * R[:, None])
+        pm *= 1j * wavenumber[None, :] / (4 * np.pi * R[:, None]) * np.exp(1j * wavenumber[None, :] * R[:, None])
+
+        #TODO: verify interference function!
+        if self.nbeam > 0:
+            pm *= np.sum(
+            np.exp(
+                -1j * m[None, :, None] * 2 * np.pi / self.nbeam * 
+                np.arange(0, self.nbeam, 1)[None, None, :]
+            )
+            , axis=-1
+            )[:, None]
 
         return pm, x
 

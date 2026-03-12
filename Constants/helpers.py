@@ -5,6 +5,9 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from scipy.interpolate import interp1d
+import pandas as pd
+import re
+
 
 def p_to_SPL(p, pref=PREF, upper=200, lower=-200):
     SPLdB = 20 * np.log10(np.abs(p) / pref) + SPLSHIFT
@@ -467,10 +470,6 @@ def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', 
 
     return fig, ax
 
-import pandas as pd
-
-import pandas as pd
-import re
 
 def read_airfoil_table(filename, skip_lines=None):
     """

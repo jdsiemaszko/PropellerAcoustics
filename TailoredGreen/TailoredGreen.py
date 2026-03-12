@@ -350,7 +350,7 @@ class TailoredGreen():
             cmap='viridis',
             # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
             norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
-            edgecolor='k',
+            # edgecolor='k',
         )
         axs[0].set_title('$G_0$ on the yz plane')
         axs[0].set_xlabel('y')
@@ -366,7 +366,7 @@ class TailoredGreen():
             cmap='viridis',
             # norm=colors.LinNorm(vmin=eps0, vmax=np.abs(G0_reshaped).max())
             norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
-            edgecolor='k',
+            # edgecolor='k',
         )
         axs[1].set_title('$G_s$ on the yz plane')
         axs[1].set_xlabel('y')
@@ -382,7 +382,7 @@ class TailoredGreen():
             cmap='viridis',
             # norm=colors.LogNorm(vmin=eps1, vmax=np.abs(G_total).max())
             norm=colors.CenteredNorm(halfrange = np.max(G_total) * alpha),
-            edgecolor='k',
+            # edgecolor='k',
         )
         axs[2].set_title('$G_0+G_s$ on the yz plane')
         axs[2].set_xlabel('y')
@@ -390,9 +390,9 @@ class TailoredGreen():
         axs[2].axis('equal')
         fig.colorbar(im2, ax=axs[2])
 
-        axs[0].plot(y[ii], y[jj], 'ro')
-        axs[1].plot(y[ii], y[jj], 'ro')
-        axs[2].plot(y[ii], y[jj], 'ro')
+        axs[0].plot(y[ii], y[jj], 'rx')
+        axs[1].plot(y[ii], y[jj], 'rx')
+        axs[2].plot(y[ii], y[jj], 'rx')
 
 
 
