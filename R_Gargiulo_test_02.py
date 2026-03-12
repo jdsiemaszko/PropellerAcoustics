@@ -10,7 +10,7 @@ time_indices = np.arange(1,121,1)
 Nt = time_indices.shape[0]
 Nr = 41
 force_time = np.zeros((3, Nt, Nr))
-
+B = 8
 timestep = 5.26e-5 # s
 RPM = 9505
 Omega = 2 * np.pi / 60 * RPM
@@ -63,14 +63,19 @@ chord = 0.025 * np.ones_like(r_outer) # REPLACE BY ACTUAL CHORD LENGTH PER SEGME
 
 from Hanson.far_field import HansonModel
 
-ROBS = 10. # observation radius, in meters
+kmax = k[-1]
+BPF = B * Omega
+c = 340
+lam = c/(BPF/2/np.pi) # m
+
+ROBS = 10 * lam * 2 * np.pi # observation radius, in meters
 
 # Initialize Module
 hm = HansonModel(twist_rad = twist,
                 chord_m = chord,
                 radius_m = r_outer, # blade radius stations [m] of size Nr + 1\
                 axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0]), # coordinate system (not needed here)
-                B=8, # number of blades
+                B=B, # number of blades
                 Omega_rads = 9505 / 60 * 2 * np.pi, # rotation speed [rad/s]
                 rho_kgm3 = 1.2, # fluid density [kg/m^3]
                 c_mps = 340., # speed of sound [m/s]
@@ -80,7 +85,7 @@ hm = HansonModel(twist_rad = twist,
 
 # 1) Plot directivity (3D)
 
-for m in [3]:
+for m in [1, 2, 3, 4, 5]:
     fig = plt.figure(figsize=(7, 7))
     ax1 = fig.add_subplot(111, projection="3d")
     hm.plot3Ddirectivity(
