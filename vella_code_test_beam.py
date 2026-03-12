@@ -160,7 +160,7 @@ Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
 
 # shape (3, Nk, Nr)
 
-F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(-1j *
+F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(1j *
             k_local[None, :, None, None] * 2 * np.pi / period * 
             T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp
 

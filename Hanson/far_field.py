@@ -235,11 +235,11 @@ class HansonModel():
         if self.nbeam > 0:
             pm *= np.sum(
             np.exp(
-                -1j * m[None, :, None] * 2 * np.pi / self.nbeam * 
-                np.arange(0, self.nbeam, 1)[None, None, :]
+                -1j * m[:, None] * 2 * np.pi / self.nbeam * 
+                np.arange(0, self.nbeam, 1)[None, :]
             )
             , axis=-1
-            )[:, None]
+            )[None, :]
 
         return pm, x
 
