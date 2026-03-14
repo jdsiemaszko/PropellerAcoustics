@@ -51,7 +51,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
         # boundary discretization for the geometry
         # leave arbitrary in the parent class
         pos = np.array([[0], [0], [0]]) # shape (3, N)
-        normals = np.array([[0], [0], [1]]) # shape (3, N)
+        normals = np.array([[0], [0], [1]]) # shape (3, N), should be OUTWARD pointing normal!
         areas = np.array([1]) # shape (N,)
         z_edges = np.array([0, 1]) # shape (Nax+1,)
         th_edges = np.array([0, np.pi]) # shape (Nazim+1,)
@@ -81,7 +81,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
         eval_areas = self.panel_areas # Nz
         panel_normals = self.panel_normals # (3, Nz)
 
-        ff_green_normal = -np.einsum(
+        ff_green_normal = -np.einsum( # negative because the integrals are w.r.t fluid domain -> normal is oriented inwards!
             'dz, dkxz -> kxz',
             panel_normals,
             ff_green_gradient
@@ -108,7 +108,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
 
         # ____________prediction from Roger et al. 2023______________________
-        # effectively, we're solving ∇yG = ∇yG0 + ∇y(G0 @ V @ G) = (G0 @ V @ ∇yG) for V defining the surface potential
+        # effectively, we're solving ∇yG = ∇yG0 + ∇y(G0 @ V @ G) = ∇yG0 + (G0 @ V @ ∇yG) for V defining the surface potential
 
         # use the full cylinder as a predictor 
         # green_grad_at_surface = self.full_cylinder_green.getGradientGreenAnalytical(eval_points, y, k) # (3, Nk, Nz, Ny)
@@ -134,6 +134,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
         return nablaGs #shape (3, Nk, Nx, Ny)
 
     def getScatteringGreenGradient(self, x, y, k):
+        # PLACEHOLDER: should be replaced in child classes by the "correct" predictor at the surface
         green_grad_at_surface = self.free_field_green.getGradientGreenAnalytical(self.getBoundaryEvaluationPoints(), y, k) # (3, Nk, Nz, Ny)
         return self._getScatteringGreenGradient(x, y, k, green_grad_at_surface)
     

@@ -10,7 +10,7 @@ from Constants.helpers import p_to_SPL
 
 
 # setup = True # whether to run the case again or use the stored data
-setup = False
+setup = True
 
 mode = 'half'
 # mode = 'full'

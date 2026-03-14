@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-datadir = './dataverse_files'
+datadir = './Experimental/dataverse_files'
 datafile = 'ISAE_2_D20_L20'
 
 # datafile = 'ISAE_2_T10_L20'

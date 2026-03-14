@@ -242,7 +242,6 @@ def periodic_sum(array, period, time):
 
     return t_mod, psum
 
-
 def periodic_sum_interpolated(array, period, time, t_new=None, kind='cubic'):
     """
     Compute the periodic sum of a signal onto one period using interpolation.
@@ -427,7 +426,6 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
 
     return fig, ax
-
 
 def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel=None, ylabel=None, fig=None, ax=None,):
     """
