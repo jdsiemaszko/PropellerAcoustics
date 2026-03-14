@@ -143,11 +143,22 @@ class NearFieldHansonModel(HansonModel):
     
     def getPressureRotor(self, x: np.ndarray, m: np.ndarray, Fblade:np.ndarray, multiplier: float = None):
         """
-        Memory-optimized near-field Hanson rotor pressure.
+        Computing the Rotor loading noise based on loading harmonics, based on the general formulation of Roger & Moreau 2008
+        x:np.ndarray of shape (Nx,) -  observer position expressed in the GLOBAL CARTESIAN coordinate system
+        Fblade:np.ndarray - blade loading harmonics array of size (3, Nk, Nr),
+        defining the distribution of LOADING PER UNIT SPAN along the SINGLE blade, for a total of Nk modes from 0 to Nk-1!
+        multiplier:float - an overall multiplier for total the pressure mode. For B blades it should be B (default behavior).
 
-        - Loops over observer positions (Nx)
-        - Alpha integration via tensor contraction (einsum)
+        SIGN CONVENTION:
+        Fblade are the loading acting ON the blade BY the fluid
+        Fblade are constructed as 1/T int_0^T F(t)e^{i*k*Omega*t}dt
+        Fblade are ordered as radial, axial, tangential force along axis 0
+        Fblade[0] is positive outwards, Fblade[1] is positive upstream, Fblade[2] is positive opposite to the direction of rotation.
+
+        returns: p_mB: np.ndarray of size (Nx, Nm) - array of pressure modes at frequencies m*B*self.Omega
+        at observation points x, x is also returned for convenience
         """
+
 
         if not np.all(m != 0):
             raise ValueError("m=0 is not supported")
@@ -287,15 +298,22 @@ class NearFieldHansonModel(HansonModel):
     
     def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fbeam:np.ndarray, multiplier:float=None):
         """
-        Generic function for computing the hanson formulation of noise for stators
+        Computing the Stator loading noise based on loading harmonics, derivations based on Roger & Moreau 2008
+        x:np.ndarray of shape (Nx,) -  observer position expressed in the GLOBAL CARTESIAN coordinate system
+        Fbeam:np.ndarray - beam loading harmonics array of size (3, Nk, Nr),
+        defining the distribution of LOADING PER UNIT SPAN along the SINGLE blade, for a total of Nk modes from 0 to Nk-1!
+        multiplier:float - an overall multiplier for total the pressure mode. For B blades it should be B (default behavior).
 
-        multiplier is an overall multiplier for total the pressure mode. For B blades it should be B, for one stator/beam it should be 1.
+        SIGN CONVENTION:
+        Fstator are the loading acting ON the blade BY the fluid
+        Fstator are constructed as 1/T int_0^T F(t)e^{i*k*Omega*t}dt
+        Fstator are ordered as radial, axial, tangential force along axis 0
+        Fstator[0] is positive outwards, Fstator[1] is positive upstream, Fstator[2] is positive opposite to the direction of rotation.
 
-        returns: p_m of size (Nx, Nm) - array of pressure modes m (NOTE: NOT m*B !!!!!!!!!) at observation points x, x is returned for convenience
-
-        Fbeam are the three-dimensional loadings on the beam, in direction: axial, z, tangential. Array of shape 3, Nk, Nr
-
+        returns: p_mB: np.ndarray of size (Nx, Nm) - array of pressure modes at frequencies m*B*self.Omega
+        at observation points x, x is also returned for convenience
         """
+        
         if not np.all(m != 0):
             raise ValueError("m=0 is not supported")
 

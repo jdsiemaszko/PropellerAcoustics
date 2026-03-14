@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 
-datadir = './dataverse_files'
+datadir = './Experimental/dataverse_files'
 # ----------------------------------------------------------------------
 # Global matplotlib settings (MATLAB: set(0,'defaulttextinterpreter','latex'))
 # ----------------------------------------------------------------------

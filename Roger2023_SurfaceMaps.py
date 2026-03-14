@@ -10,10 +10,10 @@ from Constants.helpers import p_to_SPL
 
 
 # setup = True # whether to run the case again or use the stored data
-setup = False
+setup = True
 
-# mode = 'half'
-mode = 'full'
+mode = 'half'
+# mode = 'full'
 
 
 Nax = 64
@@ -63,7 +63,7 @@ if setup:
 
 
 
-    data_roger = np.loadtxt('Data/Roger2023/RogerUz.csv', skiprows=1, delimiter=',').T
+    data_roger = np.loadtxt('Data/Roger2023/RogerUzv2.csv', skiprows=1, delimiter=',').T
     Uz0_mps = np.interp(radius_c, data_roger[0], data_roger[1])
 
 
@@ -138,15 +138,15 @@ if setup:
                                         )
     plt.show()
 
-    np.save(f'Data/Roger2023/surface_pressure_{mode}.npy', data)
-    np.save(f'Data/Roger2023/surface_z_{mode}.npy', z)
-    np.save(f'Data/Roger2023/surface_theta_{mode}.npy', th)
+    np.save(f'Data/Roger2023/surface_pressure_{mode}_v2.npy', data)
+    np.save(f'Data/Roger2023/surface_z_{mode}_v2.npy', z)
+    np.save(f'Data/Roger2023/surface_theta_{mode}_v2.npy', th)
 
 
 else:
-    p = np.load(f'Data/Roger2023/surface_pressure_{mode}.npy')
-    z = np.load(f'Data/Roger2023/surface_z_{mode}.npy')
-    th = np.load(f'Data/Roger2023/surface_theta_{mode}.npy')
+    p = np.load(f'Data/Roger2023/surface_pressure_{mode}_v2.npy')
+    z = np.load(f'Data/Roger2023/surface_z_{mode}_v2.npy')
+    th = np.load(f'Data/Roger2023/surface_theta_{mode}_v2.npy')
 
 
     SPL_mb = p_to_SPL(p)

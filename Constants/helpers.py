@@ -242,7 +242,6 @@ def periodic_sum(array, period, time):
 
     return t_mod, psum
 
-
 def periodic_sum_interpolated(array, period, time, t_new=None, kind='cubic'):
     """
     Compute the periodic sum of a signal onto one period using interpolation.
