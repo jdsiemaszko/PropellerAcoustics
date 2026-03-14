@@ -1,4 +1,4 @@
-from scipy.special import jv, jve
+from scipy.special import jv, jve, jvp
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
@@ -128,6 +128,8 @@ class HansonModel():
         )
 
         matrix *= jv(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x))
+
+        matrix += jvp(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x)) * Fr
 
         matrix *= np.exp(
            +1j * (mB_m - k_k) * (phi_x  - np.pi / 2)
