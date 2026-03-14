@@ -44,20 +44,14 @@ hm.plot3Ddirectivity(
 plt.tight_layout()
 plt.show()
 
-# 2) Plot directivity (2D contour)
-fig, ax = plt.subplots()
+# 2) Plot directivity (2D polar plot)
 hm.plot2Ddirectivity(
-    fig=fig,
-    ax=ax1,
     m=1, # harmonic to plot
     R=ROBS, # observation radius
-    Nphi=36*2, # plotting params
-    Ntheta=18*2,
-    valmin=40,
-    valmax=65,
-    title='far-field',
-    mode='rotor', # 'rotor' or 'stator'
-    loadings=loadings # blade loading harmonics
+    Ntheta=360,
+    mode='rotor', # 'rotor' or 'stator' or 'total'
+    loadings=loadings, # blade loading harmonics
+    plane='xz'
 )
 plt.tight_layout()
 plt.show()

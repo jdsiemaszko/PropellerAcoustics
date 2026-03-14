@@ -450,7 +450,11 @@ def plot_2D_directivity(
         Plot in dB
     """
 
-    pattern = np.abs(G)
+    pattern = G
+
+    # append first entry to the back to close the loop
+    pattern = np.append(pattern,pattern[0])
+    Theta = np.append(Theta, Theta[0])
 
     if normalize:
         pattern = pattern / pattern.max()

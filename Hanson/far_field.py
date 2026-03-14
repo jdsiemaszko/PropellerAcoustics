@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
-from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot_3D_directivity
+from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot_3D_directivity, plot_2D_directivity
 
 class HansonModel():
 
@@ -117,7 +117,7 @@ class HansonModel():
 
         Fphi = Fblade[2, :, :][None, None, :, :] # (1, 1, Nk, Nr) NOTE: this is drag, oriented opposite to direction of travel
         Fz = Fblade[1, :, :][None, None, :, :] # (1, 1, Nk, Nr)
-        # TODO: implement radial loading noise
+        Fr = Fblade[0, :, :][None, None, :, :] # (1, 1, Nk, Nr)
         
         # --- matrix construction ---
         # matrix shape: (Nx, Nm, Nk, Nr)
@@ -129,7 +129,7 @@ class HansonModel():
 
         matrix *= jv(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x))
 
-        matrix += jvp(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x)) * Fr
+        matrix += jvp(mB_m - k_k, mB_m * Omega * radius_r / c0 * np.sin(theta_x)) * Fr # TODO: done hastily, check if correctly implemented
 
         matrix *= np.exp(
            +1j * (mB_m - k_k) * (phi_x  - np.pi / 2)
@@ -272,7 +272,7 @@ class HansonModel():
         # return np.array([R_arr, theta_arr, phi_arr])
         return np.array([X, Y, Z]), np.array([R_arr, theta_arr, phi_arr]), theta_m, phi_m # shape (3, Ntheta * Nphi) each
     
-    def plot3Ddirectivity(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.62,
+    def plot3Ddirectivity(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.0,
                         Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None, mode='rotor', loadings_2=None):
         
         """
@@ -312,24 +312,196 @@ class HansonModel():
         
         return fig, ax
 
-    def plot3DdirectivityRotor(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.62,
+    def plot3DdirectivityRotor(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.0,
                         Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
         # wrapper for ploting rotor only
         return self.plot3Ddirectivity(m, loadings, valmax, valmin, R, Nphi, Ntheta, blending, title, fig, ax, mode='rotor')
     
-    def plot3DdirectivityStator(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.62,
+    def plot3DdirectivityStator(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.0,
                         Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
         # wrapper for ploting stator only
         return self.plot3Ddirectivity(m, loadings, valmax, valmin, R, Nphi, Ntheta, blending, title, fig, ax, mode='stator')
     
-    def plot3DdirectivityTotal(self, m:float, loadings:np.ndarray, loadings_2:np.ndarray, valmax=None, valmin=None, R=1.62,
+    def plot3DdirectivityTotal(self, m:float, loadings:np.ndarray, loadings_2:np.ndarray, valmax=None, valmin=None, R=1.0,
                         Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
         # wrapper for ploting total directivity
         return self.plot3Ddirectivity(m, loadings=loadings, valmax=valmax, valmin=valmin, R=R, Nphi=Nphi, Ntheta=Ntheta, blending=blending, title=title, fig=fig, ax=ax, mode='total', loadings_2=loadings_2)
 
+    def plot2Ddirectivity(
+        self,
+        m: float,
+        loadings: np.ndarray,
+        normalize=False,
+        R=1.0,
+        Ntheta=360,
+        plane='yz',
+        title=None,
+        fig=None,
+        ax=None,
+        mode='rotor',
+        loadings_2=None
+    ):
+        """
+        Plot a 2D polar directivity pattern for mode m in a given plane.
+        """
 
+        theta = np.linspace(0, 2*np.pi, Ntheta, endpoint=False)
 
+        # --- build observation ring ---
+        if plane in ['yz', 'zy']:
+            X = np.zeros_like(theta)
+            Y = np.cos(theta)
+            Z = np.sin(theta)
 
+        elif plane in ['xy', 'yx']:
+            X = np.cos(theta)
+            Y = np.sin(theta)
+            Z = np.zeros_like(theta)
+
+        elif plane in ['xz', 'zx']:
+            X = np.cos(theta)
+            Y = np.zeros_like(theta)
+            Z = np.sin(theta)
+
+        else:
+            raise ValueError(f"plane {plane} not recognized")
+
+        dirs = np.vstack([X, Y, Z])
+        x_cart = R * dirs
+
+        # --- pressure ---
+        if mode == 'rotor':
+            pmB, _ = self.getPressureRotor(
+                x_cart,
+                np.array([m]).reshape(1,),
+                Fblade=loadings,
+                multiplier=self.B
+            )
+
+        elif mode == 'stator':
+            pmB, _ = self.getPressureStator(
+                x_cart,
+                np.array([m * self.B]).reshape(1,),
+                Fstator=loadings,
+                multiplier=self.nbeam
+            )
+
+        elif mode == 'total':
+
+            if loadings_2 is None:
+                raise ValueError(
+                    "For mode='total', both loadings and loadings_2 must be provided"
+                )
+
+            pmB_rotor, _ = self.getPressureRotor(
+                x_cart,
+                np.array([m]).reshape(1,),
+                Fblade=loadings,
+                multiplier=self.B
+            )
+
+            pmB_stator, _ = self.getPressureStator(
+                x_cart,
+                np.array([m * self.B]).reshape(1,),
+                Fstator=loadings_2,
+                multiplier=self.nbeam
+            )
+
+            pmB = pmB_rotor + pmB_stator
+
+        else:
+            raise ValueError("Invalid mode, should be 'rotor', 'stator', or 'total'")
+
+        pmB = pmB[:, 0]
+
+        fig, ax = plot_2D_directivity(
+            p_to_SPL(pmB),
+            theta,
+            fig=fig,
+            ax=ax,
+             normalize=normalize,
+            title=title if title is not None else f"Directivity of $p_{{{int(m*self.B)}}}$",
+        )
+
+        return fig, ax
+    
+    def plot2DdirectivityRotor(
+        self,
+        m: float,
+        loadings: np.ndarray,
+        R=1.0,
+        normalize=False,
+        Ntheta=360,
+        plane='yz',
+        title=None,
+        fig=None,
+        ax=None
+    ):
+        return self.plot2Ddirectivity(
+            m=m,
+            loadings=loadings,
+            R=R,
+            Ntheta=Ntheta,
+            plane=plane,
+            title=title,
+            fig=fig,
+            ax=ax,
+            normalize=normalize,
+            mode='rotor'
+    )
+
+    def plot2DdirectivityStator(
+        self,
+        m: float,
+        loadings: np.ndarray,
+        R=1.0,
+        normalize=False,
+        Ntheta=360,
+        plane='yz',
+        title=None,
+        fig=None,
+        ax=None
+    ):
+        return self.plot2Ddirectivity(
+            m=m,
+            loadings=loadings,
+            R=R,
+            Ntheta=Ntheta,
+            plane=plane,
+            title=title,
+            fig=fig,
+            ax=ax,
+            normalize=normalize,
+            mode='stator'
+        )
+
+    def plot2DdirectivityTotal(
+        self,
+        m: float,
+        loadings: np.ndarray,
+        loadings_2: np.ndarray,
+        R=1.0,
+        Ntheta=360,
+        normalize=False,
+        plane='yz',
+        title=None,
+        fig=None,
+        ax=None
+    ):
+        return self.plot2Ddirectivity(
+            m=m,
+            loadings=loadings,
+            R=R,
+            Ntheta=Ntheta,
+            plane=plane,
+            title=title,
+            fig=fig,
+            ax=ax,
+            normalize=normalize,
+            mode='rotor',
+            loadings_2=loadings_2
+        )
+    
     def plotPressureSpectrum(self, fig, ax, x:tuple, m:np.ndarray, loadings:np.ndarray, plot_kwargs={'color' : 'k', 'marker' : 's'}):
 
 

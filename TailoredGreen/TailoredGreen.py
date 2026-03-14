@@ -433,7 +433,6 @@ class TailoredGreen():
         Ntheta=360,
         mode='yz',
         normalize=True,
-        db=False,
         fig=None,
         ax=None
     ):
