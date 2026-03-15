@@ -18,7 +18,7 @@ time = time_indices * timestep
 period = 2 * np.pi / Omega # seconds
 
 
-
+# read time data
 for ind, t in enumerate(time_indices):
     data = read_tecplot_block_dat(f"Data/Gargiulo2026/traction_Blade_RPM9505.0_46_elts_pitch_28.0_t{t:03d}_AoA_5.0.dat")
 
@@ -35,12 +35,13 @@ for ind, t in enumerate(time_indices):
     F_tan = data["Ft_fR"][:Nr]
     F_ax = data["Tz_fR"][:Nr]
 
+    # store loading data
     force_time[0, ind, :] = F_radial
     force_time[0, ind, :13] = 0 # ignore the erreneous loading near the root
     force_time[1, ind, :] = F_ax
     force_time[2, ind, :] = F_tan
 
-
+# Fourier transform
 k = np.arange(1, 21, 1) # example
 Nk = k.shape[0]
 force_freq = 1/period * np.sum(force_time[:, None, :, :] * np.exp(+1j *
@@ -57,7 +58,7 @@ Fblade[0, :, :] = force_freq[0, :, :] / dr # not used
 Fblade[1, :, :] = -force_freq[1, :, :] / dr # unit Newton per meter
 Fblade[2, :, :] = force_freq[2, :, :]  / dr # force oriented backwards -> positive in our sign convention
 
-from Hanson.far_field import HansonModel
+from Hanson.far_field import HansonModel # my module
 
 kmax = k[-1]
 BPF = B * Omega
