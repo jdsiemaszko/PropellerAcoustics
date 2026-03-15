@@ -51,29 +51,23 @@ force_freq = 1/period * np.sum(force_time[:, None, :, :] * np.exp(+1j *
 
 
 
-# fill the loading-per-unit-span array (steady loading only)
+# fill the loading-per-unit-span array
 Fblade = np.zeros((3, Nk, len(r)), dtype=np.complex128)
 Fblade[0, :, :] = force_freq[0, :, :] / dr # not used
 Fblade[1, :, :] = -force_freq[1, :, :] / dr # unit Newton per meter
 Fblade[2, :, :] = force_freq[2, :, :]  / dr # force oriented backwards -> positive in our sign convention
 
-twist = np.arctan2(np.abs(Fblade[2, 0, :]), np.abs(Fblade[1, 0, :])) # not exact, but should be good enough, replace by actual geometry if possible
-twist = np.append(twist, twist[-1])
-
-chord = 0.025 * np.ones_like(r_outer) # REPLACE BY ACTUAL CHORD LENGTH PER SEGMENT!
-
 from Hanson.far_field import HansonModel
 
 kmax = k[-1]
 BPF = B * Omega
-c = 340
+c = 340.0 #m/s
 lam = c/(BPF/2/np.pi) # m
 
 ROBS = 10 * lam * 2 * np.pi # observation radius, in meters
 
 # Initialize Module
-hm = HansonModel(twist_rad = twist,
-                chord_m = chord,
+hm = HansonModel(
                 radius_m = r_outer, # blade radius stations [m] of size Nr + 1\
                 axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0]), # coordinate system (not needed here)
                 B=B, # number of blades
@@ -99,16 +93,14 @@ for m in [1, 2, 3, 4, 5]:
         # valmin=40,
         # valmax=65,
         title='far-field',
-        mode='rotor', # 'rotor'
+        mode='rotor', # 'rotor' or 'stator' or 'total'
         loadings=Fblade # blade loading harmonics
     )
     plt.tight_layout()
     plt.show()
 
-# 2) Plot directivity (2D contour)
-# not yet implemented!
 
-# 3) Plot spectrum at a point
+# 2) Plot spectrum at a point
 fig, ax = plt.subplots()
 hm.plotPressureSpectrum(fig=fig, ax=ax, 
                         x =np.array([1.0, 0.0, 0.0]).T, # position to plot the spectrum at
