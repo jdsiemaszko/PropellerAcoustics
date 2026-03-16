@@ -469,7 +469,7 @@ def plot_2D_directivity(
 
     return fig, ax
 
-def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel=None, ylabel=None, fig=None, ax=None,):
+def plot_directivity_contour(Theta, Phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel=None, ylabel=None, fig=None, ax=None,):
     """
     Plot a 2D contour map of directivity (in dB) vs theta and phi.
 
@@ -490,7 +490,7 @@ def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', 
     if fig is None or ax is None:   
         fig, ax = plt.subplots(figsize=(7, 5))
 
-    Theta, Phi = np.meshgrid(theta, phi, indexing='ij')  # shape (Ntheta, Nphi)
+    # Theta, Phi = np.meshgrid(theta, phi, indexing='ij')  # shape (Ntheta, Nphi)
     magnitudes_db = p_to_SPL(magnitudes).reshape(Theta.shape)  # ensure shape matches Theta and Phi
     # 2D filled contour plot
     cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap)
@@ -508,6 +508,68 @@ def plot_directivity_contour(theta, phi, magnitudes, levels=20, cmap='viridis', 
     if title is not None:
         ax.set_title(title)
 
+    return fig, ax
+
+def get_spl_at_harmonic(fplus, spls, harmonic: int, alpha=0.01):
+    """
+    Extract SPL at a given BPF harmonic.
+
+    Parameters
+    ----------
+    fplus : array_like, shape (Nfreq,)
+        Reduced frequencies (f / BPF - Nfreq)
+    spls : array_like, shape (Nfreq, Ntheta, Nphi)
+        SPL data
+    harmonic : int
+        Harmonic number to extract
+    alpha : float
+        Fractional window around harmonic, i.e., pick frequencies in
+        [harmonic*(1-alpha), harmonic*(1+alpha)]
+
+    Returns
+    -------
+    spl_harmonic : ndarray, shape (Ntheta, Nphi)
+        SPL at the given harmonic (max within window)
+    """
+
+    # define frequency window
+    fmin = harmonic * (1 - alpha)
+    fmax = harmonic * (1 + alpha)
+
+    # boolean mask of frequencies inside window
+    mask = (fplus >= fmin) & (fplus <= fmax)
+
+    if not np.any(mask):
+        # fallback: nearest frequency
+        idx = np.argmin(np.abs(fplus - harmonic))
+        spl_harmonic = spls[idx]
+    else:
+        # take max over frequencies in the window
+        spl_harmonic = np.max(spls[mask], axis=0)  # shape (Ntheta, Nphi)
+
+    return spl_harmonic
+
+def plot_BPF_Peaks(fig, ax, freq_plus, spl, N0=2, N1=25, color='k', alpha=0.01):
+    # plot a line connecting the peaks at multiples of BPF
+    sol = []
+    solfplus = np.arange(N0, N1 + 1)  # harmonic numbers
+
+    for f0 in solfplus:
+        # frequency window: ±1%
+        fmin = (1-alpha) * f0
+        fmax = (1+alpha) * f0
+
+        # indices within the window
+        mask = (freq_plus >= fmin) & (freq_plus <= fmax)
+
+        if not np.any(mask):
+            # fallback: nearest frequency if window is empty
+            idx = np.argmin(np.abs(freq_plus - f0))
+            sol.append(spl[idx])
+        else:
+            sol.append(np.max(spl[mask]))
+
+    ax.plot(solfplus, sol, marker='s', color=color)
     return fig, ax
 
 

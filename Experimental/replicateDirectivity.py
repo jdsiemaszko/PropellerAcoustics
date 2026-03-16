@@ -6,13 +6,19 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 datadir = './Experimental/dataverse_files'
 datafile = 'ISAE_2_D20_L20'
+# datafile = 'ISAE_D25_L32'
+# datafile = 'ISAE_D30_L30'
+# datafile = 'ISAE_D40_L30'
+
+Ntheta = 13
+
 
 # datafile = 'ISAE_2_T10_L20'
 
 pref = 20e-6  # reference pressure (20 µPa)
 NB = 2
 RPM = 8000
-NBPF = 2 # harmonic to plot directivity for
+NBPF = 5 # harmonic to plot directivity for
 
 def load_h5(filename):
     return h5py.File(filename, "r")
@@ -106,8 +112,9 @@ def plot_directivity(fig, ax, units, magnitudes, valmax=None, valmin=None):
     Ntheta, Nphi = X.shape
 
     for i in range(Ntheta-1):
+
+        # regular quads
         for j in range(Nphi-1):
-            # vertices of one quad
             verts = [
                 [X[i,j],     Y[i,j],     Z[i,j]],
                 [X[i+1,j],   Y[i+1,j],   Z[i+1,j]],
@@ -115,8 +122,18 @@ def plot_directivity(fig, ax, units, magnitudes, valmax=None, valmin=None):
                 [X[i,j+1],   Y[i,j+1],   Z[i,j+1]],
             ]
             faces.append(verts)
-            # face color from your facecolors array
             face_colors.append(facecolors[i,j])
+
+        # wrap-around quad (close phi direction)
+        j = Nphi - 1
+        verts = [
+            [X[i,j],   Y[i,j],   Z[i,j]],
+            [X[i+1,j], Y[i+1,j], Z[i+1,j]],
+            [X[i+1,0], Y[i+1,0], Z[i+1,0]],
+            [X[i,0],   Y[i,0],   Z[i,0]],
+        ]
+        faces.append(verts)
+        face_colors.append(facecolors[i,j])
 
     # create Poly3DCollection
     poly = Poly3DCollection(
@@ -143,7 +160,7 @@ def plot_directivity(fig, ax, units, magnitudes, valmax=None, valmin=None):
     # --- axes ---
     ax.set_box_aspect([1, 1, 1])
     ax.set_axis_off()
-    ax.set_title("Far-field directivity")
+    ax.set_title(f"Far-field directivity {datafile}, \n $\omega={NBPF} \cdot B\Omega$")
 
         # set viewing angle
     ax.view_init(elev=20, azim=-45)
@@ -176,7 +193,10 @@ def plot_directivity_contour(fig, ax, theta, phi, magnitudes_db, levels=20, cmap
 
     ax.set_xlabel("Phi [deg]")
     ax.set_ylabel("Theta [deg]")
-    ax.set_title("Far-field Directivity")
+    ax.set_title(f"Far-field directivity {datafile}, \n $\omega={NBPF} \cdot B\Omega$")
+
+
+
 
 with load_h5(f"{datadir}/{datafile}_autopower.h5") as f:
     g = f[f"{datafile}"]
@@ -189,8 +209,10 @@ with load_h5(f"{datadir}/{datafile}_autopower.h5") as f:
 
     autopow = np.array(ap[f"Autopower_RPM_{RPM}_Pa2"])  # (freq, polar, azimuth)
 
-    spl = spl_from_autopower(autopow)
 
+theta = theta[:Ntheta]
+autopow = autopow[:, :Ntheta, :]
+spl = spl_from_autopower(autopow)
 
 phi, theta = np.deg2rad(phi), np.deg2rad(theta)
 Nphi, Ntheta = np.shape(phi)[0], np.shape(theta)[0]
@@ -210,7 +232,7 @@ vectors = np.stack((x, y, z), axis=0)
 
 fig = plt.figure(figsize=(7, 7))
 ax = fig.add_subplot(111, projection="3d")
-plot_directivity(fig, ax, vectors, spl_, valmax=50, valmin=20)
+plot_directivity(fig, ax, vectors, spl_, valmax=65, valmin=10)
 plt.show()
 plt.close(fig)
 

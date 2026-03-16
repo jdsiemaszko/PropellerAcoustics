@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
-from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot_3D_directivity, plot_2D_directivity
+from Constants.helpers import getSphericalCoordinates, p_to_SPL, plot_3D_directivity, plot_2D_directivity, plot_directivity_contour
 
 class HansonModel():
 
@@ -502,6 +502,47 @@ class HansonModel():
             loadings_2=loadings_2
         )
     
+    def plotDirectivityContour(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.0,
+                        Nphi=36, Ntheta=18, blending=0.1, levels=20, title=None, fig=None, ax=None, mode='rotor', loadings_2=None):
+        
+        """
+        plot a 2D contour of the directivity pattern for a given mode m
+
+        fig, ax are matplotlib instances on which to execute the plot, they are returned after plotting
+
+        """
+
+        # --- observation mesh ---
+        x_cart, x_spherical, Theta, Phi = self.getPolarMesh(R=R, Nphi=Nphi, Ntheta=Ntheta)
+
+        # --- pressure / magnitude ---
+        if mode=='rotor':
+            pmB, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), Fblade=loadings, multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
+        elif mode=='stator':
+            pmB, _ = self.getPressureStator(x_cart, np.array([m * self.B]).reshape(1,), Fstator=loadings, multiplier=self.nbeam) # of shape (Nx=Ntheta*Nphi, 1)
+        elif mode=='total':
+            if loadings_2 is None:
+                raise ValueError("For mode='total', both loading and loadings_2 (rotor and stator loadings respectively) must be provided")
+            pmB_rotor, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), Fblade=loadings, multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
+            pmB_stator, _ = self.getPressureStator(x_cart, np.array([m * self.B]).reshape(1,), Fstator=loadings_2, multiplier=self.nbeam) # of shape (Nx=Ntheta*Nphi, 1)
+            pmB = pmB_rotor + pmB_stator
+        else:
+            raise ValueError("Invalid mode, should be 'rotor', 'stator', or 'total'")
+        pmB = pmB[:, 0] # shape (Nx,)
+
+        fig, ax = plot_directivity_contour(
+            np.rad2deg(Theta),np.rad2deg(Phi), pmB.reshape(Nphi,Ntheta), 
+            levels=levels,
+            title=title if title is not None else f"Far-field directivity of $p_{{{int(m * self.B)}}}$",
+            ylabel=f'Theta [deg]',
+            xlabel=f'Phi [deg]',
+            fig=fig,
+            ax=ax
+        )
+        
+        return fig, ax
+
+
     def plotPressureSpectrum(self, fig, ax, x:tuple, m:np.ndarray, loadings:np.ndarray, plot_kwargs={'color' : 'k', 'marker' : 's'}):
 
 
