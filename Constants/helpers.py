@@ -17,6 +17,13 @@ def p_to_SPL(p, pref=PREF, upper=200, lower=-200):
 
     return SPLdB
 
+def spl_from_autopower(Pa2, pref=PREF, upper=200, lower=-200):
+    SPLdB =  10 * np.log10(Pa2 / (pref * pref))
+    SPLdB = np.minimum(SPLdB, upper)
+    SPLdB = np.maximum(SPLdB, lower)
+    return SPLdB
+
+
 def getCylindricalCoordinates(x, axis:np.ndarray, origin:np.ndarray, radial:np.ndarray, normal:np.ndarray):
     """
     Convert Cartesian coordinates to cylindrical coordinates
@@ -549,15 +556,15 @@ def get_spl_at_harmonic(fplus, spls, harmonic: int, alpha=0.01):
 
     return spl_harmonic
 
-def plot_BPF_Peaks(fig, ax, freq_plus, spl, N0=2, N1=25, color='k', alpha=0.01):
+def plot_BPF_peaks(fig, ax, freq_plus, spl, N0=1, N1=25, range=0.02, plot_kwargs={'color':'k'}):
     # plot a line connecting the peaks at multiples of BPF
     sol = []
     solfplus = np.arange(N0, N1 + 1)  # harmonic numbers
 
     for f0 in solfplus:
         # frequency window: ±1%
-        fmin = (1-alpha) * f0
-        fmax = (1+alpha) * f0
+        fmin = (1-range) * f0
+        fmax = (1+range) * f0
 
         # indices within the window
         mask = (freq_plus >= fmin) & (freq_plus <= fmax)
@@ -569,9 +576,8 @@ def plot_BPF_Peaks(fig, ax, freq_plus, spl, N0=2, N1=25, color='k', alpha=0.01):
         else:
             sol.append(np.max(spl[mask]))
 
-    ax.plot(solfplus, sol, marker='s', color=color)
+    ax.plot(solfplus, sol, **plot_kwargs)
     return fig, ax
-
 
 def read_airfoil_table(filename, skip_lines=None):
     """

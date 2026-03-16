@@ -10,7 +10,7 @@ from PotentialInteraction.blade_to_beam import BeamLoadings
 from Hanson.far_field import HansonModel
 from Hanson.near_field import NearFieldHansonModel
 import matplotlib.animation as animation
-from Constants.helpers import p_to_SPL, plot_BPF_PEAKS
+from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.io import loadmat
@@ -43,7 +43,7 @@ pitch = 10
 alpha = (90 - pitch) * np.pi / 180
 
 TREF = 1.075
-TORQUEREF = 26.7/2/1000 # Nm
+TORQUEREF = 26.7/B/1000 # Nm
 
 
 # ----------------------------------------------------------
@@ -76,13 +76,15 @@ r_rT = r0 / rT
 dT = np.interp(r_rT, x_load[:-1], Fz_tour_bis)
 dQ = np.interp(r_rT, x_load[:-1], Fy_tour_bis)
 
+
+
+# replicate MATLAB edge correction
+# dT[-2:] = Fz_tour_bis[-1]
+# dQ[-2:] = Fy_tour_bis[-1]
+
 dT *= TREF / np.sum(dT)
 alpha = TORQUEREF / np.sum(dQ * r0)
 dQ *= alpha
-
-# replicate MATLAB edge correction
-dT[-2:] = Fz_tour_bis[-1]
-dQ[-2:] = Fy_tour_bis[-1]
 
 # ----------------------------------------------------------
 # Aerodynamic coefficients
@@ -101,12 +103,8 @@ Mr = U / c0
 # Observer
 # ----------------------------------------------------------
 R = 1.62
-theta = 0.0
-theta = np.pi/2 - theta
-phi = 90 * np.pi/180
-phi = np.pi - phi
 
-OmegaD = Omega / (1 - Mx * np.cos(theta))
+OmegaD = Omega
 
 t = np.arange(0, 16, 1/(51.2e3))
 
@@ -146,6 +144,7 @@ U_flow = -U_flow_interp[0, :]
 ddr = r0[1] - r0[0]
 r_outer = np.concatenate((r0-ddr/2, [r0[-1]+ddr/2]))
 ddr = np.diff(r_outer)
+Nk = 40
 
 blade_l = BladeLoadings(
     twist_rad=np.deg2rad(pitch)* np.ones(r_outer.shape),
@@ -160,7 +159,7 @@ blade_l = BladeLoadings(
     Omega_rads=Omega,
     rho_kgm3=rho0,
     c_mps=c0,
-    kmax=40,
+    kmax=Nk,
     nb=1
 )
 
@@ -177,7 +176,7 @@ beam_l = BeamLoadings(
     Omega_rads=Omega,
     rho_kgm3=rho0,
     c_mps=c0,
-    kmax=40,
+    kmax=Nk,
     nb=1
 )
 
@@ -191,19 +190,99 @@ c_mps= c0, # speed of sound [m/s]
 nb = 1 # number of beams (irrelevant)
 )
 
-BLH = blade_l.getBladeLoadingHarmonics() # shape 3, Nk, Nr
-BeamLH = beam_l.getBeamLoadingHarmonics() # shape 3, Nk, Nr
-
-
 # PARSE EXPERIMENTAL
 
-ind_theta = 7
-ind_phi = 0
+ind_theta = 6
+ind_phi = 9
+datadir = './Experimental/dataverse_files'
+casefile = 'ISAE_2_D20_L20'
+
+def load_h5(filename):
+    return h5py.File(filename, "r")
+with load_h5(f"{datadir}/{casefile}_autopower.h5") as f:
+    g = f["ISAE_2_D20_L20"]
+    freq = np.array(g["frequency_Hz"])
+    ap = g["Autopower"]
+
+    phi_exp = np.array(g["phi_deg"])[0][ind_phi] # azimuth
+    theta_exp = np.array(g["theta_deg"])[0][ind_theta] # polar
+    radius = g["radius_m"][0][0] # float
+
+    BPF = B * RPM / 60
+    data = ap[f"Autopower_RPM_{RPM}_Pa2"][:, ind_theta, ind_phi] # (freq, polar, azimuth), (aziuth=0 = > beam axis, azimuth=9 => 90 deg)
+theta = 90 - theta_exp
+phi = 180 - phi_exp
+print(f'Theta_exp = {theta_exp} deg, Phi_exp = {phi_exp} deg')
+print(f'Theta = {theta} deg, Phi = {phi} deg')
+x_cart = np.array([
+    radius * np.cos(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
+    radius * np.sin(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
+    radius * np.cos(np.deg2rad(theta)),
+]).reshape((3, 1))
+
+Nr = len(r0)
+steady_loading = np.zeros((3, Nk+1, Nr), dtype=np.complex_)
+steady_loading[1, 0, :] = dT / dr
+steady_loading[2, 0, :] = dQ / dr
+
+unsteady_loading = np.zeros((3, Nk+1, Nr), dtype=np.complex_)
+unsteady_loading[:, 1:, :] = blade_l.getBladeLoadingHarmonics()[:, 1:, :]
 
 
+ms = np.arange(1, 26, 1) # harmonics to extract
+pSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+                                    #    blade_l.getBladeLoadingHarmonics()
+                                    steady_loading
+                                       )[0][0]
+
+pUSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+                                    #    blade_l.getBladeLoadingHarmonics()
+                                    unsteady_loading
+                                       )[0][0]
+
+ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.122 * np.ones_like(r0))[0][0] # NACA0012
+pmB_model_beam = han.getPressureStator(x_cart, ms*B, # mind the different input harmonics!
+                                        beam_l.getBeamLoadingHarmonics())[0][0]
+pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam
+# p_rms_total = np.sqrt(np.abs(pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
+
+SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
+SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
+
+SPL_rotor_thickness = p_to_SPL(ptmB_model_rotor)
+
+SPL_beam = p_to_SPL(pmB_model_beam)
+
+SPL_total = p_to_SPL(pmB_model_total)
+# SPL_total = p_to_SPL(p_rms_total) # same computation
+
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental", color='k', alpha=0.75)
+fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+                         plot_kwargs={
+                             'color':'k',
+                             'linestyle':'dashed',
+                             'alpha':0.75
+                         })
+ax.plot(ms, SPL_rotor_S, label=f"Model (rotor, steady loading)", color='r', marker='^')
+ax.plot(ms, SPL_rotor_US, label=f"Model (rotor, unsteady loading)", color='g', marker='^')
+ax.plot(ms, SPL_rotor_thickness, label=f"Model (rotor, thickness)", color='b', marker='+')
+ax.plot(ms, SPL_beam, label=f"Model (beam, loading)", color='m', marker='o')
+ax.plot(ms, SPL_total, label=f"Model (total)", color='k', marker='s')
+
+ax.legend()
+ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
+ax.set_ylabel("SPL (dB)")
+ax.set_xscale('log')
+# ax.set_yscale('log')
+
+ax.grid(visible=True, which='major', color='k', linestyle='-')
+ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
 
 
-# pmB, x = 
-
+plt.xlim(0.1, 100)
+plt.ylim(0, 70)
+plt.tight_layout()
+plt.show()
 
 

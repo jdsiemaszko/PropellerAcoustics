@@ -148,6 +148,32 @@ class HansonModel():
         pmb *= +1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(+1j * wavenumber[None, :] *  R[:, None])
 
         return pmb, x
+    
+    def getThicknessNoiseRotor(self, x:np.ndarray, m:np.ndarray, chord:np.ndarray, thickness_to_chord:np.ndarray, multiplier:float=None, c0=340, rho0=1.2):
+        
+        if not np.all(m != 0):
+            raise ValueError("m=0 is not supported")
+
+        if multiplier is None:
+            multiplier = self.B
+
+        # convert observation point to cylidrical relative to the prop
+        R, theta, phi = getSphericalCoordinates(
+            x, self.axis, self.origin, self.radial, self.normal
+        ) # each of size Nx
+
+        Mtip = self.r1 * self.Omega / c0
+        Mr = self.radius_c * self.Omega / c0
+        kx = 2 * m[:, None] * self.B * chord[None, :] / self.r1 / 2 * Mtip / Mr[None, :] # shape Nm, Nr
+
+        matrix = Mr[None, None, :]**2 * jv(m[None, :, None]*self.B, m[None, :, None]*self.B*Mr[None, None, :] *
+                                           np.sin(theta[:, None, None])) * kx[None, :, :]**2 * thickness_to_chord[None, None, :] # Nx, Nm, Nr
+
+        pt_mb = rho0 * c0**2 * multiplier * np.exp(1j * (m[None, :]  * self.B) * (phi[:, None]  - np.pi/2) +
+                                                    1j * m[None, :] * self.B * self.Omega * R[:, None]  / c0) / 4 / np.pi / R[:, None] * np.sum(
+                                                        matrix * self.dr[None, None, :], axis=-1) # integrate over r
+        
+        return pt_mb, x
 
     def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fstator:np.ndarray, multiplier:float=None):
         """
@@ -163,7 +189,7 @@ class HansonModel():
         Fstator are ordered as radial, axial, tangential force along axis 0
         Fstator[0] is positive outwards, Fstator[1] is positive upstream, Fstator[2] is positive opposite to the direction of rotation.
 
-        returns: p_mB: np.ndarray of size (Nx, Nm) - array of pressure modes at frequencies m*B*self.Omega
+        returns: p_m: np.ndarray of size (Nx, Nm) - array of pressure modes at frequencies m*self.Omega - MIND THE DIFFERENCE between this and getPressureRotor()
         at observation points x, x is also returned for convenience
         """
   
@@ -175,9 +201,6 @@ class HansonModel():
 
         c0 = self.c # SoS
         Omega = self.Omega
-
-        B = self.B
-        nb =self.nbeam
 
         # convert observation point to cylidrical relative to the prop
         R, theta, phi = getSphericalCoordinates(
@@ -234,8 +257,6 @@ class HansonModel():
             axis=-1
         ) # integrate along the r axis
 
-
-    
         # pre-factor
         pm *= 1j * wavenumber[None, :] / (4 * np.pi * R[:, None]) * np.exp(1j * wavenumber[None, :] * R[:, None])
 
