@@ -102,12 +102,12 @@ gf = TailoredGreen(dim=3) # free-field version!
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
 radial_prop = np.array([1.0, 0.0, 0.0])
-HANSON_VELLA = HansonModel(twist_rad = twist_array, chord_m = chord_array,
+HANSON_VELLA = HansonModel(
                     axis=axis_prop, origin=origin_prop, radial=radial_prop,
                     radius_m=radius_array, B=NBLADES, nb=NBEAMS,
                      Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
-HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord_array,
+HANSON_NEARFIELD = NearFieldHansonModel(
                     axis=axis_prop, origin=origin_prop,
                                 radius_m=radius_array, B=NBLADES, nb=NBEAMS,
                             Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)

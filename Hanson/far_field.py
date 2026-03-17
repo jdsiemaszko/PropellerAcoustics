@@ -81,7 +81,7 @@ class HansonModel():
         c0 = self.c # SoS
         Omega = self.Omega
         B = self.B
-        nb =self.nbeam
+        nb = self.nbeam
 
         # convert observation point to cylidrical relative to the prop
         R, theta, phi = getSphericalCoordinates(

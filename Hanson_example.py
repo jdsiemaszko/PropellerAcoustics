@@ -10,8 +10,8 @@ ROBS = 10. # observation radius, in meters
 rad = np.linspace(0.016, 0.1, NSEG+1, endpoint=True) # radial stations (segment edges)
 loadings = np.zeros((3, kmaxx, NSEG), dtype=np.complex128) # loadings of size (3, Nk, Nr) in order: radial, axial, tangential.
 # sign convention: axial positive towards upstream, tangential positive opposite to the direction of rotation
-loadings[1, 1:5, :] = (1.0 + 0j) * np.cos(np.deg2rad(10)) # example loading
-loadings[2, 1:5, :] = (1.0 + 0j) * np.sin(np.deg2rad(10)) # example loading
+loadings[1, 0, :] = (1.0 + 0j) * np.cos(np.deg2rad(10)) # example loading
+loadings[2, 0, :] = (1.0 + 0j) * np.sin(np.deg2rad(10)) # example loading
 
 
 # Initialize Module

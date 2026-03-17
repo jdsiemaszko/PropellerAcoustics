@@ -29,117 +29,117 @@ class NearFieldHansonModel(HansonModel):
         self.positions_m = np.stack([seg_radius_broadcasted, theta_array, phi_array], axis=0) # shape (3, Nalpha, Nr)
         self.positions_m_stator = np.stack([self.radius_c, np.ones_like(self.radius_c)*np.pi/2, np.zeros_like(self.radius_c)], axis=0) # shape (3, Nr)
 
-    def _getPressureRotorParallel(self, x: np.ndarray, m: np.ndarray, Fblade:np.ndarray, multiplier: float = None):
-        """
-        Fully vectorized near-field Hanson rotor pressure.
-        Time integration rewritten as alpha-integration.
-        Tensor reductions used instead of time loop.
-        """
+    # def _getPressureRotorParallel(self, x: np.ndarray, m: np.ndarray, Fblade:np.ndarray, multiplier: float = None):
+    #     """
+    #     Fully vectorized near-field Hanson rotor pressure.
+    #     Time integration rewritten as alpha-integration.
+    #     Tensor reductions used instead of time loop.
+    #     """
 
-        if not np.all(m != 0):
-            raise ValueError("m=0 is not supported")
+    #     if not np.all(m != 0):
+    #         raise ValueError("m=0 is not supported")
 
-        if multiplier is None:
-            multiplier = self.B
+    #     if multiplier is None:
+    #         multiplier = self.B
 
-        c0 = self.c
-        Omega = self.Omega
-        B = self.B
-        radius, twist, chord = self.radius_c, self.twist_c, self.chord_c # all of size # Nr
-
-
-        # --------------------------------------------
-        # Harmonics
-        # --------------------------------------------
-        mB = m * B                          # (Nm,)
-        wavenumber = mB * Omega / c0        # (Nm,)
-
-        Nk = Fblade.shape[0] # shape Nk, Nr
-        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
+    #     c0 = self.c
+    #     Omega = self.Omega
+    #     B = self.B
+    #     radius  = self.radius_c # all of size # Nr
 
 
-        k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
-        Fblade = np.concatenate((np.conjugate(Fblade[-1:0:-1]), Fblade), axis=0) # minus loadings are conjugates of positive!
-        # Fblade and k are now of shape (2Nk-1, Nr) with negative modes first
+    #     # --------------------------------------------
+    #     # Harmonics
+    #     # --------------------------------------------
+    #     mB = m * B                          # (Nm,)
+    #     wavenumber = mB * Omega / c0        # (Nm,)
 
-        Nk = k.size
-        Nr = self.Nr
-        Nm = mB.size
-        Nx = x.shape[0]
-        Nalpha = self.Npoints
+    #     Nk = Fblade.shape[0] # shape Nk, Nr
+    #     k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
 
-        # --------------------------------------------
-        # Geometry
-        # --------------------------------------------
-        Rprime = distance_in_polar(x, self.positions_m)  
-        # (Nx, Nalpha, Nr)
 
-        Rprime = Rprime[:, None, :, None, :]  
-        # (Nx, 1, Nalpha, 1, Nr)
+    #     k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
+    #     Fblade = np.concatenate((np.conjugate(Fblade[-1:0:-1]), Fblade), axis=0) # minus loadings are conjugates of positive!
+    #     # Fblade and k are now of shape (2Nk-1, Nr) with negative modes first
 
-        alpha = self.alpha[None, None, :, None, None]  
-        # (1, 1, Nalpha, 1, 1)
+    #     Nk = k.size
+    #     Nr = self.Nr
+    #     Nm = mB.size
+    #     Nx = x.shape[0]
+    #     Nalpha = self.Npoints
 
-        dalpha = self.dalpha
-        prefac = dalpha / (2*np.pi)
+    #     # --------------------------------------------
+    #     # Geometry
+    #     # --------------------------------------------
+    #     Rprime = distance_in_polar(x, self.positions_m)  
+    #     # (Nx, Nalpha, Nr)
 
-        # --------------------------------------------
-        # Broadcast harmonic structure
-        # --------------------------------------------
-        mB = mB[None, :, None, None, None]         # (1, Nm, 1, 1, 1)
-        k = k[None, None, None, :, None]           # (1, 1, 1, Nk, 1)
+    #     Rprime = Rprime[:, None, :, None, :]  
+    #     # (Nx, 1, Nalpha, 1, Nr)
 
-        mB_minus_k = mB - k                        # (1, Nm, 1, Nk, 1)
+    #     alpha = self.alpha[None, None, :, None, None]  
+    #     # (1, 1, Nalpha, 1, 1)
 
-        wavenumber = wavenumber[None, :, None, None, None]
+    #     dalpha = self.dalpha
+    #     prefac = dalpha / (2*np.pi)
 
-        radius = self.radius_c[None, None, None, None, :]
-        dr = self.dr[None, None, None, None, :]
+    #     # --------------------------------------------
+    #     # Broadcast harmonic structure
+    #     # --------------------------------------------
+    #     mB = mB[None, :, None, None, None]         # (1, Nm, 1, 1, 1)
+    #     k = k[None, None, None, :, None]           # (1, 1, 1, Nk, 1)
 
-        # --------------------------------------------
-        # Green functions
-        # --------------------------------------------
-        G1 = (
-            np.exp(1j * wavenumber * Rprime)
-            / (Rprime**2)
-            * (1 - 1/(1j*wavenumber*Rprime))
-        )
+    #     mB_minus_k = mB - k                        # (1, Nm, 1, Nk, 1)
 
-        G2 = G1 * np.sin(alpha)
+    #     wavenumber = wavenumber[None, :, None, None, None]
 
-        # --------------------------------------------
-        # Alpha-integration (NO TIME LOOP)
-        # --------------------------------------------
-        phase = np.exp(-1j * mB_minus_k * alpha)
-        # (1, Nm, Nalpha, Nk, 1)
+    #     radius = self.radius_c[None, None, None, None, :]
+    #     dr = self.dr[None, None, None, None, :]
 
-        G1_int = np.sum(G1 * phase, axis=2) * prefac
-        G2_int = np.sum(G2 * phase, axis=2) * prefac
-        # result: (Nx, Nm, Nk, Nr)
+    #     # --------------------------------------------
+    #     # Green functions
+    #     # --------------------------------------------
+    #     G1 = (
+    #         np.exp(1j * wavenumber * Rprime)
+    #         / (Rprime**2)
+    #         * (1 - 1/(1j*wavenumber*Rprime))
+    #     )
 
-        # --------------------------------------------
-        # Loadings
-        # --------------------------------------------
-        Fphi = np.sin(twist)[None, None, None, :] * Fblade[None, None, :, :] # (1, 1, Nk, Nr) NOTE: this is drag, oriented opposite to direction of travel
-        Fz = np.cos(twist)[None, None, None, :] * Fblade[None, None, :, :] # (1, 1, Nk, Nr)
+    #     G2 = G1 * np.sin(alpha)
+
+    #     # --------------------------------------------
+    #     # Alpha-integration (NO TIME LOOP)
+    #     # --------------------------------------------
+    #     phase = np.exp(-1j * mB_minus_k * alpha)
+    #     # (1, Nm, Nalpha, Nk, 1)
+
+    #     G1_int = np.sum(G1 * phase, axis=2) * prefac
+    #     G2_int = np.sum(G2 * phase, axis=2) * prefac
+    #     # result: (Nx, Nm, Nk, Nr)
+
+    #     # --------------------------------------------
+    #     # Loadings
+    #     # --------------------------------------------
+    #     Fphi = np.sin(twist)[None, None, None, :] * Fblade[None, None, :, :] # (1, 1, Nk, Nr) NOTE: this is drag, oriented opposite to direction of travel
+    #     Fz = np.cos(twist)[None, None, None, :] * Fblade[None, None, :, :] # (1, 1, Nk, Nr)
         
-        theta = np.pi/2
+    #     theta = np.pi/2
 
-        matrix = (
-            Fz * np.cos(theta) * G1_int +
-            Fphi * np.sin(theta) * G2_int
-        ) * dr
+    #     matrix = (
+    #         Fz * np.cos(theta) * G1_int +
+    #         Fphi * np.sin(theta) * G2_int
+    #     ) * dr
 
-        matrix *= 1j * wavenumber[..., 0, 0] / (4*np.pi)
+    #     matrix *= 1j * wavenumber[..., 0, 0] / (4*np.pi)
 
-        # --------------------------------------------
-        # Final reductions
-        # --------------------------------------------
-        pmb = np.sum(matrix, axis=(-2, -1))   # sum over Nk, Nr
+    #     # --------------------------------------------
+    #     # Final reductions
+    #     # --------------------------------------------
+    #     pmb = np.sum(matrix, axis=(-2, -1))   # sum over Nk, Nr
 
-        pmb *= multiplier
+    #     pmb *= multiplier
 
-        return pmb, x
+    #     return pmb, x
     
     def getPressureRotor(self, x: np.ndarray, m: np.ndarray, Fblade:np.ndarray, multiplier: float = None):
         """
@@ -170,8 +170,6 @@ class NearFieldHansonModel(HansonModel):
         Omega = self.Omega
         B = self.B
 
-        radius = self.radius_c
-        twist = self.twist_c
         dr = self.dr
 
         # --------------------------------------------
@@ -336,7 +334,7 @@ class NearFieldHansonModel(HansonModel):
         R, theta, phi = x_polar
         
 
-        radius, twist, chord = self.radius_c, self.twist_c, self.chord_c # all of size # Nr
+        radius= self.radius_c # of size # Nr
         dr = self.dr # Nr, size of segment
 
         # mB = m * B # Nm

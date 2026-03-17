@@ -25,7 +25,7 @@ class SourceMode():
                   ):
         self.green = green
         self.BLH = BLH # blade loading harmonics, shape (Nharmonics, Nr), unit of NEWTONS!
-        self.s = np.arange(0, len(self.BLH)) # helper array
+        self.s = np.arange(0, len(self.BLH), 1) # helper array, running from 0 to len(self.BLH) - 1
         self.B = B
         self.gamma = gamma
         self.axis = axis / np.linalg.norm(axis)
@@ -69,7 +69,7 @@ class SourceMode():
         # expterm = np.exp(1j * self.dipole_angles[None, None, :] * (m[None, :, None] * self.B  - self.s[:, None, None]) / (m[None, :, None] * self.B * Omega)) # shape (Ns, Nm, Ndipoles)
         
         expterm = np.exp(+1j *  (m[None, :, None] * self.B  - self.s[:, None, None]) * self.dipole_angles[None, None, :])   # shape (Ns, Nm, Ndipoles)
-        expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns, Nm, Ndipoles)
+        expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns-1, Nm, Ndipoles)
         
         # expterm = np.ones((self.BLH.shape[0],m.shape[0],self.dipole_angles.shape[0]))
         # expterm_negative = expterm
@@ -83,14 +83,17 @@ class SourceMode():
         # print(loadings.shape, expterm.shape, force_unit.shape, self.dipole_angles.shape)
 
 
-        # flip the s-axis, remove the zeroth term
-        loadings_negative = loadings_negative[::-1, :, :, :]
+        # remove the zeroth term, flip along the s axis
         loadings_negative = loadings_negative[1:, :, :, :]
+        loadings_negative = loadings_negative[::-1, :, :, :]
 
         # 4) append negative harmonics along the first dimension
+        # to achieve s ranging from -Ns+1, ..., 0, ..., Ns-1
         loadings = np.concatenate([loadings_negative, loadings_positive], axis=0)  # shape (2*Ns-1, Nm, Ndipoles, 3)
 
         loadings *= self.dalpha / 2. / np.pi # normalize
+
+
         return loadings
     
     def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
@@ -132,14 +135,21 @@ class SourceMode():
 
     def plotFarFieldPressure(self, m, Omega, R=None, Nphi=36, Ntheta=18,
     c=340,     extra_script=lambda fig, ax: None, blending=0.1,
-    valmin = None, valmax=None, fig=None, ax=None):
+    valmin = None, valmax=None, fig=None, ax=None,
+    mode='total'):
         # if extra_script is None:
         #     extra_script = self.plotSelf
 
         R = R if R is not None else (1e3 / k)
         x, Theta, Phi = self.green.getFarFieldx(np.min(m) * self.B * Omega / c, Nphi=Nphi, Ntheta=Ntheta, R=R)
-
-        pmB = self.getPressure(x, Omega, m)
+        if mode == 'total':
+            pmB = self.getPressure(x, Omega, m, c)
+        elif mode == 'direct':
+            pmB = self.getDirectPressure(x, Omega, m, c)
+        elif mode == 'scattered':
+            pmB = self.getScatteredPressure(x, Omega, m, c)
+        else:
+            raise ValueError(f'mode {mode} not recognized')
         k = Omega / c * m
         fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
@@ -255,7 +265,7 @@ class SourceModeArray():
 
 
         self.green = green
-        self.BLH = BLH # blade loading harmonics, shape (Nharmonics)
+        self.BLH = BLH # blade loading harmonics, shape (Nharmonics, Nr)
         self.s = np.arange(1, len(self.BLH) + 1) # helper array
         self.B = B
         self.Omega = Omega
@@ -275,7 +285,7 @@ class SourceModeArray():
         # self.Nr = self.BLH.shape[1] #should be the same as size of seg_radius!
 
         if self.BLH.shape[1] !=  self.Nr:
-            raise ValueError('BLH array does not match the number of radial stations, see docstring')
+            raise ValueError('BLH array size does not match the number of radial stations, see docstring')
 
 
         self.axis = axis

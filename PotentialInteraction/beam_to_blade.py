@@ -41,7 +41,7 @@ class BladeLoadings():
         self.Nr = len(twist_rad) - 1
         self.Nk = kmax+1
         self.kmax = kmax
-        self.k = np.arange(0, kmax+1, 1) * self.nbeam  # array of modal orders, TODO: check the nbeam scaling!
+        self.k = np.arange(0, kmax+1, 1)  # array of modal orders, TODO: check the nbeam scaling!
 
         self.Uz = Uz0_mps # Nr
         if Tprime_Npm is None:
@@ -166,6 +166,8 @@ class BladeLoadings():
         #TODO: signs?
         # Fblade[1, :, :] = -Lkprime * np.sin(beta_r)   # axial
         # Fblade[2, :, :] = Lkprime * np.cos(beta_r)   # tangential
+
+
         Fblade[1, :, :] = -Lkprime * np.cos(self.seg_twist[None, :]) # positive upwards, but Lkprime is oriented downwards for positive wk!
         Fblade[2, :, :] = -Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
 
