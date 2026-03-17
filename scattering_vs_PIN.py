@@ -49,27 +49,27 @@ TORQUEREF = 26.7/B/1000 # Nm
 
 #----------- NUMERICS ----------------------
 
+# NR = 10
+# NDIPOLES = 18
+# Ntheta = 18
+# Nphi = 36
+# numerics = {
+#             'mmax': 16, # mind that increasing this increases the chance of overflows, ***should*** be handled by the safe Bessel functions, but beware
+#             'Nq_prop': 32,
+#             'Nq_evan': 32,
+#             'eps_k' : 1e-24,
+#                     }
+
 NR = 10
-NDIPOLES = 18
+NDIPOLES = 18*2 # VERY IMPORTANT, will fail at higher harmonics!
 Ntheta = 18
 Nphi = 36
 numerics = {
-            'mmax': 16, # mind that increasing this increases the chance of overflows, ***should*** be handled by the safe Bessel functions, but beware
-            'Nq_prop': 32,
-            'Nq_evan': 32,
-            'eps_k' : 1e-24,
-                    }
-
-# NR = 20
-# NDIPOLES = 18*2
-# Ntheta = 18*2
-# Nphi = 36*2
-# numerics = {
-# 'mmax': 16*2, 
-# 'Nq_prop': 128,
-# 'Nq_evan': 128,
-# 'eps_k' : 1e-24,
-# }
+'mmax': 16*2, 
+'Nq_prop': 128,
+'Nq_evan': 128,
+'eps_k' : 1e-24,
+}
 
 # Radial discretization
 # ----------------------------------------------------------
@@ -218,19 +218,24 @@ corigin = np.array([0.0, 0.0, -L])
 
 cg = CylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
                            numerics=numerics) # cylinder
-
+gf = TailoredGreen(dim=3) # free-field version!
 # SOURCE MODE MODULE
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
 
 
-
-sourceArray = SourceModeArray(BLH=blade_l.getBladeLoadingMagnitude(), # loading per unit span
+BLH = blade_l.getBladeLoadingHarmonics()
+# BLH_US = np.zeros_like(BLH)
+# BLH_US[:, 1:, :] = BLH[:, 1:, :]
+# BLH_S = np.zeros_like(BLH)
+# BLH_S[:, 0, :] = BLH[:, 0, :]
+sourceArray = SourceModeArray(BLH=BLH, # loading per unit span
                         B = B,
                         Omega=Omega, gamma =twist,
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg,
+                        # green = gf,
                         numerics={'Ndipoles' : NDIPOLES},
                         c = c0
                         )
@@ -285,8 +290,8 @@ m = np.array([5]) # pick a harmonic with significant beam noise
 ############## save results to a file as the computation takes some time
 p_scattered = sourceArray.getScatteredPressure(x_cart, m)
 np.save('./Data/current/NACA0012_rotor/p_scattered.npy', p_scattered)
-p_direct = sourceArray.getDirectPressure(x_cart, m)
-np.save('./Data/current/NACA0012_rotor/p_direct.npy', p_direct)
+p_direct_blade = sourceArray.getDirectPressure(x_cart, m)
+np.save('./Data/current/NACA0012_rotor/p_direct.npy', p_direct_blade)
 
 p_scattered = np.load('./Data/current/NACA0012_rotor/p_scattered.npy')
 p_direct_blade = np.load('./Data/current/NACA0012_rotor/p_direct.npy')
@@ -294,8 +299,7 @@ p_direct_blade = np.load('./Data/current/NACA0012_rotor/p_direct.npy')
 
 beam_loading = beam_l.getBeamLoadingHarmonics() 
 p_direct_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading) # mind the indexing change for m
-blade_loading = blade_l.getBladeLoadingHarmonics()
-p_direct_blade_hanson, _ = han.getPressureRotor(x_cart, m, blade_loading) 
+p_direct_blade_hanson, _ = han.getPressureRotor(x_cart, m, BLH) 
 
 # Plot maps:
 # 1) 2D contours

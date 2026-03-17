@@ -27,16 +27,17 @@ cg = CylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3,
 #SOURCE MODE
 TWIST = np.deg2rad(00)
 loadings = np.array([0.0, 1.0 * np.cos(TWIST), 1.0 * np.sin(TWIST)], dtype=np.complex_).reshape(3, 1, 1)
-loading_magnitudes = np.linalg.norm(loadings) * 1.0
-source = SourceMode(BLH=loading_magnitudes.reshape(1), B=2, gamma=TWIST,
+DR = 0.1
+source = SourceMode(BLH=loadings.reshape(3, 1) * DR, B=2, gamma=TWIST,
                      axis=np.array([0., 0.0, 1.]), origin=np.array([0, 0.0,0.0]), radius=D_prop/2,
-                    #    green=gff  # green's functions are interchangable
-                      green = cg
+                       green=gff,  # green's functions are interchangable
+                      # green = cg
+                      numerics={'Ndipoles':360}
                        )
 OMEGA = 8000/60 * 2 * np.pi
 ROBS = 1.62
 hm = HansonModel(
-                radius_m=np.array([0.5, 1.5]), # blade radius stations [m] of size Nr + 1
+                radius_m=np.array([D_prop/2-DR/2, D_prop/2+DR/2]), # blade radius stations [m] of size Nr + 1
                 axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0]), # coordinate system (not needed here)
                 B=2, # number of blades
                 Omega_rads=OMEGA, # rotation speed [rad/s]

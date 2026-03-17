@@ -24,8 +24,9 @@ class SourceMode():
 
                   ):
         self.green = green
-        self.BLH = BLH # blade loading harmonics, shape (Nharmonics, Nr), unit of NEWTONS!
-        self.s = np.arange(0, len(self.BLH), 1) # helper array, running from 0 to len(self.BLH) - 1
+        self.BLH = BLH # blade loading harmonics, shape (3, Nharmonics), unit of NEWTONS!, convention: radial, axial, tangential loadings!
+        Nk = BLH.shape[1]
+        self.s = np.arange(0, Nk, 1) # helper array, running from 0 to len(self.BLH) - 1
         self.B = B
         self.gamma = gamma
         self.axis = axis / np.linalg.norm(axis)
@@ -44,11 +45,11 @@ class SourceMode():
             self.radial = radial / np.linalg.norm(radial) # radial vector of the cylinder, taken as the zero azimuth direction
 
 
-        self.normal = np.cross(self.axis, self.radial) # assuming counterclockwise rotation?
+        self.tangential= np.cross(self.axis, self.radial) # assuming counterclockwise rotation?
         self.dipole_positions, self.dipole_angles, self.dalpha = self.getDipoleGeometry() # shape (Ndipoles, 3)
         self.NBLH = len(self.BLH)
 
-        rad, norm, ax = getCylindricalBasis(self.dipole_angles, self.axis, self.radial, self.normal) # shape (Ndipoles, 3)
+        rad, norm, ax = getCylindricalBasis(self.dipole_angles, self.axis, self.radial, self.tangential) # shape (Ndipoles, 3)
 
         self.force_unit = +ax * np.cos(self.gamma) - norm * np.sin(self.gamma) # shape (Ndipoles, 3) # TODO:sign?
         self.force_unit = self.force_unit.T # (3, Ndipoles)
@@ -58,9 +59,59 @@ class SourceMode():
         dipole_angles = np.linspace(0, 2*np.pi, Ndipoles, endpoint=False)
         dipole_positions = self.origin[:, None] + self.radius * (np.cos(dipole_angles[None, :]) *
                          self.radial[:, None] + np.sin(dipole_angles[None, :]) *
-                           self.normal[:, None]) # shape (3, Ndipoles)
+                           self.tangential[:, None]) # shape (3, Ndipoles)
         dalpha = 2 * np.pi / Ndipoles
         return dipole_positions, dipole_angles, dalpha
+    
+    def _rotate_loadings(self):
+        """
+        rotate loading harmonics along the rotation axis
+        BLH - array of size (3, Nk), in blade-centered coordinates
+        output: array of size (3, Nk, Ndipoles) in global coordinates
+        """
+        angles = self.dipole_angles              # (Ndipoles,)
+        axis = self.axis / np.linalg.norm(self.axis)  # ensure unit vector
+
+        BLH = self.BLH  # (3, Nk)
+
+        Nk = BLH.shape[1]
+        Nd = len(angles)
+        B = np.column_stack([
+            self.radial,   # radial
+            self.axis,     # axial
+            -self.tangential   # tangential - negative because BLH is positive opposite to the rotation of prop
+        ])  # shape (3,3)
+
+
+        # reshape to GLOBAL cartesian frame: 
+        BLH_global = B @ self.BLH   # (3, Nk)
+
+        # Skew-symmetric matrix of axis
+        K = np.array([
+            [0,        -axis[2],  axis[1]],
+            [axis[2],   0,       -axis[0]],
+            [-axis[1],  axis[0],  0      ]
+        ])
+
+        I = np.eye(3)
+
+        # Allocate rotation matrices (Ndipoles, 3, 3)
+        R = np.zeros((Nd, 3, 3))
+
+        for i, theta in enumerate(angles):
+            R[i] = (
+                I * np.cos(theta)
+                + (1 - np.cos(theta)) * np.outer(axis, axis)
+                + np.sin(theta) * K
+            )
+
+        # Apply rotations: result (Ndipoles, 3, Nk)
+        BLH_rotated = np.einsum('nij,jk->nik', R, BLH_global)
+
+        # Reorder to (Nk, Ndipoles, 3)
+        BLH_rotated = np.transpose(BLH_rotated, (2, 0, 1))
+
+        return BLH_rotated
 
     def computeLoadingVectors(self, m:np.ndarray):
 
@@ -74,14 +125,17 @@ class SourceMode():
         # expterm = np.ones((self.BLH.shape[0],m.shape[0],self.dipole_angles.shape[0]))
         # expterm_negative = expterm
 
-        force_unit = self.force_unit.T # Ndipoles, 3
-
-        loadings_positive_mag = self.BLH[:, None, None] * expterm[:, :, :] # shape (Ns, Nm, Ndipoles)
-        loadings_positive = loadings_positive_mag[:,:,:, None] * force_unit[None, None, :, :]
-
-        loadings_negative = np.conjugate(self.BLH[:, None, None, None]) * expterm_negative[:, :, :, None] * force_unit[None, None, :, :] # shape (Ns, Nm, Ndipoles, 3)
+        # LEGACY (1D loading)
+        # force_unit = self.force_unit.T # Ndipoles, 3
+        # loadings_positive_mag = self.BLH[:, None, None] * expterm[:, :, :] # shape (Ns, Nm, Ndipoles)
+        # loadings_positive = loadings_positive_mag[:,:,:, None] * force_unit[None, None, :, :] (Ns, Nm, Ndipoles, 3)
+        # loadings_negative = np.conjugate(self.BLH[:, None, None, None]) * expterm_negative[:, :, :, None] * force_unit[None, None, :, :] # shape (Ns, Nm, Ndipoles, 3)
         # print(loadings.shape, expterm.shape, force_unit.shape, self.dipole_angles.shape)
 
+        # UPDATE (3D loading)
+        BLH_rotated = self._rotate_loadings() # shape (Ns, Ndipoles, 3)
+        loadings_positive = expterm[:, :, :, None] * BLH_rotated[:, None, :, :]
+        loadings_negative = np.conjugate(BLH_rotated[:, None, :, :]) * expterm_negative[:, :, :, None]
 
         # remove the zeroth term, flip along the s axis
         loadings_negative = loadings_negative[1:, :, :, :]
@@ -257,7 +311,7 @@ class SourceModeArray():
                 }
                 ):
         """
-        BLH - shape (Nk, Nr) - array of blade loading harmonics (complex magnitudes!) in units newton per meter!
+        BLH - shape (3, Nk, Nr) - array of blade loading harmonics (complex magnitudes!) in units newton per meter!
         r - array of edges of radial stations (incl start and end point!) (Nr+1)
         gamma - array of blade twists, same as above (Nr+1)
 
@@ -281,10 +335,10 @@ class SourceModeArray():
         self.seg_radius = (radius[1:] + radius[:-1]) / 2
         self.dr = np.diff(radius) # (Nr)
         self.Nr = len(self.seg_radius) # number of radial segments
-        self.Nk = self.BLH.shape[0] 
+        self.Nk = self.BLH.shape[1] 
         # self.Nr = self.BLH.shape[1] #should be the same as size of seg_radius!
 
-        if self.BLH.shape[1] !=  self.Nr:
+        if self.BLH.shape[2] !=  self.Nr:
             raise ValueError('BLH array size does not match the number of radial stations, see docstring')
 
 
@@ -301,12 +355,12 @@ class SourceModeArray():
             self.radial /= np.linalg.norm(self.radial)
         else:
             self.radial = radial # radial vector of the cylinder, taken as the zero azimuth direction
-        self.normal = np.cross(self.axis, self.radial)
+        self.tangential= np.cross(self.axis, self.radial)
 
         self.children = [None] * self.Nr # individual source modes!
-        for index, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, self.BLH.T)):
+        for index, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, np.transpose(self.BLH, axes=(2, 0, 1)))):
             self.children[index] = SourceMode(
-                BLH = BLH_seg * deltar, # shape (Nk) - RESCALING TO NEWTONS!
+                BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
                         B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
                 numerics=self.numerics
             ) # construct source modes at each radial station

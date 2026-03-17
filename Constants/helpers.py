@@ -432,6 +432,7 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
         # ax.set_zlabel('Z')
 
 
+    ax.view_init(25,-45)
 
     return fig, ax
 

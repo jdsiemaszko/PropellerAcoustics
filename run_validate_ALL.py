@@ -73,7 +73,7 @@ loading_per_unit_span = loading / dr[None, None, :] # convert to force PER UNIT 
 p_i = np.array(datafile['p_imag'])
 p_r = np.array(datafile['p_real'])
 
-p_data = p_r + 1j * p_i # conjugated, same as the loading
+p_data = p_r + 1j * p_i
 
 x_cartesian = R * np.array([
     np.sin(theta) * np.cos(phi),
@@ -117,8 +117,7 @@ HANSON_NEARFIELD = NearFieldHansonModel(
 if not np.allclose(np.deg2rad(TWIST), np.arctan(Fk_phi/Fk_z)):
     raise ValueError('Force directions incompatible with assumed source-mode orientation')
 
-loading_per_unit_span_magnitude = loading_per_unit_span[1, :, :] / np.cos(np.deg2rad(TWIST)) # extract COMPLEX force magnitude
-sourceArray = SourceModeArray(BLH=loading_per_unit_span_magnitude, # loading per unit span, magnitude only
+sourceArray = SourceModeArray(BLH=loading_per_unit_span, # loading per unit span, magnitude only
                         B = NBLADES,
                         Omega=OMEGA, gamma = twist_array,
                         axis=axis_prop, origin=origin_prop,
@@ -151,15 +150,15 @@ plt.close()
 # plt.show()
 # plt.close(fig)
 
-fig = plt.figure(figsize=(7, 7))
-ax = fig.add_subplot(111, projection="3d")
-HANSON_VELLA.plot3Ddirectivity(fig=fig, ax=ax, m=5, R=R,
-                        valmax=65, valmin=10,
-                        Nphi=NPHI, Ntheta=NTHETA,
-                        loadings=loading_per_unit_span, mode='rotor'
-                        )
-plt.show()
-plt.close(fig)
+# fig = plt.figure(figsize=(7, 7))
+# ax = fig.add_subplot(111, projection="3d")
+# HANSON_VELLA.plot3Ddirectivity(fig=fig, ax=ax, m=5, R=R,
+#                         valmax=65, valmin=10,
+#                         Nphi=NPHI, Ntheta=NTHETA,
+#                         loadings=loading_per_unit_span, mode='rotor'
+#                         )
+# plt.show()
+# plt.close(fig)
 
 p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span)
 p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms, Fblade=loading_per_unit_span)
@@ -169,8 +168,8 @@ fig, ax = plt.subplots(figsize=(4, 3))
 for ind, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
 
     index_data = np.where(m == mode)[0][0]
-    ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, ind] , color=color, marker='x', label=f'm={mode}', markersize=10)
-    ax.plot(np.rad2deg(theta), p_to_SPL(p_nf)[:, ind] , color=color, marker='s', linestyle='dotted')
+    # ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, ind] , color=color, marker='x', label=f'm={mode}', markersize=10)
+    # ax.plot(np.rad2deg(theta), p_to_SPL(p_nf)[:, ind] , color=color, marker='s', linestyle='dotted')
     ax.plot(np.rad2deg(theta), p_to_SPL(p_sourceMode)[:, ind], color=color, marker='^', linestyle='dashed')
     # ax.plot(np.rad2deg(theta), p_to_SPL(p_data)[:, index], color=color, marker='o', linestyle='dashdot')
     ax.plot(np.rad2deg(theta), SPL[:, index_data], color=color, marker='o', linestyle='dashdot')  # should be the same
@@ -191,8 +190,8 @@ fig, ax = plt.subplots(figsize=(4, 3))
 for index, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
     index_data = np.where(m == mode)[0][0]
 
-    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
-    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
+    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
+    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
     ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_sourceMode))[:, index], color=color, marker='^', linestyle='dashed')
     ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_data))[:, index_data], color=color, marker='o', linestyle='dashdot')
 
