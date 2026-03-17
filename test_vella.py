@@ -316,8 +316,8 @@ plt.show()
 # han.plotDirectivityContour(m=5, loadings = BeamLH,R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='stator')
 # plt.show()
 
-# han.plotDirectivityContour(m=5, loadings = BLH,R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='rotor')
-# plt.show()
+han.plotDirectivityContour(m=5, loadings = BLH,R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='rotor')
+plt.show()
 
 
 

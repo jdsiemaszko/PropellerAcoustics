@@ -98,58 +98,21 @@ class SourceMode():
         gradG = green.getGradientGreenAnalytical(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
         return self._getPressureFromGrad(x, m, gradG)
     
+    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
+        green = self.green
+        gradG = green.getScatteringGreenGradient(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        return self._getPressureFromGrad(x, m, gradG)
+    
+    def getDirectPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
+        green = self.green
+        gradG = green.getFreeSpaceGreenGradient(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        return self._getPressureFromGrad(x, m, gradG)
+    
     def _getPressureFromGrad(self,x:np.ndarray, m:np.ndarray, GradG:np.ndarray):
         # GradG is of shape (3, Nm, Nx, Ny)
         loadings = self.computeLoadingVectors(m) # shape (2 * Ns - 1, Nm, Ny, 3) units of NEWTON
         pmB = -1.0 * np.einsum('s m y k, k m x y -> x m', loadings, GradG)
         return pmB * self.B
-
-    # def getPressureExplicitFreeField(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
-    #     loadings = self.computeLoadingVectors(m)  #Ns, Nm, Ny, 3
-    #     loading_axial = np.einsum('snyc, c -> sny', loadings, self.axis, optimize=True)
-    #     loading_mag = loading_axial / np.cos(self.gamma) # Ns, Nm Ny
-
-    #     # spherical coords
-    #     r, theta, phi = getPolarFromCylindrical(
-    #         x, self.origin, self.axis, self.radial, self.normal
-    #     )   # (Nx,)
-
-    #     # pairwise distances
-    #     r_alpha = np.linalg.norm(
-    #         x[:, :, None] - self.dipole_positions[:, None, :],
-    #         axis=0
-    #     )   # (Nx, Ny)
-
-    #     kmB = m * Omega * self.B / c        # (Nm,)
-
-    #     # --- broadcast helpers
-    #     r_     = r[:, None]
-    #     theta_ = theta[:, None]
-    #     phi_   = phi[:, None]
-    #     alpha_ = self.dipole_angles[None, :]
-
-    #     # scalar angular term (Nx, Ny)
-    #     ang = (
-    #         np.sin(self.gamma) * np.sin(theta_) * np.sin(phi_ - alpha_)
-    #         - np.cos(self.gamma) * np.cos(theta_)
-    #     )
-
-    #     # geometric scalar kernel (Nx, Ny)
-    #     geom = r_ / (4 * np.pi) / r_alpha**3 * ang #Nx, Ny
-
-    #     # phase term (Nx, Ny, Nm)
-    #     phase = np.exp(1j * r_alpha[:, :, None] * kmB[None, None, :]) * (1 - 1j * kmB[None, None, :] * r_alpha[:, :, None])
-
-    #     # ---------------------------------------------------
-    #     pmB = np.einsum(
-    #         'xy, xym, kmy -> xm',
-    #         geom,
-    #         phase,
-    #         loading_mag,
-    #         optimize=True
-    #     )
-
-    #     return pmB * self.B
 
     def plotGeometry(self):
         green = self.green
@@ -349,6 +312,34 @@ class SourceModeArray():
             pmB += child.getPressure(x, self.Omega, m, c=self.SoS)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
+    
+    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        print('computing pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS)
+            # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
+        return pmB
+    
+    
+    def getDirectPressure(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        print('computing pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS)
+            # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
+        return pmB
+    
+    
+    
     
     def _getSurfacePressureEstFullCylinder(self, x:np.ndarray, m:np.ndarray):
         if not isinstance(m, np.ndarray):

@@ -247,11 +247,6 @@ pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
 # pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
 pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
 
-
-
-
-
-
 SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
 SPL_rotor_total = p_to_SPL(pmB_model_rotor_total)

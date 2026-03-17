@@ -423,13 +423,14 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
         ax.set_xlim([-RR, RR])
         ax.set_ylim([-RR, RR])    
         ax.set_zlim([-RR, RR])
-        # ax.set_axis_off()
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+        ax.set_axis_off()
 
         extra_script(fig, ax)
-        ax.grid()
+        # ax.grid()
+        # ax.set_xlabel('X')
+        # ax.set_ylabel('Y')
+        # ax.set_zlabel('Z')
+
 
 
     return fig, ax
@@ -476,7 +477,7 @@ def plot_2D_directivity(
 
     return fig, ax
 
-def plot_directivity_contour(Theta, Phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel=None, ylabel=None, fig=None, ax=None,):
+def plot_directivity_contour(Theta, Phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel="Phi [deg]", ylabel="Theta [deg]", fig=None, ax=None,):
     """
     Plot a 2D contour map of directivity (in dB) vs theta and phi.
 
@@ -500,17 +501,16 @@ def plot_directivity_contour(Theta, Phi, magnitudes, levels=20, cmap='viridis', 
     # Theta, Phi = np.meshgrid(theta, phi, indexing='ij')  # shape (Ntheta, Nphi)
     magnitudes_db = p_to_SPL(magnitudes).reshape(Theta.shape)  # ensure shape matches Theta and Phi
     # 2D filled contour plot
-    cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap)
+    cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap, extend='both')
     # cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
-    cbar = fig.colorbar(cf, ax=ax)
+    cbar = fig.colorbar(cf, ax=ax, extend='both')
     cbar.set_label("Directivity [dB]")
 
-    if xlabel is None:
-        xlabel = "Phi [deg]"
-    if ylabel is None:
-        ylabel = "Theta [deg]"
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
 
     if title is not None:
         ax.set_title(title)

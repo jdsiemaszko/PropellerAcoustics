@@ -181,7 +181,7 @@ class HansonModel():
         x:np.ndarray of shape (Nx,) -  observer position expressed in the GLOBAL CARTESIAN coordinate system
         Fbeam:np.ndarray - beam loading harmonics array of size (3, Nk, Nr),
         defining the distribution of LOADING PER UNIT SPAN along the SINGLE blade, for a total of Nk modes from 0 to Nk-1!
-        multiplier:float - an overall multiplier for total the pressure mode. For B blades it should be B (default behavior).
+        multiplier:float - an overall multiplier for total the pressure mode. For nb stators it should be nb (default behavior).
 
         SIGN CONVENTION:
         Fstator are the loading acting ON the blade BY the fluid
@@ -190,7 +190,7 @@ class HansonModel():
         Fstator[0] is positive outwards, Fstator[1] is positive upstream, Fstator[2] is positive opposite to the direction of rotation.
 
         returns: p_m: np.ndarray of size (Nx, Nm) - array of pressure modes at frequencies m*self.Omega - MIND THE DIFFERENCE between this and getPressureRotor()
-        at observation points x, x is also returned for convenience
+        x is also returned for convenience
         """
   
         if not np.all(m != 0):
