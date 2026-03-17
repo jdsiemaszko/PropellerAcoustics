@@ -298,17 +298,20 @@ VMAX = 65
 # plt.show()
 # han.plot3DdirectivityStator(m=5, loadings=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
 # plt.show()
-# han.plot3DdirectivityTotal(m=1, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
-# plt.show()
-# han.plot3DdirectivityTotal(m=4, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
-# plt.show()
-# han.plot3DdirectivityTotal(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
-# plt.show()
+han.plot3DdirectivityTotal(m=1, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN,
+                           chord=c * np.ones_like(r0), t_c = 0.122 * np.ones_like(r0))
+plt.show()
+han.plot3DdirectivityTotal(m=4, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN,
+                           chord=c * np.ones_like(r0), t_c = 0.122 * np.ones_like(r0))
+plt.show()
+han.plot3DdirectivityTotal(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN,
+                           chord=c * np.ones_like(r0), t_c = 0.122 * np.ones_like(r0))
+plt.show()
 # han.plot2DdirectivityTotal(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, plane='xy')
 # plt.show()
 
-han.plotDirectivityContour(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='total')
-plt.show()
+# han.plotDirectivityContour(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='total')
+# plt.show()
 
 # han.plotDirectivityContour(m=5, loadings = BeamLH,R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='stator')
 # plt.show()

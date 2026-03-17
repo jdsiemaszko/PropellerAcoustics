@@ -1,20 +1,17 @@
 import h5py
-from scipy.special import hankel2, jve, jv
+# from scipy.special import hankel2, jve, jv
 import numpy as np
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+# from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from PotentialInteraction.beam_to_blade import BladeLoadings
-from PotentialInteraction.blade_to_beam import BeamLoadings
-# from PotentialInteraction.placeholder import *
-from Hanson.far_field import HansonModel
-from Hanson.near_field import NearFieldHansonModel
-import matplotlib.animation as animation
+# from PotentialInteraction.blade_to_beam import BeamLoadings
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
+from SourceMode.SourceMode import SourceModeArray
 from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower
-import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.io import loadmat
-import scipy.io
 
 import numpy as np
 
@@ -146,9 +143,11 @@ r_outer = np.concatenate((r0-ddr/2, [r0[-1]+ddr/2]))
 ddr = np.diff(r_outer)
 Nk = 40
 
+twist = np.deg2rad(pitch)* np.ones(r_outer.shape)
+chord = c* np.ones(r_outer.shape)
 blade_l = BladeLoadings(
-    twist_rad=np.deg2rad(pitch)* np.ones(r_outer.shape),
-    chord_m=c* np.ones(r_outer.shape),
+    twist_rad= twist,
+    chord_m= chord,
     radius_m=r_outer,
     Uz0_mps=U_flow,
     Tprime_Npm=dT / dr,
@@ -163,43 +162,59 @@ blade_l = BladeLoadings(
     nb=1
 )
 
-beam_l = BeamLoadings(
-    twist_rad=np.deg2rad(pitch)* np.ones(r_outer.shape),
-    chord_m=c* np.ones(r_outer.shape),
-    radius_m=r_outer,
-    Uz0_mps=U_flow,
-    Tprime_Npm= dT / dr,
-    Qprime_Npm= dQ / dr,
-    B=B,
-    Dcylinder_m=D_bras,
-    Lcylinder_m=g,
-    Omega_rads=Omega,
-    rho_kgm3=rho0,
-    c_mps=c0,
-    kmax=Nk,
-    nb=1
-)
+# CYLINDER GREEN'S FUNCTION
+caxis = np.array([1.0, 0.0, 0.0])
+D_prop = 0.2
+D = 20 / 1000
+L = 20 / 1000
+corigin = np.array([0.0, 0.0, -L])
 
-han = HansonModel(
-radius_m=r_outer, # blade radius stations [m] of size Nr + 1
-axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0]), # coordinate system (not needed here)
-Omega_rads=Omega, # rotation speed [rad/s]
-rho_kgm3=rho0, # fluid density [kg/m^3]
-c_mps= c0, # speed of sound [m/s]
-nb = 1 # number of beams (irrelevant)
-)
+cg = CylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
+                           numerics={
+                        'mmax': 32, # mind that increasing this increases the chance of overflows, ***should*** be handled by the safe Bessel functions, but beware
+                        'Nq_prop': 128,
+                        'Nq_evan': 128,
+                        'eps_k' : 1e-24,
+                    }) # cylinder
+
+# SOURCE MODE MODULE
+axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
+origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
+NDIPOLES = 36
+sourceArray = SourceModeArray(BLH=blade_l.getBladeLoadingMagnitude(), # loading per unit span
+                        B = B,
+                        Omega=Omega, gamma =twist,
+                        axis=axis_prop, origin=origin_prop,
+                        radius=r_outer,
+                        green = cg,
+                        numerics={'Ndipoles' : NDIPOLES},
+                        c = c0
+                        )
+
+# _____________ PLOTTING & RESULTS _______________
+
+# 1) plot geometry
+
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(111, projection="3d")
+sourceArray.plotSelf(fig, ax)
+# ax.set_box_aspect([1, 1, 1])
+ax.set_aspect('equal')
+ax.set_axis_off()
+plt.show()
+plt.close()
 
 # PARSE EXPERIMENTAL
 
-ind_theta = 6        # -60 to 60 in 10
-ind_phi = 9          # 0 to 350 in 10
+ind_theta = 6
+ind_phi = 9
 datadir = './Experimental/dataverse_files'
-casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
+casefile = 'ISAE_2_D20_L20'
 
 def load_h5(filename):
     return h5py.File(filename, "r")
 with load_h5(f"{datadir}/{casefile}_autopower.h5") as f:
-    g = f[casefile]
+    g = f["ISAE_2_D20_L20"]
     freq = np.array(g["frequency_Hz"])
     ap = g["Autopower"]
 
@@ -229,32 +244,20 @@ unsteady_loading[:, 1:, :] = blade_l.getBladeLoadingHarmonics()[:, 1:, :]
 
 
 ms = np.arange(1, 26, 1) # harmonics to extract
-pSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+pmB_model_rotor = sourceArray.getPressure(x_cart, ms, 
                                     #    blade_l.getBladeLoadingHarmonics()
                                     steady_loading
                                        )[0][0]
 
-pUSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
-                                    #    blade_l.getBladeLoadingHarmonics()
-                                    unsteady_loading
-                                       )[0][0]
-
 ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.122 * np.ones_like(r0))[0][0] # NACA0012
-BL  =  beam_l.getBeamLoadingHarmonics()
-pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL, multiplier=1)[0][0]
-
-pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
-# pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
-pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
-
-
-
-
-
+pmB_model_beam = han.getPressureStator(x_cart, ms*B, # mind the different input harmonics!
+                                        beam_l.getBeamLoadingHarmonics())[0][0]
+pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam
+# p_rms_total = np.sqrt(np.abs(pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
 
 SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
-SPL_rotor_total = p_to_SPL(pmB_model_rotor_total)
+
 SPL_rotor_thickness = p_to_SPL(ptmB_model_rotor)
 
 SPL_beam = p_to_SPL(pmB_model_beam)
@@ -273,9 +276,8 @@ fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1,
 ax.plot(ms, SPL_rotor_S, label=f"Model (rotor, steady loading)", color='r', marker='^')
 ax.plot(ms, SPL_rotor_US, label=f"Model (rotor, unsteady loading)", color='g', marker='^')
 ax.plot(ms, SPL_rotor_thickness, label=f"Model (rotor, thickness)", color='b', marker='+')
-ax.plot(ms, SPL_rotor_total, label=f"Model (rotor, total)", color='y', marker='*', linestyle='dashed')
 ax.plot(ms, SPL_beam, label=f"Model (beam, loading)", color='m', marker='o')
-ax.plot(ms, SPL_total, label=f"Model (total)", color='k', marker='s', linestyle='dashed')
+ax.plot(ms, SPL_total, label=f"Model (total)", color='k', marker='s')
 
 ax.legend()
 ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")

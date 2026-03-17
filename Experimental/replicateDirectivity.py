@@ -5,12 +5,12 @@ import matplotlib.colors as colors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 datadir = './Experimental/dataverse_files'
-datafile = 'ISAE_2_D20_L20'
+# datafile = 'ISAE_2_D20_L20'
 # datafile = 'ISAE_D25_L32'
 # datafile = 'ISAE_D30_L30'
-# datafile = 'ISAE_D40_L30'
+datafile = 'ISAE_D40_L30'
 
-Ntheta = 13
+Ntheta = 14
 
 
 # datafile = 'ISAE_2_T10_L20'
