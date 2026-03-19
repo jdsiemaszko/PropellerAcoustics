@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from PotentialInteraction.beam_to_blade import BladeLoadings
 from PotentialInteraction.blade_to_beam import BeamLoadings
+from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
 from TailoredGreen.CylinderGreen import CylinderGreen
 from TailoredGreen.TailoredGreen import TailoredGreen
 from Hanson.far_field import HansonModel
@@ -27,7 +28,15 @@ Mx = 0.0
 c0 = 340.0
 V = Mx * c0
 rho0 = 1.2
-NBEAMS = 2
+NBEAMS = 1
+m = np.array([5]) # pick a harmonic with significant beam noise 
+
+if NBEAMS == 1:
+    MODE = 'half'
+elif NBEAMS ==2:
+    MODE = 'full'
+else:
+    raise ValueError('mode not recognized')
 
 # ----------------------------------------------------------
 # Blade Characteristics
@@ -65,11 +74,19 @@ NDIPOLES = 18*2 # VERY IMPORTANT, will fail at higher harmonics!
 Ntheta = 18
 Nphi = 36
 numerics = {
-'mmax': 16*2, 
+'nmax': 32,
 'Nq_prop': 128,
 'Nq_evan': 128,
-'eps_k' : 1e-24,
+'eps_radius' : 1e-24, # must be lower than eps_eval!
+'Nazim' : 36, # discretization of the boundary in the azimuth
+'Nax': 128, # in the axial direction
+'RMAX': 20, # max radius!
+'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
+# Note: the function is currently NOT checking if the panels are compact!
 }
+
 
 # Radial discretization
 # ----------------------------------------------------------
@@ -188,6 +205,7 @@ blade_l = BladeLoadings(
     c_mps=c0,
     kmax=Nk,
     nb=NBEAMS
+    # nb = 1
 )
 
 beam_l = BeamLoadings(
@@ -205,6 +223,7 @@ beam_l = BeamLoadings(
     c_mps=c0,
     kmax=Nk,
     nb=NBEAMS
+    # nb = 2,
 )
 
 # CYLINDER GREEN'S FUNCTION
@@ -215,9 +234,16 @@ L = 20 / 1000
 corigin = np.array([0.0, 0.0, -L])
 
 
+if NBEAMS == 2:
+    # cg = CylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
+    #                         numerics=numerics) # cylinder
+    cg =  SF_FullCylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
+                    numerics=numerics)
 
-cg = CylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
-                           numerics=numerics) # cylinder
+elif NBEAMS == 1:
+    cg =  HalfCylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
+                        numerics=numerics)
+
 gf = TailoredGreen(dim=3) # free-field version!
 # SOURCE MODE MODULE
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
@@ -286,16 +312,15 @@ if __name__ == "__main__":
 
     x_cart = np.array([X, Y, Z])
 
-    m = np.array([5]) # pick a harmonic with significant beam noise 
 
     ############## save results to a file as the computation takes some time
     # p_scattered = sourceArray.getScatteredPressure(x_cart, m)
-    # np.save('./Data/current/NACA0012_rotor/p_scattered.npy', p_scattered)
+    # np.save(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}.npy', p_scattered)
     # p_direct_blade = sourceArray.getDirectPressure(x_cart, m)
-    # np.save('./Data/current/NACA0012_rotor/p_direct.npy', p_direct_blade)
+    # np.save(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy', p_direct_blade)
 
-    p_scattered = np.load('./Data/current/NACA0012_rotor/p_scattered.npy')
-    p_direct_blade = np.load('./Data/current/NACA0012_rotor/p_direct.npy')
+    p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}.npy')
+    p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy')
 
 
     beam_loading = beam_l.getBeamLoadingHarmonics() 
@@ -306,7 +331,7 @@ if __name__ == "__main__":
     # 1) 2D contours
     fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) =  plt.subplots(3, 2, figsize=(10, 5), sharex=True, sharey=True)
 
-    VMIN, VMAX = 40, 65
+    VMIN, VMAX = 10, 65
     levels = np.linspace(VMIN, VMAX, 20, endpoint=False)
     fig, ax1 = plot_directivity_contour(
         np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade, title='blade direct noise (source-mode)', fig=fig, ax=ax1, cmap='jet', levels=levels, xlabel=None,

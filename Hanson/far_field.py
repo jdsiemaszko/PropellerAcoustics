@@ -167,7 +167,7 @@ class HansonModel():
         kx = 2 * m[:, None] * self.B * chord[None, :] / self.r1 / 2 * Mtip / Mr[None, :] # shape Nm, Nr
 
         matrix = Mr[None, None, :]**2 * jv(m[None, :, None]*self.B, m[None, :, None]*self.B*Mr[None, None, :] *
-                                           np.sin(theta[:, None, None])) * kx[None, :, :]**2 * thickness_to_chord[None, None, :] # Nx, Nm, Nr
+                                           np.sin(theta[:, None, None])) * kx[None, :, :]**2 * thickness_to_chord[None, None, :] # Nx, Nm, Nr # TODO: check?
 
         pt_mb = rho0 * c0**2 * multiplier * np.exp(1j * (m[None, :]  * self.B) * (phi[:, None]  - np.pi/2) +
                                                     1j * m[None, :] * self.B * self.Omega * R[:, None]  / c0) / 4 / np.pi / R[:, None] * np.sum(

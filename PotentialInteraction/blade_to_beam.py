@@ -157,14 +157,18 @@ class BeamLoadings():
         Nt = time.shape[0]
         Nr = self.Nr
 
-        T_per_unit_span = self.Tprime # Nr
+        T_per_unit_span = self.Tprime # Nr, units of N/m
+        Q_per_unit_span = self.Qprime # Nr, units of N/m
         
         Uz = self.Uz # Nr # negative
 
 
         # stagger = np.arctan(Uz / self.Omega / self.seg_radius) # Nr
-        stagger = self.seg_twist
-        L_per_unit_span = T_per_unit_span * np.cos(stagger)
+        # stagger = self.seg_twist # wrong?????
+        #                             # VERY WRONG!
+        # L_per_unit_span = T_per_unit_span * np.cos(stagger)
+        L_per_unit_span = np.sqrt(T_per_unit_span**2 + Q_per_unit_span**2)
+        # L_per_unit_span = T_per_unit_span
 
         Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
         gamma = L_per_unit_span / self.rho / Ur # Nr

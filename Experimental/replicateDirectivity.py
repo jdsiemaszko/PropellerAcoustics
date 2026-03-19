@@ -5,10 +5,10 @@ import matplotlib.colors as colors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 datadir = './Experimental/dataverse_files'
-# datafile = 'ISAE_2_D20_L20'
+datafile = 'ISAE_2_D20_L20'
 # datafile = 'ISAE_D25_L32'
 # datafile = 'ISAE_D30_L30'
-datafile = 'ISAE_D40_L30'
+# datafile = 'ISAE_D40_L30'
 
 Ntheta = 14
 
@@ -18,7 +18,7 @@ Ntheta = 14
 pref = 20e-6  # reference pressure (20 µPa)
 NB = 2
 RPM = 8000
-NBPF = 5 # harmonic to plot directivity for
+NBPF = 2 # harmonic to plot directivity for
 
 def load_h5(filename):
     return h5py.File(filename, "r")

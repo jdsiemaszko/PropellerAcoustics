@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 
-ind_theta = 7        # -60 to 60 in 10
-ind_phi = 0          # 0 to 350 in 10
+ind_theta = 6        # -60 to 60 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -57,9 +57,9 @@ pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_be
 
 
 p_scattered = sourceArray.getScatteredPressure(x_cart, ms)[0]
-np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{ind_theta}_{ind_phi}.npy', p_scattered)
+np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
 
-p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_{ind_theta}_{ind_phi}.npy')
+p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy')
 
 SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
@@ -102,8 +102,7 @@ ax.set_xscale('log')
 
 ax.grid(visible=True, which='major', color='k', linestyle='-')
 ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
-
-
+ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
 plt.xlim(0.1, 100)
 plt.ylim(0, 70)
 plt.tight_layout()
