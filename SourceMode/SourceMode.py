@@ -24,8 +24,9 @@ class SourceMode():
 
                   ):
         self.green = green
-        self.BLH = BLH # blade loading harmonics, shape (Nharmonics, Nr), unit of NEWTONS!
-        self.s = np.arange(0, len(self.BLH)) # helper array
+        self.BLH = BLH # blade loading harmonics, shape (3, Nharmonics), unit of NEWTONS!, convention: radial, axial, tangential loadings!
+        Nk = BLH.shape[1]
+        self.s = np.arange(0, Nk, 1) # helper array, running from 0 to len(self.BLH) - 1
         self.B = B
         self.gamma = gamma
         self.axis = axis / np.linalg.norm(axis)
@@ -44,11 +45,11 @@ class SourceMode():
             self.radial = radial / np.linalg.norm(radial) # radial vector of the cylinder, taken as the zero azimuth direction
 
 
-        self.normal = np.cross(self.axis, self.radial) # assuming counterclockwise rotation?
+        self.tangential= np.cross(self.axis, self.radial) # assuming counterclockwise rotation?
         self.dipole_positions, self.dipole_angles, self.dalpha = self.getDipoleGeometry() # shape (Ndipoles, 3)
         self.NBLH = len(self.BLH)
 
-        rad, norm, ax = getCylindricalBasis(self.dipole_angles, self.axis, self.radial, self.normal) # shape (Ndipoles, 3)
+        rad, norm, ax = getCylindricalBasis(self.dipole_angles, self.axis, self.radial, self.tangential) # shape (Ndipoles, 3)
 
         self.force_unit = +ax * np.cos(self.gamma) - norm * np.sin(self.gamma) # shape (Ndipoles, 3) # TODO:sign?
         self.force_unit = self.force_unit.T # (3, Ndipoles)
@@ -58,9 +59,59 @@ class SourceMode():
         dipole_angles = np.linspace(0, 2*np.pi, Ndipoles, endpoint=False)
         dipole_positions = self.origin[:, None] + self.radius * (np.cos(dipole_angles[None, :]) *
                          self.radial[:, None] + np.sin(dipole_angles[None, :]) *
-                           self.normal[:, None]) # shape (3, Ndipoles)
+                           self.tangential[:, None]) # shape (3, Ndipoles)
         dalpha = 2 * np.pi / Ndipoles
         return dipole_positions, dipole_angles, dalpha
+    
+    def _rotate_loadings(self):
+        """
+        rotate loading harmonics along the rotation axis
+        BLH - array of size (3, Nk), in blade-centered coordinates
+        output: array of size (3, Nk, Ndipoles) in global coordinates
+        """
+        angles = self.dipole_angles              # (Ndipoles,)
+        axis = self.axis / np.linalg.norm(self.axis)  # ensure unit vector
+
+        BLH = self.BLH  # (3, Nk)
+
+        Nk = BLH.shape[1]
+        Nd = len(angles)
+        B = np.column_stack([
+            self.radial,   # radial
+            self.axis,     # axial
+            -self.tangential   # tangential - negative because BLH is positive opposite to the rotation of prop
+        ])  # shape (3,3)
+
+
+        # reshape to GLOBAL cartesian frame: 
+        BLH_global = B @ self.BLH   # (3, Nk)
+
+        # Skew-symmetric matrix of axis
+        K = np.array([
+            [0,        -axis[2],  axis[1]],
+            [axis[2],   0,       -axis[0]],
+            [-axis[1],  axis[0],  0      ]
+        ])
+
+        I = np.eye(3)
+
+        # Allocate rotation matrices (Ndipoles, 3, 3)
+        R = np.zeros((Nd, 3, 3))
+
+        for i, theta in enumerate(angles):
+            R[i] = (
+                I * np.cos(theta)
+                + (1 - np.cos(theta)) * np.outer(axis, axis)
+                + np.sin(theta) * K
+            )
+
+        # Apply rotations: result (Ndipoles, 3, Nk)
+        BLH_rotated = np.einsum('nij,jk->nik', R, BLH_global)
+
+        # Reorder to (Nk, Ndipoles, 3)
+        BLH_rotated = np.transpose(BLH_rotated, (2, 0, 1))
+
+        return BLH_rotated
 
     def computeLoadingVectors(self, m:np.ndarray):
 
@@ -69,28 +120,34 @@ class SourceMode():
         # expterm = np.exp(1j * self.dipole_angles[None, None, :] * (m[None, :, None] * self.B  - self.s[:, None, None]) / (m[None, :, None] * self.B * Omega)) # shape (Ns, Nm, Ndipoles)
         
         expterm = np.exp(+1j *  (m[None, :, None] * self.B  - self.s[:, None, None]) * self.dipole_angles[None, None, :])   # shape (Ns, Nm, Ndipoles)
-        expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns, Nm, Ndipoles)
+        expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns-1, Nm, Ndipoles)
         
         # expterm = np.ones((self.BLH.shape[0],m.shape[0],self.dipole_angles.shape[0]))
         # expterm_negative = expterm
 
-        force_unit = self.force_unit.T # Ndipoles, 3
-
-        loadings_positive_mag = self.BLH[:, None, None] * expterm[:, :, :] # shape (Ns, Nm, Ndipoles)
-        loadings_positive = loadings_positive_mag[:,:,:, None] * force_unit[None, None, :, :]
-
-        loadings_negative = np.conjugate(self.BLH[:, None, None, None]) * expterm_negative[:, :, :, None] * force_unit[None, None, :, :] # shape (Ns, Nm, Ndipoles, 3)
+        # LEGACY (1D loading)
+        # force_unit = self.force_unit.T # Ndipoles, 3
+        # loadings_positive_mag = self.BLH[:, None, None] * expterm[:, :, :] # shape (Ns, Nm, Ndipoles)
+        # loadings_positive = loadings_positive_mag[:,:,:, None] * force_unit[None, None, :, :] (Ns, Nm, Ndipoles, 3)
+        # loadings_negative = np.conjugate(self.BLH[:, None, None, None]) * expterm_negative[:, :, :, None] * force_unit[None, None, :, :] # shape (Ns, Nm, Ndipoles, 3)
         # print(loadings.shape, expterm.shape, force_unit.shape, self.dipole_angles.shape)
 
+        # UPDATE (3D loading)
+        BLH_rotated = self._rotate_loadings() # shape (Ns, Ndipoles, 3)
+        loadings_positive = expterm[:, :, :, None] * BLH_rotated[:, None, :, :]
+        loadings_negative = np.conjugate(BLH_rotated[:, None, :, :]) * expterm_negative[:, :, :, None]
 
-        # flip the s-axis, remove the zeroth term
-        loadings_negative = loadings_negative[::-1, :, :, :]
+        # remove the zeroth term, flip along the s axis
         loadings_negative = loadings_negative[1:, :, :, :]
+        loadings_negative = loadings_negative[::-1, :, :, :]
 
         # 4) append negative harmonics along the first dimension
+        # to achieve s ranging from -Ns+1, ..., 0, ..., Ns-1
         loadings = np.concatenate([loadings_negative, loadings_positive], axis=0)  # shape (2*Ns-1, Nm, Ndipoles, 3)
 
         loadings *= self.dalpha / 2. / np.pi # normalize
+
+
         return loadings
     
     def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
@@ -98,58 +155,21 @@ class SourceMode():
         gradG = green.getGradientGreenAnalytical(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
         return self._getPressureFromGrad(x, m, gradG)
     
+    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
+        green = self.green
+        gradG = green.getScatteringGreenGradient(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        return self._getPressureFromGrad(x, m, gradG)
+    
+    def getDirectPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
+        green = self.green
+        gradG = green.getFreeSpaceGreenGradient(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        return self._getPressureFromGrad(x, m, gradG)
+    
     def _getPressureFromGrad(self,x:np.ndarray, m:np.ndarray, GradG:np.ndarray):
         # GradG is of shape (3, Nm, Nx, Ny)
         loadings = self.computeLoadingVectors(m) # shape (2 * Ns - 1, Nm, Ny, 3) units of NEWTON
         pmB = -1.0 * np.einsum('s m y k, k m x y -> x m', loadings, GradG)
         return pmB * self.B
-
-    # def getPressureExplicitFreeField(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
-    #     loadings = self.computeLoadingVectors(m)  #Ns, Nm, Ny, 3
-    #     loading_axial = np.einsum('snyc, c -> sny', loadings, self.axis, optimize=True)
-    #     loading_mag = loading_axial / np.cos(self.gamma) # Ns, Nm Ny
-
-    #     # spherical coords
-    #     r, theta, phi = getPolarFromCylindrical(
-    #         x, self.origin, self.axis, self.radial, self.normal
-    #     )   # (Nx,)
-
-    #     # pairwise distances
-    #     r_alpha = np.linalg.norm(
-    #         x[:, :, None] - self.dipole_positions[:, None, :],
-    #         axis=0
-    #     )   # (Nx, Ny)
-
-    #     kmB = m * Omega * self.B / c        # (Nm,)
-
-    #     # --- broadcast helpers
-    #     r_     = r[:, None]
-    #     theta_ = theta[:, None]
-    #     phi_   = phi[:, None]
-    #     alpha_ = self.dipole_angles[None, :]
-
-    #     # scalar angular term (Nx, Ny)
-    #     ang = (
-    #         np.sin(self.gamma) * np.sin(theta_) * np.sin(phi_ - alpha_)
-    #         - np.cos(self.gamma) * np.cos(theta_)
-    #     )
-
-    #     # geometric scalar kernel (Nx, Ny)
-    #     geom = r_ / (4 * np.pi) / r_alpha**3 * ang #Nx, Ny
-
-    #     # phase term (Nx, Ny, Nm)
-    #     phase = np.exp(1j * r_alpha[:, :, None] * kmB[None, None, :]) * (1 - 1j * kmB[None, None, :] * r_alpha[:, :, None])
-
-    #     # ---------------------------------------------------
-    #     pmB = np.einsum(
-    #         'xy, xym, kmy -> xm',
-    #         geom,
-    #         phase,
-    #         loading_mag,
-    #         optimize=True
-    #     )
-
-    #     return pmB * self.B
 
     def plotGeometry(self):
         green = self.green
@@ -169,14 +189,21 @@ class SourceMode():
 
     def plotFarFieldPressure(self, m, Omega, R=None, Nphi=36, Ntheta=18,
     c=340,     extra_script=lambda fig, ax: None, blending=0.1,
-    valmin = None, valmax=None, fig=None, ax=None):
+    valmin = None, valmax=None, fig=None, ax=None,
+    mode='total'):
         # if extra_script is None:
         #     extra_script = self.plotSelf
 
         R = R if R is not None else (1e3 / k)
         x, Theta, Phi = self.green.getFarFieldx(np.min(m) * self.B * Omega / c, Nphi=Nphi, Ntheta=Ntheta, R=R)
-
-        pmB = self.getPressure(x, Omega, m)
+        if mode == 'total':
+            pmB = self.getPressure(x, Omega, m, c)
+        elif mode == 'direct':
+            pmB = self.getDirectPressure(x, Omega, m, c)
+        elif mode == 'scattered':
+            pmB = self.getScatteredPressure(x, Omega, m, c)
+        else:
+            raise ValueError(f'mode {mode} not recognized')
         k = Omega / c * m
         fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
@@ -284,7 +311,7 @@ class SourceModeArray():
                 }
                 ):
         """
-        BLH - shape (Nk, Nr) - array of blade loading harmonics (complex magnitudes!) in units newton per meter!
+        BLH - shape (3, Nk, Nr) - array of blade loading harmonics (complex magnitudes!) in units newton per meter!
         r - array of edges of radial stations (incl start and end point!) (Nr+1)
         gamma - array of blade twists, same as above (Nr+1)
 
@@ -292,7 +319,7 @@ class SourceModeArray():
 
 
         self.green = green
-        self.BLH = BLH # blade loading harmonics, shape (Nharmonics)
+        self.BLH = BLH # blade loading harmonics, shape (Nharmonics, Nr)
         self.s = np.arange(1, len(self.BLH) + 1) # helper array
         self.B = B
         self.Omega = Omega
@@ -308,11 +335,11 @@ class SourceModeArray():
         self.seg_radius = (radius[1:] + radius[:-1]) / 2
         self.dr = np.diff(radius) # (Nr)
         self.Nr = len(self.seg_radius) # number of radial segments
-        self.Nk = self.BLH.shape[0] 
+        self.Nk = self.BLH.shape[1] 
         # self.Nr = self.BLH.shape[1] #should be the same as size of seg_radius!
 
-        if self.BLH.shape[1] !=  self.Nr:
-            raise ValueError('BLH array does not match the number of radial stations, see docstring')
+        if self.BLH.shape[2] !=  self.Nr:
+            raise ValueError('BLH array size does not match the number of radial stations, see docstring')
 
 
         self.axis = axis
@@ -328,12 +355,12 @@ class SourceModeArray():
             self.radial /= np.linalg.norm(self.radial)
         else:
             self.radial = radial # radial vector of the cylinder, taken as the zero azimuth direction
-        self.normal = np.cross(self.axis, self.radial)
+        self.tangential= np.cross(self.axis, self.radial)
 
         self.children = [None] * self.Nr # individual source modes!
-        for index, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, self.BLH.T)):
+        for index, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, np.transpose(self.BLH, axes=(2, 0, 1)))):
             self.children[index] = SourceMode(
-                BLH = BLH_seg * deltar, # shape (Nk) - RESCALING TO NEWTONS!
+                BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
                         B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
                 numerics=self.numerics
             ) # construct source modes at each radial station
@@ -349,6 +376,34 @@ class SourceModeArray():
             pmB += child.getPressure(x, self.Omega, m, c=self.SoS)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
+    
+    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        print('computing pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS)
+            # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
+        return pmB
+    
+    
+    def getDirectPressure(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        print('computing pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS)
+            # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
+        return pmB
+    
+    
+    
     
     def _getSurfacePressureEstFullCylinder(self, x:np.ndarray, m:np.ndarray):
         if not isinstance(m, np.ndarray):

@@ -81,7 +81,7 @@ class HansonModel():
         c0 = self.c # SoS
         Omega = self.Omega
         B = self.B
-        nb =self.nbeam
+        nb = self.nbeam
 
         # convert observation point to cylidrical relative to the prop
         R, theta, phi = getSphericalCoordinates(
@@ -167,7 +167,7 @@ class HansonModel():
         kx = 2 * m[:, None] * self.B * chord[None, :] / self.r1 / 2 * Mtip / Mr[None, :] # shape Nm, Nr
 
         matrix = Mr[None, None, :]**2 * jv(m[None, :, None]*self.B, m[None, :, None]*self.B*Mr[None, None, :] *
-                                           np.sin(theta[:, None, None])) * kx[None, :, :]**2 * thickness_to_chord[None, None, :] # Nx, Nm, Nr
+                                           np.sin(theta[:, None, None])) * kx[None, :, :]**2 * thickness_to_chord[None, None, :] # Nx, Nm, Nr # TODO: check?
 
         pt_mb = rho0 * c0**2 * multiplier * np.exp(1j * (m[None, :]  * self.B) * (phi[:, None]  - np.pi/2) +
                                                     1j * m[None, :] * self.B * self.Omega * R[:, None]  / c0) / 4 / np.pi / R[:, None] * np.sum(
@@ -181,7 +181,7 @@ class HansonModel():
         x:np.ndarray of shape (Nx,) -  observer position expressed in the GLOBAL CARTESIAN coordinate system
         Fbeam:np.ndarray - beam loading harmonics array of size (3, Nk, Nr),
         defining the distribution of LOADING PER UNIT SPAN along the SINGLE blade, for a total of Nk modes from 0 to Nk-1!
-        multiplier:float - an overall multiplier for total the pressure mode. For B blades it should be B (default behavior).
+        multiplier:float - an overall multiplier for total the pressure mode. For nb stators it should be nb (default behavior).
 
         SIGN CONVENTION:
         Fstator are the loading acting ON the blade BY the fluid
@@ -190,7 +190,7 @@ class HansonModel():
         Fstator[0] is positive outwards, Fstator[1] is positive upstream, Fstator[2] is positive opposite to the direction of rotation.
 
         returns: p_m: np.ndarray of size (Nx, Nm) - array of pressure modes at frequencies m*self.Omega - MIND THE DIFFERENCE between this and getPressureRotor()
-        at observation points x, x is also returned for convenience
+        x is also returned for convenience
         """
   
         if not np.all(m != 0):

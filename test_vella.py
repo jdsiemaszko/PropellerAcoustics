@@ -29,6 +29,7 @@ Mx = 0.0
 c0 = 340.0
 V = Mx * c0
 rho0 = 1.2
+NBEAMS = 2 # one beam for a radial strut
 
 # ----------------------------------------------------------
 # Blade Characteristics
@@ -49,7 +50,8 @@ TORQUEREF = 26.7/2/1000 # Nm
 # ----------------------------------------------------------
 # Radial discretization
 # ----------------------------------------------------------
-r0 = np.linspace(rR, rT, 20)
+NR = 10
+r0 = np.linspace(rR, rT, 10)
 
 RPM = 8000
 f0 = RPM / 60
@@ -79,10 +81,6 @@ dQ = np.interp(r_rT, x_load[:-1], Fy_tour_bis)
 dT *= TREF / np.sum(dT)
 alpha = TORQUEREF / np.sum(dQ * r0)
 dQ *= alpha
-
-# replicate MATLAB edge correction
-dT[-2:] = Fz_tour_bis[-1]
-dQ[-2:] = Fy_tour_bis[-1]
 
 # ----------------------------------------------------------
 # Aerodynamic coefficients
@@ -161,7 +159,7 @@ blade_l = BladeLoadings(
     rho_kgm3=rho0,
     c_mps=c0,
     kmax=40,
-    nb=1
+    nb=NBEAMS
 )
 
 beam_l = BeamLoadings(
@@ -178,7 +176,7 @@ beam_l = BeamLoadings(
     rho_kgm3=rho0,
     c_mps=c0,
     kmax=40,
-    nb=1
+    nb=NBEAMS
 )
 
 han = HansonModel(
@@ -188,7 +186,7 @@ B=2, # number of blades
 Omega_rads=Omega, # rotation speed [rad/s]
 rho_kgm3=rho0, # fluid density [kg/m^3]
 c_mps= c0, # speed of sound [m/s]
-nb = 1 # number of beams (irrelevant)
+nb=NBEAMS # number of beams (irrelevant)
 )
 
 # han_nf = NearFieldHansonModel(
@@ -294,19 +292,21 @@ NPHI = 36
 NTHETA=18
 VMIN = 10
 VMAX = 65
-# han.plot3DdirectivityRotor(m=5, loadings=BLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
-# plt.show()
-# han.plot3DdirectivityStator(m=5, loadings=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
-# plt.show()
+han.plot3DdirectivityRotor(m=5, loadings=BLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
+plt.show()
+han.plot3DdirectivityStator(m=5, loadings=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN)
+plt.show()
+han.plot3DdirectivityTotal(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN,
+                           chord=c * np.ones_like(r0), t_c = 0.122 * np.ones_like(r0))
+plt.show()
+
 han.plot3DdirectivityTotal(m=1, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN,
                            chord=c * np.ones_like(r0), t_c = 0.122 * np.ones_like(r0))
 plt.show()
 han.plot3DdirectivityTotal(m=4, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN,
                            chord=c * np.ones_like(r0), t_c = 0.122 * np.ones_like(r0))
 plt.show()
-han.plot3DdirectivityTotal(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, Nphi=NPHI, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN,
-                           chord=c * np.ones_like(r0), t_c = 0.122 * np.ones_like(r0))
-plt.show()
+
 # han.plot2DdirectivityTotal(m=5, loadings=BLH, loadings_2=BeamLH, R=1.62, plane='xy')
 # plt.show()
 
@@ -316,8 +316,8 @@ plt.show()
 # han.plotDirectivityContour(m=5, loadings = BeamLH,R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='stator')
 # plt.show()
 
-# han.plotDirectivityContour(m=5, loadings = BLH,R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='rotor')
-# plt.show()
+han.plotDirectivityContour(m=5, loadings = BLH,R=1.62, Ntheta=NTHETA, valmax=VMAX, valmin=VMIN, mode='rotor')
+plt.show()
 
 
 

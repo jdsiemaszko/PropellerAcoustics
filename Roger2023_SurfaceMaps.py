@@ -9,10 +9,9 @@ from Constants.helpers import read_airfoil_table
 from Constants.helpers import p_to_SPL
 
 
-# setup = True # whether to run the case again or use the stored data
-setup = True
+setup = False
 
-mode = 'half'
+mode = 'full'
 # mode = 'full'
 
 
@@ -44,8 +43,8 @@ OMEGA=6390/60*2*np.pi
 
     # _________ NUMERICAL INPUTS __________
 NSEG = 20
-KMAX = 16
-NDIPOLES = 36 # discterization of each source mode
+KMAX = 32
+NDIPOLES = 72 # discterization of each source mode
 
 radius_array = np.linspace(R0, R1, NSEG+1)
 
@@ -114,7 +113,7 @@ if setup:
 
     axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
     origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
-    sma = SourceModeArray(BLH=blade_l.getBladeLoadingMagnitude(), # loading per unit span, magnitude only
+    sma = SourceModeArray(BLH=blade_l.getBladeLoadingHarmonics(), # loading per unit span, 3 components per harmonic per radial segment
                             B = NBLADES,
                             Omega=OMEGA, gamma = twist_array,
                             axis=axis_prop, origin=origin_prop,

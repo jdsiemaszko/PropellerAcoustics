@@ -29,6 +29,7 @@ Mx = 0.0
 c0 = 340.0
 V = Mx * c0
 rho0 = 1.2
+NBEAMS = 1 # one beam for a radial strut
 
 # ----------------------------------------------------------
 # Blade Characteristics
@@ -160,7 +161,7 @@ blade_l = BladeLoadings(
     rho_kgm3=rho0,
     c_mps=c0,
     kmax=Nk,
-    nb=1
+    nb=NBEAMS
 )
 
 beam_l = BeamLoadings(
@@ -168,6 +169,7 @@ beam_l = BeamLoadings(
     chord_m=c* np.ones(r_outer.shape),
     radius_m=r_outer,
     Uz0_mps=U_flow,
+    # Uz0_mps= np.sqrt(dT / dr / 4 / np.pi / rho0 / r0), # induced axial velocity according to momentum theory
     Tprime_Npm= dT / dr,
     Qprime_Npm= dQ / dr,
     B=B,
@@ -177,7 +179,7 @@ beam_l = BeamLoadings(
     rho_kgm3=rho0,
     c_mps=c0,
     kmax=Nk,
-    nb=1
+    nb=NBEAMS
 )
 
 han = HansonModel(
@@ -186,7 +188,7 @@ axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0])
 Omega_rads=Omega, # rotation speed [rad/s]
 rho_kgm3=rho0, # fluid density [kg/m^3]
 c_mps= c0, # speed of sound [m/s]
-nb = 1 # number of beams (irrelevant)
+nb=NBEAMS # number of beams (irrelevant)
 )
 
 # PARSE EXPERIMENTAL
@@ -246,11 +248,6 @@ pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL, multiplier=1)[0][0]
 pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
 # pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
 pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
-
-
-
-
-
 
 SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
