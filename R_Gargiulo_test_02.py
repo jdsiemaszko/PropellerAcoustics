@@ -15,7 +15,7 @@ Nr = 41
 
 # for Nk in [0, 1, 2, 5, 10, 15, 20, 25]:
     # print(Nk)
-Nk = 10
+Nk = 5
 k  = np.arange(0, Nk+1, 1)
 force_time = np.zeros((3, Nt, Nr))
 
@@ -76,7 +76,7 @@ force_freq = 1/period * np.sum(force_time[:, None, :, :] * np.exp(+1j *
 threshold = 1e-4 # play around with cutoff value
 fmax = np.max(np.abs(force_freq))
 
-force_freq[np.where(np.abs(force_freq) < threshold * fmax)] = 0 # set all noise to zero
+# force_freq[np.where(np.abs(force_freq) < threshold * fmax)] = 0 # set all noise to zero
 
 #force_freq[:,5:,:]=0
 
