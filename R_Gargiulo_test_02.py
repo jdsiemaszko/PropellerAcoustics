@@ -141,42 +141,42 @@ hm = HansonModel(
 # ---------------------------------------------
 
 # 1) 3D directivity plots for harmonics m = 1 ... 5
-# for m in [1]:
-#     fig = plt.figure(figsize=(7, 7))
-#     ax1 = fig.add_subplot(111, projection="3d")
-#     hm.plot3Ddirectivity(
-#         fig=fig,
-#         ax=ax1,
-#         m=m,
-#         R=ROBS,
-#         Nphi=36,
-#         Ntheta=18,
-#         title='far-field',
-#         mode='rotor',
-#         loadings=Fblade,
-#         valmin=10,
-#         valmax=80,
-#     )
-#     ax1.tick_params(axis='both', labelsize=12)
-#     ax1.set_xlabel(ax1.get_xlabel(), fontsize=14)
-#     ax1.set_ylabel(ax1.get_ylabel(), fontsize=14)
-#     ax1.set_zlabel(ax1.get_zlabel(), fontsize=14)
-#     plt.tight_layout()
-#     plt.show()
+for m in [1]:
+    fig = plt.figure(figsize=(7, 7))
+    ax1 = fig.add_subplot(111, projection="3d")
+    hm.plot3Ddirectivity(
+        fig=fig,
+        ax=ax1,
+        m=m,
+        R=ROBS,
+        Nphi=36,
+        Ntheta=18,
+        title='far-field',
+        mode='rotor',
+        loadings=Fblade,
+        valmin=10,
+        valmax=80,
+    )
+    ax1.tick_params(axis='both', labelsize=12)
+    ax1.set_xlabel(ax1.get_xlabel(), fontsize=14)
+    ax1.set_ylabel(ax1.get_ylabel(), fontsize=14)
+    ax1.set_zlabel(ax1.get_zlabel(), fontsize=14)
+    plt.tight_layout()
+    plt.show()
 
 # 2) Plot directivity (2D polar plot)
-# hm.plot2Ddirectivity(
-#     m=1, # harmonic to plot
-#     R=ROBS, # observation radius
-#     Ntheta=360,
-#     mode='rotor', # 'rotor' or 'stator' or 'total'
-#     loadings=Fblade, # blade loading harmonics
-#     # plane='xy'
-#     plane='xz'
+hm.plot2Ddirectivity(
+    m=1, # harmonic to plot
+    R=ROBS, # observation radius
+    Ntheta=360,
+    mode='rotor', # 'rotor' or 'stator' or 'total'
+    loadings=Fblade, # blade loading harmonics
+    # plane='xy'
+    plane='xz'
 
-# )
-# plt.tight_layout()
-# plt.show()
+)
+plt.tight_layout()
+plt.show()
 
 # 3) plot 2D contours
 for m in [3]:
