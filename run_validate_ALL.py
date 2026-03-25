@@ -168,8 +168,8 @@ fig, ax = plt.subplots(figsize=(4, 3))
 for ind, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
 
     index_data = np.where(m == mode)[0][0]
-    # ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, ind] , color=color, marker='x', label=f'm={mode}', markersize=10)
-    # ax.plot(np.rad2deg(theta), p_to_SPL(p_nf)[:, ind] , color=color, marker='s', linestyle='dotted')
+    ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, ind] , color=color, marker='x', label=f'm={mode}', markersize=10)
+    ax.plot(np.rad2deg(theta), p_to_SPL(p_nf)[:, ind] , color=color, marker='s', linestyle='dotted')
     ax.plot(np.rad2deg(theta), p_to_SPL(p_sourceMode)[:, ind], color=color, marker='^', linestyle='dashed')
     # ax.plot(np.rad2deg(theta), p_to_SPL(p_data)[:, index], color=color, marker='o', linestyle='dashdot')
     ax.plot(np.rad2deg(theta), SPL[:, index_data], color=color, marker='o', linestyle='dashdot')  # should be the same
@@ -190,8 +190,8 @@ fig, ax = plt.subplots(figsize=(4, 3))
 for index, (color, mode) in enumerate(zip(['r', 'b', 'g', 'm', 'y', 'c'], ms)):
     index_data = np.where(m == mode)[0][0]
 
-    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
-    # ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
     ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_sourceMode))[:, index], color=color, marker='^', linestyle='dashed')
     ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_data))[:, index_data], color=color, marker='o', linestyle='dashdot')
 
