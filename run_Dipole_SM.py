@@ -55,12 +55,12 @@ gf = TailoredGreen(dim=3) # free-field version, could be interchanged with an in
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
 
-HANSON_VELLA = HansonModel(twist_rad = twist_array, chord_m = chord_array,
+HANSON_VELLA = HansonModel(
                     axis=axis_prop, origin=origin_prop,
                     radius_m=radius_array, B=NBLADES, nb=NBEAMS,
                      Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
 
-HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord_array,
+HANSON_NEARFIELD = NearFieldHansonModel(
                                         axis=axis_prop, origin=origin_prop,
                                 radius_m=radius_array, B=NBLADES, nb=NBEAMS,
                             Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
@@ -69,7 +69,7 @@ HANSON_NEARFIELD = NearFieldHansonModel(twist_rad = twist_array, chord_m = chord
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
 
-sourceArray = SourceModeArray(BLH=loadings, # loading per unit span
+sourceArray = SourceModeArray(BLH=loadings_3D, # loading per unit span
                         B = NBLADES,
                         Omega=OMEGA, gamma = twist_array,
                         axis=axis_prop, origin=origin_prop,
@@ -104,9 +104,10 @@ plt.close(fig)
 
 fig = plt.figure(figsize=(7, 7))
 ax = fig.add_subplot(111, projection="3d")
-HANSON_VELLA.plot3Ddirectivity(fig, ax, m=M, R=ROBS,
+HANSON_VELLA.plot3Ddirectivity(fig=fig, ax=ax, m=M, R=ROBS,
                         valmax=65, valmin=10,
                         Nphi=NPHI, Ntheta=NTHETA,
+                        loadings=loadings_3D
                         )
 plt.show()
 plt.close(fig)
@@ -125,8 +126,8 @@ x_cartesian = ROBS * np.array([
 # ms = np.array([1,5,10])
 ms = np.array([1,2,5])
 
-p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms)
-p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms)
+p_hanson, _ = HANSON_VELLA.getPressureRotor(x_cartesian, m=ms, Fblade=loadings_3D)
+p_nf, _ = HANSON_NEARFIELD.getPressureRotor(x_cartesian, m=ms, Fblade=loadings_3D)
 p_sourceMode = sourceArray.getPressure(x_cartesian, m=ms)
 
 fig, ax = plt.subplots(figsize=(4, 3))

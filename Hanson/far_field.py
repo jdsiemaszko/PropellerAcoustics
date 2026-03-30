@@ -100,6 +100,8 @@ class HansonModel():
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
         Fblade = np.concatenate((np.conjugate(Fblade[:, -1:0:-1, :]), Fblade), axis=1) # minus loadings are conjugates of positive!
+        Nk = Fblade.shape[1] # shape 3, Nk, Nr
+
         # Fblade and k are now of shape (2Nk-1, Nr) with negative modes first
 
         # --- explicit broadcasting ---
@@ -121,8 +123,8 @@ class HansonModel():
         
         # --- matrix construction ---
         # matrix shape: (Nx, Nm, Nk, Nr)
-        matrix = np.zeros((x.shape[0], m.shape[0], Nk, radius.shape[0]), dtype=np.complex128)
-        matrix = (
+        matrix = np.zeros((x.shape[1], m.shape[0], Nk, radius.shape[0]), dtype=np.complex128)
+        matrix += (
             - Fphi * (mB_m - k_k) / radius_r / (wavenumber_m) # positive since Fphi is positive backwards!
             + np.cos(theta_x) * Fz
         )
