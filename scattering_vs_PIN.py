@@ -327,7 +327,7 @@ if __name__ == "__main__":
     p_direct_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading) # mind the indexing change for m
     p_direct_blade_hanson, _ = han.getPressureRotor(x_cart, m, BLH) 
 
-    p_direct_beam *= 1 # -1 to match the phase - why?
+    # p_direct_beam *= 1 # -1 to match the phase - why?
 
     # Plot maps:
     # 1) 2D contours

@@ -14,7 +14,7 @@ class BeamLoadings():
                   B=2, Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=1.0, rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1):
 
         """
-        arrays: twist, chord, radius of size Nr+1, defined as edges of radial stations
+        arrays: twist, chord, radius of size Nr+1, defined as edges of radial stationsc:\Program Files\Mendeley Reference Manager\resources\app.asar\dist\production.html
         Uz, Tprime, Qprime of size Nr, defined at centers of radial stations.
         These are the  mean velocity, thrust and axial force along the blade. T and Q per unit span
 
@@ -142,7 +142,7 @@ class BeamLoadings():
         sin_t = np.sin(thetab)[:, None, None]   # (Npoints, 1, 1)
 
 
-        Fphi = -self.Dcylinder / 2 * np.sum(
+        Fphi = self.Dcylinder / 2 * np.sum(
             pressure *
             cos_t *
             deltathetab,
@@ -150,7 +150,7 @@ class BeamLoadings():
         ) # (Nt, Nr), drag, oriented backwards
 
 
-        Fz = self.Dcylinder / 2 * np.sum(
+        Fz = -self.Dcylinder / 2 * np.sum(
             pressure *
             sin_t * 
             deltathetab,

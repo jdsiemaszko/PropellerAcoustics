@@ -53,6 +53,8 @@ alpha = (90 - pitch) * np.pi / 180
 TREF = 1.075
 TORQUEREF = 26.7/B/1000 # Nm
 
+FACTOR = 1 # thrust scaling factor
+
 
 # ----------------------------------------------------------
 
@@ -190,22 +192,76 @@ Nk = 40
 twist = np.deg2rad(pitch)* np.ones(r_outer.shape)
 chord = c * np.ones(r_outer.shape)
 
-beam_l = BeamLoadings(
-    twist_rad=np.deg2rad(pitch)* np.ones(r_outer.shape),
-    chord_m=c* np.ones(r_outer.shape),
-    radius_m=r_outer,
-    Uz0_mps=U_flow,
-    Tprime_Npm= dT / dr,
-    Qprime_Npm= dQ / dr,
-    B=B,
-    Dcylinder_m=D_bras,
-    Lcylinder_m=g,
-    Omega_rads=Omega,
-    rho_kgm3=rho0,
-    c_mps=c0,
-    kmax=Nk,
-    nb=NBEAMS
-)
+
+nr = -3
+nks = [0, 1, 2, 3, 4, 5]
+colors = plt.cm.viridis(np.linspace(0, 1, len(nks)))  # assign a color per k
+FACTORS = np.array([1, 2, 4, 8, 16, 32, 64, 128])
+
+# store results for plotting
+magnitudes_dynamic = {k: [] for k in nks}
+magnitudes_vortex = {k: [] for k in nks}
+
+
+for FACTOR in FACTORS:
+    beam_l = BeamLoadings(
+        twist_rad=np.deg2rad(pitch) * np.ones(r_outer.shape),
+        chord_m=c * np.ones(r_outer.shape),
+        radius_m=r_outer,
+        Uz0_mps=U_flow,
+        Tprime_Npm=dT / dr * FACTOR,
+        Qprime_Npm=dQ / dr * FACTOR,
+        B=B,
+        Dcylinder_m=D_bras,
+        Lcylinder_m=g,
+        Omega_rads=Omega,
+        rho_kgm3=rho0,
+        c_mps=c0,
+        kmax=Nk,
+        nb=NBEAMS
+    )
+
+    beam_loading_dynamic = beam_l.getBeamLoadingHarmonicsDynamic()  # shape (3, Nk, Nr)
+    beam_loading_vortex = beam_l.getBeamLoadingHarmonicsVortex()  # shape (3, Nk, Nr)
+
+    for i, k in enumerate(nks):
+        magnitudes_dynamic[k].append(np.abs(beam_loading_dynamic[1, k*B, nr]))
+        magnitudes_vortex[k].append(np.abs(beam_loading_vortex[1, k*B, nr]))
+
+# Plotting
+plt.figure(figsize=(8, 5))
+for i, k in enumerate(nks):
+    plt.plot(FACTORS, np.array(magnitudes_dynamic[k]) / FACTORS, '-^', color=colors[i], label=f'k={k}')
+    plt.plot(FACTORS, np.array(magnitudes_vortex[k]) / FACTORS, marker='s', color=colors[i], linestyle='dashed')
+
+# plt.hlines(0.1, FACTORS[0], FACTORS[-1], colors='k', linestyles='dotted')
+plt.xlabel('$F/F_0$')
+plt.ylabel('$|F_k|/ (F/F_0)$')
+# plt.title('Beam loading magnitude vs FACTOR for different k')
+plt.xscale('log')  # since FACTORS vary over orders of magnitude
+plt.yscale('log')  # optional, often loadings scale linearly with FACTOR
+plt.grid(True, which='both', ls='--', alpha=0.5)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Plotting
+plt.figure(figsize=(8, 5))
+for i, k in enumerate(nks):
+    plt.plot(FACTORS, (np.array(magnitudes_dynamic[k]) /np.array(magnitudes_vortex[k])), '-^', color=colors[i], label=f'k={k}')
+
+plt.hlines(np.sqrt(2)-1, FACTORS[0], FACTORS[-1], colors='k', linestyles='dotted')
+plt.xlabel('$F/F_0$')
+plt.ylabel('$|F_k^{{dynamic}}/F_k^{{vortex}}|$')
+# plt.title('Beam loading magnitude vs FACTOR for different k')
+plt.xscale('log')  # since FACTORS vary over orders of magnitude
+plt.yscale('log')  # optional, often loadings scale linearly with FACTOR
+plt.grid(True, which='both', ls='--', alpha=0.5)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+
 
 # HANSON (stator only)
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
@@ -250,7 +306,7 @@ if __name__ == "__main__":
 
 
     beam_loading = beam_l.getBeamLoadingHarmonics() 
-    beam_loading_dynamic = beam_l.getBeamLoadingHarmonicsDynamic()
+    beam_loading_dynamic = beam_l.getBeamLoadingHarmonicsDynamic() # shape 3, Nk, Nr
     beam_loading_temporal = beam_l.getBeamLoadingHarmonicsVortex()
     
     p_direct_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading) 
@@ -283,11 +339,11 @@ if __name__ == "__main__":
         np.rad2deg(theta_m), np.rad2deg(phi_m), p_scattered + p_dynamic_beam,
         title=r'PIN dynamic + scattered loading', fig=fig, ax=ax5, cmap='jet',  levels=levels, 
     )
-    fig, ax6 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_beam,
-        title='beam total (reference)', fig=fig, ax=ax6, cmap='jet',  levels=levels, ylabel=None,
+    # fig, ax6 = plot_directivity_contour(
+    #     np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_beam,
+    #     title='beam total (reference)', fig=fig, ax=ax6, cmap='jet',  levels=levels, ylabel=None,
 
-    )
+    # )
 
     plt.show()
     plt.close()
@@ -326,8 +382,8 @@ if __name__ == "__main__":
         title=r'PIN dynamic + scattered loading', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
     )
 
-    fig, ax6 = plot_3D_directivity(
-        p_direct_beam, theta_m, phi_m,
-        title='beam total (reference)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
-    )
+    # fig, ax6 = plot_3D_directivity(
+    #     p_direct_beam, theta_m, phi_m,
+    #     title='beam total (reference)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+    # )
     plt.show()
