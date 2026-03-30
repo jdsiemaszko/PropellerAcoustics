@@ -294,7 +294,7 @@ class NearFieldHansonModel(HansonModel):
 
         return pmb, x
     
-    def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fbeam:np.ndarray, multiplier:float=None):
+    def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fstator:np.ndarray, multiplier:float=None):
         """
         Computing the Stator loading noise based on loading harmonics, derivations based on Roger & Moreau 2008
         x:np.ndarray of shape (Nx,) -  observer position expressed in the GLOBAL CARTESIAN coordinate system
@@ -341,22 +341,23 @@ class NearFieldHansonModel(HansonModel):
 
         wavenumber = m * Omega / c0 # Nm, issue if mb = 0?
 
-        Nk = Fbeam.shape[1] # shape 3, Nk, Nr
-        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fbeam
+        Nk = Fstator.shape[1] # shape 3, Nk, Nr
+        k = np.arange(0, Nk, 1)  # array of modal orders, shape Nk, note that we assume order of Fstator
 
 
         k = np.concatenate((-k[-1:0:-1], k)) # add the minus part!, shape (2Nk-1 -> Nk)
-        Fbeam = np.concatenate((np.conjugate(Fbeam[:, -1:0:-1, :]), Fbeam), axis=1) 
+        Fstator = np.concatenate((np.conjugate(Fstator[:, -1:0:-1, :]), Fstator), axis=1) 
+        Nk = Fstator.shape[1] # shape 3, Nk, Nr
 
         m_int = np.asarray(m, dtype=np.int64)
 
         lookup = {val: i for i, val in enumerate(k)}
 
         Nm = len(m_int)
-        Nr = Fbeam.shape[2]
+        Nr = Fstator.shape[2]
 
         # Preallocate with zeros (this automatically handles missing modes)
-        Fm = np.zeros((3, Nm, Nr), dtype=Fbeam.dtype)
+        Fm = np.zeros((3, Nm, Nr), dtype=Fstator.dtype)
 
         # Find which requested modes exist
         valid_mask = np.array([mb in lookup for mb in m_int])
@@ -364,13 +365,14 @@ class NearFieldHansonModel(HansonModel):
         if np.any(valid_mask):
             valid_modes = m_int[valid_mask]
             idx = np.array([lookup[mb] for mb in valid_modes])
-            Fm[:, valid_mask, :] = Fbeam[:, idx, :]
+            Fm[:, valid_mask, :] = Fstator[:, idx, :]
 
         Fphi = Fm[2, :, :] # Nk, Nr each
         Fz = Fm[1, :, :]
 
         # --- matrix construction ---
-        matrix = (
+        matrix = np.zeros((x.shape[1], m.shape[0], radius.shape[0]), dtype=np.complex128)
+        matrix += (
             -Fphi[None, :, :] * np.sin(theta[:, None, None]) * np.sin(phi[:, None, None]) # NOTE: minus sign! see docs to see where it comes from
             + np.cos(theta[:, None, None]) * Fz[None, :, :]
         ) # shape Nx, Nm, Nr
@@ -385,7 +387,7 @@ class NearFieldHansonModel(HansonModel):
         # reduce by summing along Nr axis
         pm = np.sum (
             matrix
-            * dr[None, None, :] # integration over r, note: we assume that Fbeam is per unit span, in units N/m.
+            * dr[None, None, :] # integration over r, note: we assume that Fstator is per unit span, in units N/m.
               ,
             axis=-1
         ) # integrate along the r axis, result of shape Nx, Nm
@@ -398,7 +400,7 @@ class NearFieldHansonModel(HansonModel):
                 np.arange(0, self.nbeam, 1)[None, None, :]
             )
             , axis=-1
-            )[:, None]
+            )
 
             
         return pm, x

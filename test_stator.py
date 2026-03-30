@@ -1,2 +1,169 @@
 # test all stator implementations
 
+from Hanson.far_field import HansonModel
+from Hanson.near_field import NearFieldHansonModel
+from SourceMode.SourceMode import SourceModeArray
+from TailoredGreen.CylinderGreen import CylinderGreen
+from TailoredGreen.TailoredGreen import TailoredGreen
+from Constants.helpers import p_to_SPL, plot_3D_directivity
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+
+
+# _________ INPUTS __________
+SOS = 1.0 # m/s
+RHO = 1.0 # kgm^-3
+CHORD = 1.0 # m
+TWIST = 15 # deg
+NBLADES = 1
+NBEAMS = 1 # radial - 1, diameterical - 2
+R0_PROP = 0.5 # m
+R1_PROP = 1.5 # m
+OMEGA = 1.0 # rad/s 
+K_BPF = OMEGA * NBLADES / SOS # 1
+ROBS = 100.0 / K_BPF # far field!
+
+K = 1 # K'th forcing harmonic
+M = 2 # m'th pressure mode to resolve
+FK_ABS = 1.0 # force magnitude in N/m!
+
+# _________ NUMERICAL INPUTS __________
+NSEG = 1 # number of radial prop segments
+KMAX = 128 # max loading harmonic number
+NTHETA = 18*2 # discretization in the polar angle
+NPHI = 36*2 # discretization in the azimuth
+MMAX = 32 # maximum resolved mode number in cylinder green's function
+NQ_PROP = 64 # discretization in the z wavenumber in cylinder green's function
+EPS_RADIUS = 1e-3 # cutoff for cylinder distance. points are ignored if distance to cylinder < a * (1 + EPS_RADIUS)
+NDIPOLES = 64 # discterization of each source mode
+
+# _________ SETUP ____________
+
+twist_array = np.deg2rad(TWIST) * np.ones(NSEG+1)
+chord_array = CHORD * np.ones(NSEG+1)
+radius_array = np.linspace(R0_PROP, R1_PROP, NSEG+1, endpoint=True)
+loadings = np.zeros((KMAX+1, 1))
+loadings[K:K+4, :] = FK_ABS
+loadings_3D = np.zeros((3, KMAX+1, 1))
+loadings_3D[1, :, :] = loadings[:, :] * np.cos(np.deg2rad(TWIST))
+loadings_3D[2, :, :] = loadings[:, :] * np.sin(np.deg2rad(TWIST)) # radial, axial, tangential
+
+loadings_3D_global = np.zeros((3, KMAX+1, 1)) 
+loadings_3D_global[0, :, : ] = loadings_3D[0, :, :]
+loadings_3D_global[2, :, : ] = loadings_3D[1, :, :]
+loadings_3D_global[1, :, : ] =-loadings_3D[2, :, :]
+
+
+
+# GREEN'S FUNCTION MODULE
+gf = TailoredGreen(dim=3) # free-field version, could be interchanged with an instance of CylinderGreen
+
+# HANSON MODULE
+axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
+origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
+
+HANSON_VELLA = HansonModel(
+                    axis=axis_prop, origin=origin_prop,
+                    radius_m=radius_array, B=NBLADES, nb=NBEAMS,
+                     Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
+
+HANSON_NEARFIELD = NearFieldHansonModel(
+                                        axis=axis_prop, origin=origin_prop,
+                                radius_m=radius_array, B=NBLADES, nb=NBEAMS,
+                            Omega_rads=OMEGA, rho_kgm3=RHO, c_mps=SOS)
+
+# _____________ PLOTTING & RESULTS _______________
+ms = np.array([1,2,5])
+
+x_cart , _, theta, phi = HANSON_VELLA.getPolarMesh(Ntheta=NTHETA, Nphi=NPHI, R=ROBS)
+ysrc = np.stack([
+    (R0_PROP+ R1_PROP)/2,
+    0.0,
+    0.0,
+]).reshape(3, 1)
+
+gradG = gf.getGradientGreenAnalytical(x_cart, ysrc, ms * OMEGA * NBLADES / SOS) # 3, Nk, Nx, Ny
+
+p_sourceMode = -np.einsum(
+    'dmxy, dmy->xm',
+    gradG,
+    loadings_3D_global[:, ms, :]
+)
+
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(111, projection="3d")
+HANSON_VELLA.plot3Ddirectivity(fig=fig, ax=ax, m=M, R=ROBS,
+                        valmax=65, valmin=10,
+                        Nphi=NPHI, Ntheta=NTHETA,
+                        loadings=loadings_3D,
+                        mode='stator'
+                        )
+plt.show()
+plt.close(fig)
+
+
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(111, projection="3d")
+fig,ax= plot_3D_directivity(p_sourceMode[:, np.where(ms ==M)], theta, phi, valmax=65, valmin=10)
+plt.show()
+plt.close(fig)
+
+phi = np.pi/2
+NLINE = NTHETA* 2
+theta = np.linspace(0, np.pi, NLINE)
+x_cartesian = ROBS * np.array([
+    np.sin(theta) * np.cos(phi),
+    np.sin(theta) * np.sin(phi),
+    np.cos(theta),
+])
+
+
+# x_polar = np.array([np.ones(NLINE) * ROBS, theta, np.ones(NLINE) * phi])
+
+# ms = np.array([1,5,10])
+
+p_hanson, _ = HANSON_VELLA.getPressureStator(x_cartesian, m=ms, Fstator=loadings_3D)
+p_nf, _ = HANSON_NEARFIELD.getPressureStator(x_cartesian, m=ms, Fstator=loadings_3D)
+# p_sourceMode = sourceArray.getPressure(x_cartesian, m=ms)
+
+gradG = gf.getGradientGreenAnalytical(x_cartesian, ysrc, ms * OMEGA * NBLADES / SOS) # 3, Nk, Nx, Ny
+p_sourceMode = -np.einsum(
+    'dmxy, dmy->xm',
+    gradG,
+    loadings_3D_global[:, ms, :]
+)
+
+
+fig, ax = plt.subplots(figsize=(4, 3))
+for index, (color, mode) in enumerate(zip(['r', 'b', 'g'], ms)):
+    ax.plot(np.rad2deg(theta), p_to_SPL(p_hanson)[:, index] , color=color, marker='x', label=f'm={mode}')
+    ax.plot(np.rad2deg(theta), p_to_SPL(p_nf)[:, index] , color=color, marker='s', linestyle='dotted')
+    ax.plot(np.rad2deg(theta), p_to_SPL(p_sourceMode)[:, index], color=color, marker='^', linestyle='dashed')
+
+ax.legend()
+ax.set_xlabel('Polar angle [deg]')
+ax.set_ylabel('Modal SPL [dB]')
+ax.grid()
+plt.tight_layout()
+plt.show()
+plt.close()
+
+fig, ax = plt.subplots(figsize=(4, 3))
+# plot_directivity(fig, ax, x, p_to_SPL(p_model)[:, m_to_plot-1])
+# plot_directivity(fig, ax2, x, p_to_SPL(p)[:, m_to_plot-1])
+
+for index, (color, mode) in enumerate(zip(['r', 'b', 'g'], ms)):
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_hanson))[:, index], color=color, label=f'm={mode}', marker='x')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_nf))[:, index], color=color, marker='s', linestyle='dotted')
+    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_sourceMode))[:, index], color=color, marker='^', linestyle='dashed')
+
+ax.legend()
+ax.set_xlabel('Polar angle [deg]')
+ax.set_ylabel('Phase [deg]')
+ax.grid()
+plt.tight_layout()
+plt.show()
+plt.close()
+
+

@@ -183,6 +183,9 @@ class SourceMode():
     def getScatteringGreenGradient(self, x:np.ndarray, k:np.ndarray, gradG_surface=None):
         return self.green.getScatteringGreenGradient(x, self.dipole_positions, k, green_grad_at_surface=gradG_surface)
 
+    def getScatteringGreen(self, x:np.ndarray, k:np.ndarray, G_surface=None):
+        return self.green.getScatteringGreen(x, self.dipole_positions, k, green_at_surface=G_surface)
+
     def plotGeometry(self):
         green = self.green
         fig, ax = plt.subplots(subplot_kw={'projection':'3d'})
@@ -421,8 +424,6 @@ class SourceModeArray():
             pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
-    
-    
     
     
     def _getSurfacePressureEstFullCylinder(self, x:np.ndarray, m:np.ndarray):

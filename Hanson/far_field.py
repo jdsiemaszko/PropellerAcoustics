@@ -245,7 +245,9 @@ class HansonModel():
 
 
         # --- matrix construction ---
-        matrix = (
+        matrix = np.zeros((x.shape[1], m.shape[0], radius.shape[0]), dtype=np.complex128)
+
+        matrix += (
             -Fphi[None, :, :] * np.sin(theta[:, None, None]) * np.sin(phi[:, None, None]) # NOTE: minus sign! see docs to see where it comes from
             + np.cos(theta[:, None, None]) * Fz[None, :, :]
         ) # shape Nx, Nm, Nr
