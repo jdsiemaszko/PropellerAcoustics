@@ -112,7 +112,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
 
         # use the full cylinder as a predictor 
         # green_grad_at_surface = self.full_cylinder_green.getGradientGreenAnalytical(eval_points, y, k) # (3, Nk, Nz, Ny)
-        # compute the gradient of ff green on the surface (NOTE: could use exact positions instead of eval!)
+        # compute the gradient of ff green on the surface 
         ff_green_gradient = self.free_field_green.getGradientGreenAnalytical(x, eval_points, k) # (3, Nk, Nx, Nz)
         eval_areas = self.panel_areas # Nz
         panel_normals = self.panel_normals # (3, Nz)
@@ -329,15 +329,25 @@ class HalfCylinderGreen(SurfacePotentialGreen):
 
         return pos, normals, areas, z_edges, th_edges
     
-    def getScatteringGreen(self, x, y, k):
+    def getScatteringGreen(self, x, y, k, green_at_surface=None):
         # use cylinder green as the predictor!
-        green_at_surface = self.full_cylinder_green.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k) # (Nk, Nz, Ny)
+        # EXPENSIVE STEP: computing  scattering function for all evaluation points on the surface, called once per k and source mode!
+        if green_at_surface is None:
+            green_at_surface = self.full_cylinder_green.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k) # (Nk, Nz, Ny)
         return self._getScatteringGreen(x, y, k, green_at_surface)
     
-    def getScatteringGreenGradient(self, x, y, k):
+    def getScatteringGreenGradient(self, x, y, k, green_grad_at_surface=None):
         # use cylinder green as the predictor!
-        green_grad_at_surface = self.full_cylinder_green.getGradientGreenAnalytical(self.getBoundaryEvaluationPoints(), y, k) # (3, Nk, Nz, Ny)
+        # EXPENSIVE STEP: computing gradient of the scattering function for all evaluation points on the surface
+        if green_grad_at_surface is None:
+            green_grad_at_surface = self.full_cylinder_green.getGradientGreenAnalytical(self.getBoundaryEvaluationPoints(), y, k) # (3, Nk, Nz, Ny)
         return self._getScatteringGreenGradient(x, y, k, green_grad_at_surface)
+    
+    def getGreenGradAtSurface(self, y, k):
+        return self.full_cylinder_green.getGradientGreenAnalytical(self.getBoundaryEvaluationPoints(), y, k) # (3, Nk, Nz, Ny)
+    
+    def getGreenAtSurface(self, y, k):
+        return self.full_cylinder_green.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k) # (Nk, Nz, Ny)
     
     def plotMesh(self, fig, ax):
 

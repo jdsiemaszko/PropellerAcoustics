@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 
-ind_theta = 6        # -60 to 60 in 10
-ind_phi = 9          # 0 to 350 in 10
+ind_theta = 7        # -60 to 60 in 10
+ind_phi = 0          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -36,7 +36,10 @@ Nr = len(r0)
 
 
 
-ms = np.arange(1, 13, 1) # harmonics to extract
+ms = np.arange(1, 11, 1) # harmonics to extract
+
+
+
 pSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
                                     #    blade_l.getBladeLoadingHarmonics()
                                     BLH_S
@@ -56,7 +59,37 @@ pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
 pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
 
 
-p_scattered = sourceArray.getScatteredPressure(x_cart, ms)[0]
+
+
+# SUFFIX = '_HIGHRES'
+SUFFIX = ''
+
+# save gradients on the surface (run once per m)
+
+# for index, sm in enumerate(sourceArray.children):
+#     print(f'pre-computing surface gradients: {index+1}')
+#     source_positions = sm.dipole_positions
+#     gradG_surface = sm.green.getGreenGradAtSurface(source_positions, ms*B * Omega / c0) # shape (3, Nm, Nz, Ny)
+#     np.save(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy', gradG_surface)
+
+# save gradients in the far-field (run once per observer and m)
+for index, sm in enumerate(sourceArray.children):
+
+    gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
+    print(f'pre-computing far-field gradients {index+1}')
+
+    gradG = sm.getScatteringGreenGradient(x_cart, ms*B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+    np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}.npy', gradG)
+
+
+
+# extract and rearrange
+gradG_arr = np.zeros((Nr, 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+for index, sm in enumerate(sourceArray.children):
+    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}.npy')
+
+
+p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
 np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
 
 p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy')
@@ -75,7 +108,7 @@ SPL_total = p_to_SPL(pmB_model_total)
 # SPL_total = p_to_SPL(p_rms_total) # same computation
 
 fig, ax = plt.subplots(figsize=(7, 4))
-# ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental", color='k', alpha=0.75)
+ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental, total", color='k', alpha=0.75)
 # fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
 #                          plot_kwargs={
 #                              'color':'k',

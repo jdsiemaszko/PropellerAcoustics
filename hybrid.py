@@ -11,7 +11,7 @@ from TailoredGreen.CylinderGreen import CylinderGreen
 from TailoredGreen.TailoredGreen import TailoredGreen
 from Hanson.far_field import HansonModel
 from SourceMode.SourceMode import SourceModeArray
-from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot_directivity_contour, plot_3D_directivity, plot_3D_phase_directivity
+from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot_directivity_contour, plot_3D_directivity
 from scipy.interpolate import RegularGridInterpolator
 from scipy.io import loadmat
 
@@ -69,18 +69,18 @@ TORQUEREF = 26.7/B/1000 # Nm
 #             'eps_k' : 1e-24,
 #                     }
 
-NR = 5
+NR = 10
 NDIPOLES = 18*2 # VERY IMPORTANT, will fail at higher harmonics!
 Ntheta = 18
 Nphi = 36
 numerics = {
-'nmax': 16,
-'Nq_prop': 64,
-'Nq_evan': 32,
+'nmax': 32,
+'Nq_prop': 128,
+'Nq_evan': 128,
 'eps_radius' : 1e-24, # must be lower than eps_eval!
-'Nazim' : 18, # discretization of the boundary in the azimuth
-'Nax': 64, # in the axial direction
-'RMAX': 10, # max radius!
+'Nazim' : 36, # discretization of the boundary in the azimuth
+'Nax': 128, # in the axial direction
+'RMAX': 20, # max radius!
 'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
 'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
@@ -190,24 +190,6 @@ Nk = 40
 twist = np.deg2rad(pitch)* np.ones(r_outer.shape)
 chord = c * np.ones(r_outer.shape)
 
-blade_l = BladeLoadings(
-    twist_rad= twist,
-    chord_m= chord,
-    radius_m=r_outer,
-    Uz0_mps=U_flow,
-    Tprime_Npm=dT / dr,
-    Qprime_Npm=dQ / dr,
-    B=B,
-    Dcylinder_m=D_bras,
-    Lcylinder_m=g,
-    Omega_rads=Omega,
-    rho_kgm3=rho0,
-    c_mps=c0,
-    kmax=Nk,
-    nb=NBEAMS
-    # nb = 1
-)
-
 beam_l = BeamLoadings(
     twist_rad=np.deg2rad(pitch)* np.ones(r_outer.shape),
     chord_m=c* np.ones(r_outer.shape),
@@ -223,52 +205,11 @@ beam_l = BeamLoadings(
     c_mps=c0,
     kmax=Nk,
     nb=NBEAMS
-    # nb = 2,
 )
 
-# CYLINDER GREEN'S FUNCTION
-caxis = np.array([1.0, 0.0, 0.0])
-D_prop = 0.2
-D = 20 / 1000
-L = 20 / 1000
-corigin = np.array([0.0, 0.0, -L])
-
-
-if NBEAMS == 2:
-    cg = CylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
-                            numerics=numerics) # cylinder
-    # cg =  SF_FullCylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
-    #                 numerics=numerics)
-
-elif NBEAMS == 1:
-    cg =  HalfCylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
-                        numerics=numerics)
-
-gf = TailoredGreen(dim=3) # free-field version!
-# SOURCE MODE MODULE
+# HANSON (stator only)
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
-
-
-BLH = blade_l.getBladeLoadingHarmonics()
-BLH_US = np.zeros_like(BLH)
-BLH_US[:, 1:, :] = BLH[:, 1:, :]
-BLH_S = np.zeros_like(BLH)
-BLH_S[:, 0, :] = BLH[:, 0, :]
-sourceArray = SourceModeArray(BLH=BLH, # loading per unit span
-                        B = B,
-                        Omega=Omega, gamma =twist,
-                        axis=axis_prop, origin=origin_prop,
-                        radius=r_outer,
-                        green = cg,
-                        # green = gf,
-                        numerics={'Ndipoles' : NDIPOLES},
-                        c = c0
-                        )
-
-
-# HANSON (stator only)
-
 han = HansonModel(
 radius_m=r_outer, # blade radius stations [m] of size Nr + 1
 axis=axis_prop, origin=origin_prop,
@@ -281,17 +222,6 @@ nb=NBEAMS # number of beams (irrelevant)
 
 if __name__ == "__main__":
     # _____________ PLOTTING & RESULTS _______________
-
-    # 1) plot geometry
-
-    fig = plt.figure(figsize=(7, 7))
-    ax = fig.add_subplot(111, projection="3d")
-    sourceArray.plotSelf(fig, ax)
-    # ax.set_box_aspect([1, 1, 1])
-    ax.set_aspect('equal')
-    ax.set_axis_off()
-    plt.show()
-    plt.close()
 
     # angular coordinates
     theta = np.linspace(0.0, np.pi, Ntheta, endpoint=True)
@@ -314,20 +244,19 @@ if __name__ == "__main__":
 
 
     ############## save results to a file as the computation takes some time
-    # p_scattered = sourceArray.getScatteredPressure(x_cart, m)
-    # np.save(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}.npy', p_scattered)
-    # p_direct_blade = sourceArray.getDirectPressure(x_cart, m)
-    # np.save(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy', p_direct_blade)
 
     p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}.npy')
-    p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy')
+    # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy')
 
 
     beam_loading = beam_l.getBeamLoadingHarmonics() 
-    p_direct_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading) # mind the indexing change for m
-    p_direct_blade_hanson, _ = han.getPressureRotor(x_cart, m, BLH) 
+    beam_loading_dynamic = beam_l.getBeamLoadingHarmonicsDynamic()
+    beam_loading_temporal = beam_l.getBeamLoadingHarmonicsVortex()
+    
+    p_direct_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading) 
+    p_dynamic_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading_dynamic) 
+    p_vortex_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading_temporal) 
 
-    p_direct_beam *= 1
 
     # Plot maps:
     # 1) 2D contours
@@ -336,27 +265,27 @@ if __name__ == "__main__":
     VMIN, VMAX = 10, 65
     levels = np.linspace(VMIN, VMAX, 20, endpoint=False)
     fig, ax1 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade, title='blade direct noise (source-mode)', fig=fig, ax=ax1, cmap='jet', levels=levels, xlabel=None,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_scattered, title='blade scattered noise (SM)', fig=fig, ax=ax1, cmap='jet', levels=levels, xlabel=None,
     )
     fig, ax2 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_scattered, title='blade scattered noise', fig=fig, ax=ax2, cmap='jet', ylabel=None, levels=levels, xlabel=None,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_vortex_beam, title=r'beam direct noise ($\rho\nabla(\omega \times v)$)', fig=fig, ax=ax2, cmap='jet', ylabel=None, levels=levels, xlabel=None,
     )
     fig, ax3 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_beam, title='beam loading noise', fig=fig, ax=ax3, cmap='jet',  levels=levels,xlabel=None, 
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_dynamic_beam, title=r'beam direct noise ($1/2\rho\nabla^2(|u|^2)$)', fig=fig, ax=ax3, cmap='jet',  levels=levels,xlabel=None, 
     )
 
     fig, ax4 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade_hanson,
-        title='blade direct noise (Hanson)', fig=fig, ax=ax4, cmap='jet',  levels=levels, ylabel=None,  xlabel=None, 
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_vortex_beam + p_dynamic_beam,
+        title=r'beam direct noise (total)', fig=fig, ax=ax4, cmap='jet',  levels=levels, ylabel=None,  xlabel=None, 
     )
 
     fig, ax5 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade + p_scattered,
-        title='direct blade + scattered blade', fig=fig, ax=ax5, cmap='jet',  levels=levels, 
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_scattered + p_dynamic_beam,
+        title=r'PIN dynamic + scattered loading', fig=fig, ax=ax5, cmap='jet',  levels=levels, 
     )
     fig, ax6 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade + p_direct_beam,
-        title='direct blade + direct beam', fig=fig, ax=ax6, cmap='jet',  levels=levels, ylabel=None,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_beam,
+        title='beam total (reference)', fig=fig, ax=ax6, cmap='jet',  levels=levels, ylabel=None,
 
     )
 
@@ -375,72 +304,30 @@ if __name__ == "__main__":
 
 
     fig, ax1 = plot_3D_directivity(
-        p_direct_blade, theta_m, phi_m, title='blade direct noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+        p_scattered, theta_m, phi_m, title='blade scattered noise (SM)', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
     )
     fig, ax2 = plot_3D_directivity(
-        p_scattered, theta_m, phi_m, title='blade scattered noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+        p_vortex_beam, theta_m, phi_m, title=r'beam direct noise ($\rho\nabla(\omega \times v)$)', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
     )
     fig, ax3 = plot_3D_directivity(
-        p_direct_beam, theta_m, phi_m, title='beam loading noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+        p_dynamic_beam, theta_m, phi_m, title=r'beam direct noise ($1/2\rho\nabla^2(|u|^2)$)', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
     )
     # fig, ax4 = plot_3D_directivity(
     #     p_direct_beam + p_direct_blade + p_scattered, theta_m, phi_m,
     #       title='total loading noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
     # )
     fig, ax4 = plot_3D_directivity(
-        p_direct_blade_hanson, theta_m, phi_m,
-        title='blade direct noise (Hanson)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+        p_vortex_beam + p_dynamic_beam, theta_m, phi_m,
+        title=r'beam direct noise (total)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
     )
 
     fig, ax5 = plot_3D_directivity(
-        p_direct_blade + p_scattered, theta_m, phi_m,
-        title='direct blade + scattered blade', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+        p_scattered + p_dynamic_beam, theta_m, phi_m,
+        title=r'PIN dynamic + scattered loading', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
     )
 
     fig, ax6 = plot_3D_directivity(
-        p_direct_blade + p_direct_beam, theta_m, phi_m,
-        title='direct blade + direct beam', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+        p_direct_beam, theta_m, phi_m,
+        title='beam total (reference)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
     )
     plt.show()
-
-
-    # 3D phase
-    fig = plt.figure(figsize=(7, 7))
-    ax1 = fig.add_subplot(321, projection="3d")
-    ax2 = fig.add_subplot(322, projection="3d")
-    ax3 = fig.add_subplot(323, projection="3d")
-    ax4 = fig.add_subplot(324, projection="3d")
-    ax5 = fig.add_subplot(325, projection="3d")
-    ax6 = fig.add_subplot(326, projection="3d")
-
-
-    fig, ax1 = plot_3D_phase_directivity(
-        p_direct_blade, theta_m, phi_m, title='blade direct noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
-    )
-    fig, ax2 = plot_3D_phase_directivity(
-        p_scattered, theta_m, phi_m, title='blade scattered noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
-    )
-    fig, ax3 = plot_3D_phase_directivity(
-        p_direct_beam, theta_m, phi_m, title='beam loading noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
-    )
-    # fig, ax4 = plot_3D_directivity(
-    #     p_direct_beam + p_direct_blade + p_scattered, theta_m, phi_m,
-    #       title='total loading noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
-    # )
-    fig, ax4 = plot_3D_phase_directivity(
-        p_direct_blade_hanson, theta_m, phi_m,
-        title='blade direct noise (Hanson)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
-    )
-
-    fig, ax5 = plot_3D_phase_directivity(
-        p_direct_blade + p_scattered, theta_m, phi_m,
-        title='direct blade + scattered blade', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
-    )
-
-    fig, ax6 = plot_3D_phase_directivity(
-        p_direct_blade + p_direct_beam, theta_m, phi_m,
-        title='direct blade + direct beam', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
-    )
-    plt.show()
-
-

@@ -95,7 +95,7 @@ class TailoredGreen():
             k = np.array([k])
         return self.G_base(x, y, k, dim=self.dim)
 
-    def getScatteringGreen(self, x, y, k):
+    def getScatteringGreen(self, x, y, k, **kwargs):
         if isinstance(k, float):
             k = np.array([k])
         # template for implementation
@@ -106,7 +106,7 @@ class TailoredGreen():
             k = np.array([k])
         return self.G_grad_base(x, y, k, dim=self.dim)
 
-    def getScatteringGreenGradient(self, x, y, k):
+    def getScatteringGreenGradient(self, x, y, k, **kwargs):
         if isinstance(k, float):
             k = np.array([k])
         return np.zeros((self.dim, k.shape[0], x.shape[1], y.shape[1]))

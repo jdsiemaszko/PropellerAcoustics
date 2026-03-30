@@ -5,3 +5,5 @@ SourceMode/__pycache__/SourceMode.cpython-310.pyc
 *.json
 /.vscode/
 /.vscode/*.json
+Data/*
+/.Data/*

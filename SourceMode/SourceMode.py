@@ -150,16 +150,25 @@ class SourceMode():
 
         return loadings
     
-    def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
+    def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None):
+
         green = self.green
-        gradG = green.getGradientGreenAnalytical(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        # EXPENSIVE STEP - avoid by passing gradient directly if pre-computed
+        if gradG is None:
+            gradG = green.getGradientGreenAnalytical(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+
         return self._getPressureFromGrad(x, m, gradG)
     
-    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
+    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, surface_gradG=None):
+
         green = self.green
-        gradG = green.getScatteringGreenGradient(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+
+        # EXPENSIVE STEP - avoid by passing gradient directly if pre-computed
+        if gradG is None:
+            gradG = green.getScatteringGreenGradient(x, self.dipole_positions, m * Omega * self.B / c, green_grad_at_surface = surface_gradG) # shape (3, Nm, Nx, Ny)
+
         return self._getPressureFromGrad(x, m, gradG)
-    
+
     def getDirectPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
         green = self.green
         gradG = green.getFreeSpaceGreenGradient(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
@@ -170,6 +179,9 @@ class SourceMode():
         loadings = self.computeLoadingVectors(m) # shape (2 * Ns - 1, Nm, Ny, 3) units of NEWTON
         pmB = -1.0 * np.einsum('s m y k, k m x y -> x m', loadings, GradG)
         return pmB * self.B
+    
+    def getScatteringGreenGradient(self, x:np.ndarray, k:np.ndarray, gradG_surface=None):
+        return self.green.getScatteringGreenGradient(x, self.dipole_positions, k, green_grad_at_surface=gradG_surface)
 
     def plotGeometry(self):
         green = self.green
@@ -365,27 +377,35 @@ class SourceModeArray():
                 numerics=self.numerics
             ) # construct source modes at each radial station
 
-    def getPressure(self, x:np.ndarray, m:np.ndarray):
+    def getPressure(self, x:np.ndarray, m:np.ndarray, gradG=None):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
+        if gradG is None:
+            gradG = [None] * self.Nr # 
 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getPressure(x, self.Omega, m, c=self.SoS)
+            pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
-    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray):
+    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray, gradG=None):
+        """
+        gradG - optional argument to pass pre-computed gradient of the scattering green's function (recommended if dealing with same source-observer pairs)
+        of shape (Nr, 3, Nm, Nx, Ny) - one gradG object per source mode, each of shape (3, Nm, Nx, Ny)
+        """
         if not isinstance(m, np.ndarray):
             m = np.array([m])
+        if gradG is None:
+            gradG = [None] * self.Nr # 
 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS)
+            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     

@@ -49,7 +49,12 @@ class BeamLoadings():
         self.Tprime = Tprime_Npm # Nr
         self.Qprime = Qprime_Npm # Nr
 
-    def getBeamLoadingHarmonics(self, D__Dref_max=10.0, points_per_period = 20):
+    def getBeamLoadingHarmonicsVortex(self, D__Dref_max=10.0, points_per_period = 20):
+        return self.getBeamLoadingHarmonics(D__Dref_max, points_per_period, mode='vortex')
+    def getBeamLoadingHarmonicsDynamic(self, D__Dref_max=10.0, points_per_period = 20):
+        return self.getBeamLoadingHarmonics(D__Dref_max, points_per_period, mode='dynamic')
+
+    def getBeamLoadingHarmonics(self, D__Dref_max=10.0, points_per_period = 20, mode='total'):
 
         period = 2 * np.pi / self.B / self.Omega
 
@@ -77,7 +82,7 @@ class BeamLoadings():
         Nt = time_1d.size
 
         # --- expand time to (Nt, Nr)
-        Fhat = self._getBeamVortexLoads(time_1d) # size (3, Nt, Nr)
+        Fhat = self._getBeamVortexLoads(time_1d, mode=mode) # size (3, Nt, Nr)
 
 
         T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
@@ -115,12 +120,21 @@ class BeamLoadings():
     #     angle = np.atan2(Fbeam[2, :, :] , Fbeam[1, :, :])
     #     return Fbeam[1, :, :] / np.cos(angle) # shape (Nk, Nr) assuming orientation
     
-    def _getBeamVortexLoads(self, time, Npoints=360):
+    def _getBeamVortexLoads(self, time, Npoints=360, mode='total'):
 
         Nt = time.shape[0]
         Nr = self.Nr
 
-        pressure, thetab, deltathetab = self._getBeamVortexPressure(time, Npoints) # (Npoints, Nt, Nr)
+        pressure, thetab, deltathetab, pdyn, pvort = self._getBeamVortexPressure(time, Npoints) # (Npoints, Nt, Nr)
+
+        if mode == 'total':
+            pass
+        elif mode == 'dynamic':
+            pressure = pdyn
+        elif mode == 'vortex':
+            pressure = pvort
+        else:
+            raise ValueError("Invalid mode. Choose from 'total', 'dynamic', 'vortex'.")
 
 
         # --- force integration on cylinder
@@ -207,17 +221,19 @@ class BeamLoadings():
         v = -np.imag(dfdz) # (Npoints, Nt, Nr)
         U = np.sqrt(u**2 + v**2) # (Npoints, Nt, Nr)
 
-        pressure = 0.5 * self.rho * (Uz_e**2 - U**2) + self.rho * gamma_e * self.Omega * r_e / 2 / np.pi * np.real(
+        pressure_dynamic = 0.5 * self.rho * (Uz_e**2 - U**2)
+        pressure_vortex = self.rho * gamma_e * self.Omega * r_e / 2 / np.pi * np.real(
             1j / Zvbar_e + 1j / (Zv_e - Z_e) - 1j / (Zvbar_e - Z_circ_conjugate_e)
         ) # (Npoints, Nt, Nr)
+        pressure =  pressure_dynamic + pressure_vortex
 
         if overwrite_positions is not None:
             # pressure[np.abs(Z) < self.Dcylinder/2, :, :] = 0.0 
-            return pressure, overwrite_positions
+            return pressure, overwrite_positions, pressure_dynamic, pressure_vortex
         else:
-            return pressure, thetab, deltathetab
+            return pressure, thetab, deltathetab, pressure_dynamic, pressure_vortex
     
-    def getBeamPressureHarmonics(self, D__Dref_max=10.0, points_per_period = 20):
+    def getBeamPressureHarmonics(self, D__Dref_max=10.0, points_per_period = 20, mode='total'):
 
         period = 2 * np.pi / self.B / self.Omega
 
@@ -238,8 +254,18 @@ class BeamLoadings():
                             dt) # (Nt, Nr) ?, ensure all times in (-period/2, period/2) have plenty of datapoints outside to sum
         Nt = time_1d.size
 
-        pressure, thetab, deltathetab = self._getBeamVortexPressure(time_1d) # pressure of shape Npoints, Nt, Nr
+        pressure, thetab, deltathetab, pdyn, pvort = self._getBeamVortexPressure(time_1d) # pressure of shape Npoints, Nt, Nr
 
+        
+        if mode == 'total':
+            pass
+        elif mode == 'dynamic':
+            pressure = pdyn
+        elif mode == 'vortex':
+            pressure = pvort
+        else:
+            raise ValueError("Invalid mode. Choose from 'total', 'dynamic', 'vortex'.")
+        
         # T_periodic, pressure_periodic = periodic_sum(pressure, period, time_1d) # shapes (Np), (Npoints, Np, Nr)
         k = self.k # Nk
 

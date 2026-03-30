@@ -436,6 +436,111 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
     return fig, ax
 
+def plot_3D_phase_directivity(
+    vector_to_plot, Theta, Phi,
+    extra_script=lambda fig, ax: None,
+    blending=0.1,
+    use_magnitude_radius=True,
+    title=None,
+    fig=None, ax=None,
+    valmin=None, valmax=None
+):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib import colors
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+    Ntheta, Nphi = Theta.shape
+
+    G = vector_to_plot
+
+    # --- phase ---
+    phase = np.angle(G)  # range [-pi, pi]
+    mag_db = p_to_SPL(np.abs(G))
+    if valmax is None:
+        valmax = min(mag_db.max(), 200)
+    if valmin is None:
+        valmin = max(mag_db.min(), -120)
+
+    # --- radius ---
+    if use_magnitude_radius:
+        mag = np.abs(G)
+        mag_norm = mag / (mag.max() + 1e-12)
+        r0 = (mag_db - valmin) / (valmax - valmin) * (1 - blending) + blending
+    else:
+        r0 = np.ones_like(phase) * (1 - blending) + blending
+
+    phase_2D = phase.reshape(Ntheta, Nphi)
+    r0 = r0.reshape(Ntheta, Nphi)
+
+    # --- spherical to Cartesian ---
+    X = r0 * np.sin(Theta) * np.cos(Phi)
+    Y = r0 * np.sin(Theta) * np.sin(Phi)
+    Z = r0 * np.cos(Theta)
+
+    if fig is None or ax is None:
+        fig = plt.figure(figsize=(7, 7))
+        ax = fig.add_subplot(111, projection="3d")
+
+    # --- cyclic colormap for phase ---
+    norm = colors.Normalize(vmin=-np.pi, vmax=np.pi)
+    cmap = plt.cm.twilight  # better than hsv for smooth cyclic phase
+    facecolors = cmap(norm(phase_2D))
+
+    # --- build quad faces ---
+    faces = []
+    face_colors = []
+
+    for i in range(Ntheta - 1):
+        for j in range(Nphi - 1):
+            verts = [
+                [X[i, j],     Y[i, j],     Z[i, j]],
+                [X[i+1, j],   Y[i+1, j],   Z[i+1, j]],
+                [X[i+1, j+1], Y[i+1, j+1], Z[i+1, j+1]],
+                [X[i, j+1],   Y[i, j+1],   Z[i, j+1]],
+            ]
+            faces.append(verts)
+            face_colors.append(facecolors[i, j])
+
+    poly = Poly3DCollection(
+        faces,
+        facecolors=face_colors,
+        edgecolors='k',
+        linewidths=0.3,
+        alpha=0.9
+    )
+
+    ax.add_collection3d(poly)
+
+    # --- colorbar ---
+    mappable = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    mappable.set_array(phase_2D)
+    cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
+    cbar.set_label("Phase [rad]")
+
+    # nicer ticks
+    cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
+    cbar.set_ticklabels([r"$-\pi$", r"$-\pi/2$", "0", r"$\pi/2$", r"$\pi$"])
+
+    # --- axes ---
+    if title is not None:
+        ax.set_title(title)
+
+    ax.set_aspect('equal')
+    ax.set_box_aspect([1, 1, 1])
+
+    RR = np.max(r0) * 1.1
+    ax.set_xlim([-RR, RR])
+    ax.set_ylim([-RR, RR])
+    ax.set_zlim([-RR, RR])
+    ax.set_axis_off()
+
+    extra_script(fig, ax)
+
+    ax.view_init(25, -45)
+
+    return fig, ax
+
 def plot_2D_directivity(
     G, Theta,
     fig=None,
