@@ -194,13 +194,37 @@ class BeamLoadings():
         # TODO: replace by time-variable contribution from beam loading harmonics!!!!!!!!!
         # should be of size Nr, Nt
         if BLH is not None:
-            pass
-        gamma = L_per_unit_span / self.rho / Ur # Nr
+            # BLH of size (3, Nk, Nr)
+            # gamma of size (Nr, Nt)
+
+            BLH_angle = np.arctan2(np.abs(BLH[2, :, :]), np.abs(BLH[1, :, :])) # phi / z 
+            BLH_magnitude = BLH[1, :, :] / np.cos(BLH_angle) # magnitude of the loading harmonics, shape (Nk, Nr)
+
+            gamma_k = BLH_magnitude / self.rho / Ur # Nr, Nk gamma in the frequency domain
+            period = 2 * np.pi / self.Omega # rotational period
+
+            kk = np.arange(0, BLH.shape[1], 1)
+
+            # double the kk and gamma_k arrays
+
+            gamma_k = np.concatenate((np.conj(gamma_k)[:0:-1], gamma_k), axis=0) # (2*Nk-1, Nr)
+            kk = np.concatenate((-kk[:0:-1], kk), axis=0) # (2*Nk-1,) 
+            #TODO: fix
+            gamma = np.sum(gamma_k[None, :, :] * np.exp(-1j *
+                 kk[None, :, None] * 2 * np.pi / period *
+                 time[:, None, None]), axis=1) # (Nt, Nr), gamma in time
+
+        else:
+            gamma = L_per_unit_span / self.rho / Ur # Nr
 
 
         # --- explicitly expand radial quantities
         Uz_e     = Uz[None, None, :]        # (1, 1, Nr)
-        gamma_e = gamma[None, None, :]      # (1, 1, Nr)
+        if BLH is not None:
+            gamma_e = gamma[None, :, :] # (1, Nt, Nr)
+        else:
+            gamma_e = gamma[None, None, :]      # (1, 1, Nr)
+
         r_e     = self.seg_radius[None, None, :]  # (1, 1, Nr)
         time_r = time[:, None]
 

@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from PotentialInteraction.blade_to_beam import BeamLoadings
+from PotentialInteraction.beam_to_blade import BladeLoadings
 from Hanson.far_field import HansonModel
 from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot_directivity_contour, plot_3D_directivity, plot_3D_phase_directivity
 
@@ -86,12 +87,29 @@ Nk = 40
 # plt.show()
 
 
-FACTOR = 100.0
+FACTOR = 1.0
 VMIN = VMIN + 20 * np.log10(FACTOR)
 VMAX = VMAX + 20 * np.log10(FACTOR)
 beam_l = BeamLoadings(
     twist_rad=twist,
     chord_m=chord,
+    radius_m=r_outer,
+    Uz0_mps=U_flow * np.sqrt(FACTOR),
+    Tprime_Npm=dT / dr * FACTOR,
+    Qprime_Npm=dQ / dr * FACTOR,
+    B=B,
+    Dcylinder_m=D_bras,
+    Lcylinder_m=g,
+    Omega_rads=Omega,
+    rho_kgm3=rho0,
+    c_mps=c0,
+    kmax=Nk,
+    nb=NBEAMS
+)
+
+blade_l = BladeLoadings(
+    twist_rad= twist,
+    chord_m= chord,
     radius_m=r_outer,
     Uz0_mps=U_flow * np.sqrt(FACTOR),
     Tprime_Npm=dT / dr * FACTOR,
@@ -148,10 +166,10 @@ if __name__ == "__main__":
     p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy') * FACTOR
     # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy')
 
-
-    beam_loading = beam_l.getBeamLoadingHarmonics() 
-    beam_loading_dynamic = beam_l.getBeamLoadingHarmonicsDynamic() # shape 3, Nk, Nr
-    beam_loading_temporal = beam_l.getBeamLoadingHarmonicsVortex()
+    BLH = blade_l.getBladeLoadingHarmonics()
+    beam_loading = beam_l.getBeamLoadingHarmonics(BLH=BLH) 
+    beam_loading_dynamic = beam_l.getBeamLoadingHarmonicsDynamic(BLH=BLH) # shape 3, Nk, Nr
+    beam_loading_temporal = beam_l.getBeamLoadingHarmonicsVortex(BLH=BLH)
     
     p_direct_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading) 
     p_dynamic_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading_dynamic) 
