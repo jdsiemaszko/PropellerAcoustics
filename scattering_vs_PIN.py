@@ -171,10 +171,10 @@ if __name__ == "__main__":
 
 
     ############## save results to a file as the computation takes some time
-    # p_scattered = sourceArray.getScatteredPressure(x_cart, m)
-    # np.save(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy', p_scattered)
-    # p_direct_blade = sourceArray.getDirectPressure(x_cart, m)
-    # np.save(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}.npy', p_direct_blade)
+    p_scattered = sourceArray.getScatteredPressure(x_cart, m)
+    np.save(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy', p_scattered)
+    p_direct_blade = sourceArray.getDirectPressure(x_cart, m)
+    np.save(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}.npy', p_direct_blade)
 
     p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy')
     p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}.npy')

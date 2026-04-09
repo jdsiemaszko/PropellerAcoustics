@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from PotentialInteraction.blade_to_beam import BeamLoadings
 from Hanson.far_field import HansonModel
-from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot_directivity_contour, plot_3D_directivity
+from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot_directivity_contour, plot_3D_directivity, plot_3D_phase_directivity
 
 import numpy as np
 
@@ -32,7 +32,7 @@ Nk = 40
 #         twist_rad=twist,
 #         chord_m=chord,
 #         radius_m=r_outer,
-#         Uz0_mps=U_flow,
+#         Uz0_mps=U_flow * np.sqrt(FACTOR), # downwash scaled according to momentum thry
 #         Tprime_Npm=dT / dr * FACTOR,
 #         Qprime_Npm=dQ / dr * FACTOR,
 #         B=B,
@@ -49,8 +49,8 @@ Nk = 40
 #     beam_loading_vortex = beam_l.getBeamLoadingHarmonicsVortex()  # shape (3, Nk, Nr)
 
 #     for i, k in enumerate(nks):
-#         magnitudes_dynamic[k].append(np.abs(beam_loading_dynamic[1, k*B, nr]))
-#         magnitudes_vortex[k].append(np.abs(beam_loading_vortex[1, k*B, nr]))
+#         magnitudes_dynamic[k].append(np.abs(beam_loading_dynamic[2, k*B, nr]))
+#         magnitudes_vortex[k].append(np.abs(beam_loading_vortex[2, k*B, nr]))
 
 # # Plotting
 # plt.figure(figsize=(8, 5))
@@ -85,13 +85,17 @@ Nk = 40
 # plt.tight_layout()
 # plt.show()
 
+
+FACTOR = 100.0
+VMIN = VMIN + 20 * np.log10(FACTOR)
+VMAX = VMAX + 20 * np.log10(FACTOR)
 beam_l = BeamLoadings(
     twist_rad=twist,
     chord_m=chord,
     radius_m=r_outer,
-    Uz0_mps=U_flow,
-    Tprime_Npm=dT / dr,
-    Qprime_Npm=dQ / dr,
+    Uz0_mps=U_flow * np.sqrt(FACTOR),
+    Tprime_Npm=dT / dr * FACTOR,
+    Qprime_Npm=dQ / dr * FACTOR,
     B=B,
     Dcylinder_m=D_bras,
     Lcylinder_m=g,
@@ -141,7 +145,7 @@ if __name__ == "__main__":
 
     ############## save results to a file as the computation takes some time
 
-    p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy')
+    p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy') * FACTOR
     # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy')
 
 
@@ -210,14 +214,52 @@ if __name__ == "__main__":
         p_vortex_beam + p_dynamic_beam, theta_m, phi_m,
         title=r'beam direct noise (total)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
     )
-
     fig, ax5 = plot_3D_directivity(
         p_scattered + p_dynamic_beam, theta_m, phi_m,
         title=r'PIN dynamic + scattered loading', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
     )
-
     fig, ax6 = plot_3D_directivity(
         p_direct_beam, theta_m, phi_m,
         title='beam total (reference)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
     )
     plt.show()
+
+        # 3D phase
+    fig = plt.figure(figsize=(7, 7))
+    ax1 = fig.add_subplot(321, projection="3d")
+    ax2 = fig.add_subplot(322, projection="3d")
+    ax3 = fig.add_subplot(323, projection="3d")
+    ax4 = fig.add_subplot(324, projection="3d")
+    ax5 = fig.add_subplot(325, projection="3d")
+    ax6 = fig.add_subplot(326, projection="3d")
+
+
+    fig, ax1 = plot_3D_phase_directivity(
+        p_scattered, theta_m, phi_m, title='blade scattered noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+    )
+    fig, ax2 = plot_3D_phase_directivity(
+        p_vortex_beam, theta_m, phi_m, title='beam noise (vortex)', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+    )
+    fig, ax3 = plot_3D_phase_directivity(
+        p_dynamic_beam, theta_m, phi_m, title='beam noise (dynamic)', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    )
+    # fig, ax4 = plot_3D_directivity(
+    #     p_direct_beam + p_direct_blade + p_scattered, theta_m, phi_m,
+    #       title='total loading noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+    # )
+    fig, ax4 = plot_3D_phase_directivity(
+        p_vortex_beam + p_dynamic_beam, theta_m, phi_m,
+        title='blade noise (total)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+    )
+
+    fig, ax5 = plot_3D_phase_directivity(
+        p_scattered + p_dynamic_beam, theta_m, phi_m,
+        title='direct blade + scattered blade', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+    )
+
+    fig, ax6 = plot_3D_phase_directivity(
+        p_direct_beam, theta_m, phi_m,
+        title='direct blade + direct beam', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+    )
+    plt.show()
+

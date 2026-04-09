@@ -11,8 +11,8 @@ rho0 = 1.2
 c0 = 340.0
 
 
-NR = 5
-NDIPOLES = 18*2 # VERY IMPORTANT, will fail at higher harmonics!
+NR = 10
+NDIPOLES = 18*4 # VERY IMPORTANT, will fail at higher harmonics!
 Ntheta = 18
 Nphi = 36
 numerics = {
@@ -45,7 +45,7 @@ T_cum = np.concatenate(([0], np.cumsum(dT)))
 Q_cum = np.concatenate(([0], np.cumsum(dQ)))
 
 # --- define coarse grid ---
-Nr_coarse = 5  # set this
+Nr_coarse = NR  # set this
 r0 = np.linspace(r0.min(), r0.max(), Nr_coarse)
 
 # --- rebuild edges on coarse grid ---
