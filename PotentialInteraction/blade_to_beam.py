@@ -54,7 +54,12 @@ class BeamLoadings():
     def getBeamLoadingHarmonicsDynamic(self, D__Dref_max=10.0, points_per_period = 20):
         return self.getBeamLoadingHarmonics(D__Dref_max, points_per_period, mode='dynamic')
 
-    def getBeamLoadingHarmonics(self, D__Dref_max=10.0, points_per_period = 20, mode='total'):
+    def getBeamLoadingHarmonics(self, D__Dref_max=10.0, points_per_period = 20, mode='total', BLH=None):
+        """
+        return loading harmonics acting on the beam, in the frequency domain
+        Results based on 2D potential flow theory with blade modelled as a point vortex
+        BLH: optional blade loading harmonics, if available, this enables the use of time-varying vortex strength
+        """
 
         period = 2 * np.pi / self.B / self.Omega
 
@@ -82,7 +87,7 @@ class BeamLoadings():
         Nt = time_1d.size
 
         # --- expand time to (Nt, Nr)
-        Fhat = self._getBeamVortexLoads(time_1d, mode=mode) # size (3, Nt, Nr)
+        Fhat = self._getBeamVortexLoads(time_1d, mode=mode, BLH=BLH) # size (3, Nt, Nr)
 
 
         T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
@@ -120,12 +125,12 @@ class BeamLoadings():
     #     angle = np.atan2(Fbeam[2, :, :] , Fbeam[1, :, :])
     #     return Fbeam[1, :, :] / np.cos(angle) # shape (Nk, Nr) assuming orientation
     
-    def _getBeamVortexLoads(self, time, Npoints=360, mode='total'):
+    def _getBeamVortexLoads(self, time, Npoints=360, mode='total', BLH=None):
 
         Nt = time.shape[0]
         Nr = self.Nr
 
-        pressure, thetab, deltathetab, pdyn, pvort = self._getBeamVortexPressure(time, Npoints) # (Npoints, Nt, Nr)
+        pressure, thetab, deltathetab, pdyn, pvort = self._getBeamVortexPressure(time, Npoints, BLH=BLH) # (Npoints, Nt, Nr)
 
         if mode == 'total':
             pass
@@ -163,7 +168,7 @@ class BeamLoadings():
 
         return Fbeam
 
-    def _getBeamVortexPressure(self, time, Npoints=360, overwrite_positions=None):
+    def _getBeamVortexPressure(self, time, Npoints=360, overwrite_positions=None, BLH=None):
         """
         time: array, shape (Nt, Nr)
         """
@@ -185,6 +190,11 @@ class BeamLoadings():
         # L_per_unit_span = T_per_unit_span
 
         Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
+
+        # TODO: replace by time-variable contribution from beam loading harmonics!!!!!!!!!
+        # should be of size Nr, Nt
+        if BLH is not None:
+            pass
         gamma = L_per_unit_span / self.rho / Ur # Nr
 
 
@@ -233,7 +243,7 @@ class BeamLoadings():
         else:
             return pressure, thetab, deltathetab, pressure_dynamic, pressure_vortex
     
-    def getBeamPressureHarmonics(self, D__Dref_max=10.0, points_per_period = 20, mode='total'):
+    def getBeamPressureHarmonics(self, D__Dref_max=10.0, points_per_period = 20, mode='total', BLH=None):
 
         period = 2 * np.pi / self.B / self.Omega
 
@@ -254,7 +264,7 @@ class BeamLoadings():
                             dt) # (Nt, Nr) ?, ensure all times in (-period/2, period/2) have plenty of datapoints outside to sum
         Nt = time_1d.size
 
-        pressure, thetab, deltathetab, pdyn, pvort = self._getBeamVortexPressure(time_1d) # pressure of shape Npoints, Nt, Nr
+        pressure, thetab, deltathetab, pdyn, pvort = self._getBeamVortexPressure(time_1d, BLH=BLH) # pressure of shape Npoints, Nt, Nr
 
         
         if mode == 'total':
