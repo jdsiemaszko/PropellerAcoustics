@@ -15,9 +15,9 @@ from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot
 
 
 # pick dataset 
-# from DataPost.Vella2026 import *
+from DataPost.Vella2026 import *
 
-from DataPost.eVTOLUTION import *
+# from DataPost.eVTOLUTION import *
 
 
 import numpy as np
@@ -32,6 +32,7 @@ import numpy as np
 
 NBEAMS = 1
 m = np.array([5]) # pick a harmonic with significant beam noise 
+SUFFIX = '_STEADY_DDR'
 
 if NBEAMS == 1:
     MODE = 'half'
@@ -112,7 +113,9 @@ BLH_US = np.zeros_like(BLH)
 BLH_US[:, 1:, :] = BLH[:, 1:, :]
 BLH_S = np.zeros_like(BLH)
 BLH_S[:, 0, :] = BLH[:, 0, :]
-sourceArray = SourceModeArray(BLH=BLH, # loading per unit span
+sourceArray = SourceModeArray(
+                        # BLH=BLH, 
+                        BLH=BLH_S, # isolate the steady component 
                         B = B,
                         Omega=Omega, gamma =twist,
                         axis=axis_prop, origin=origin_prop,
@@ -172,12 +175,12 @@ if __name__ == "__main__":
 
     ############## save results to a file as the computation takes some time
     p_scattered = sourceArray.getScatteredPressure(x_cart, m)
-    np.save(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy', p_scattered)
+    np.save(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy', p_scattered)
     p_direct_blade = sourceArray.getDirectPressure(x_cart, m)
-    np.save(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}.npy', p_direct_blade)
+    np.save(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy', p_direct_blade)
 
-    p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy')
-    p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}.npy')
+    p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
+    p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
 
 
     beam_loading = beam_l.getBeamLoadingHarmonics() 

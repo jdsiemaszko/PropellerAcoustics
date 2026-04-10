@@ -1,6 +1,6 @@
 import numpy as np
 import numpy as np
-from Constants.helpers import p_to_SPL, theodorsen
+from Constants.helpers import p_to_SPL, theodorsen, fft_periodic, ifft_periodic, twoside_spectrum
 from scipy.special import jv
 import matplotlib.pyplot as plt
 class BladeLoadings():
@@ -89,7 +89,7 @@ class BladeLoadings():
                 -k_k / r_r * Lc
                 + 1j * beta_r
             )
-            * (-1.0) ** k_k # difference is centering the loads at 0
+            # * (-1.0) ** k_k # difference is centering the loads at 0, not sure which is correct!
             # * np.exp(1j * np.pi * k_k) 
         )
 
@@ -109,6 +109,12 @@ class BladeLoadings():
         return wk
     
     def getBladeLoadingHarmonics(self):
+        """
+        returns loading ON the blade in the fourier domain
+        result of shape (3, Nk, Nr)
+        3: radial, axial, tangential
+        k's correspond to frequencies k * Omega
+        """
         Omega = self.Omega
         rho = self.rho
 

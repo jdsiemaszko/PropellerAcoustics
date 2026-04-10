@@ -45,18 +45,18 @@ TORQUEREF = 26.7/B/1000 # Nm
 #             'eps_k' : 1e-24,
 #                     }
 
-NR = 5
-NDIPOLES = 18*2 # VERY IMPORTANT, will fail at higher harmonics!
+NR = 5*2*2
+NDIPOLES = 18*2*2*2 # VERY IMPORTANT, will fail at higher harmonics!
 Ntheta = 18
 Nphi = 36
 numerics = {
-'nmax': 16,
-'Nq_prop': 64,
-'Nq_evan': 32,
+'nmax': 16*2,
+'Nq_prop': 64*2,
+'Nq_evan': 32*2,
 'eps_radius' : 1e-24, # must be lower than eps_eval!
-'Nazim' : 18, # discretization of the boundary in the azimuth
-'Nax': 32, # in the axial direction
-'RMAX': 10, # max radius!
+'Nazim' : 18*2, # discretization of the boundary in the azimuth
+'Nax': 64*2, # in the axial direction
+'RMAX': 20, # max radius!
 'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
 'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!

@@ -3,7 +3,7 @@
 import numpy as np
 import numpy as np
 from scipy.special import jv
-from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL, periodic_sum_interpolated
+from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL, periodic_sum_interpolated, fft_periodic, ifft_periodic, continuous_log
 import matplotlib.pyplot as plt
 class BeamLoadings():
 
@@ -49,10 +49,10 @@ class BeamLoadings():
         self.Tprime = Tprime_Npm # Nr
         self.Qprime = Qprime_Npm # Nr
 
-    def getBeamLoadingHarmonicsVortex(self, D__Dref_max=10.0, points_per_period = 20):
-        return self.getBeamLoadingHarmonics(D__Dref_max, points_per_period, mode='vortex')
-    def getBeamLoadingHarmonicsDynamic(self, D__Dref_max=10.0, points_per_period = 20):
-        return self.getBeamLoadingHarmonics(D__Dref_max, points_per_period, mode='dynamic')
+    def getBeamLoadingHarmonicsVortex(self, D__Dref_max=10.0, points_per_period = 20, BLH=None):
+        return self.getBeamLoadingHarmonics(D__Dref_max, points_per_period, mode='vortex', BLH=BLH)
+    def getBeamLoadingHarmonicsDynamic(self, D__Dref_max=10.0, points_per_period = 20, BLH=None):
+        return self.getBeamLoadingHarmonics(D__Dref_max, points_per_period, mode='dynamic', BLH=BLH)
 
     def getBeamLoadingHarmonics(self, D__Dref_max=10.0, points_per_period = 20, mode='total', BLH=None):
         """
@@ -162,7 +162,7 @@ class BeamLoadings():
             axis=0
         ) # (Nt, Nr) # lift, oriented upwards
 
-        Fbeam = np.zeros((3, Nt, Nr)) # Note: in the time domain!, size (3, Nt, Nr)
+        Fbeam = np.zeros((3, Nt, Nr), dtype=np.complex_) # Note: in the time domain!, size (3, Nt, Nr)
         Fbeam[1, :, :] = Fz
         Fbeam[2, :, :] = Fphi
 
@@ -191,7 +191,7 @@ class BeamLoadings():
 
         Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
 
-        # TODO: replace by time-variable contribution from beam loading harmonics!!!!!!!!!
+        # TODO: only consider the quasi-steady part?
         # should be of size Nr, Nt
         if BLH is not None:
             # BLH of size (3, Nk, Nr)
@@ -209,7 +209,6 @@ class BeamLoadings():
 
             gamma_k = np.concatenate((np.conj(gamma_k)[:0:-1], gamma_k), axis=0) # (2*Nk-1, Nr)
             kk = np.concatenate((-kk[:0:-1], kk), axis=0) # (2*Nk-1,) 
-            #TODO: fix
             gamma = np.sum(gamma_k[None, :, :] * np.exp(-1j *
                  kk[None, :, None] * 2 * np.pi / period *
                  time[:, None, None]), axis=1) # (Nt, Nr), gamma in time
@@ -255,10 +254,45 @@ class BeamLoadings():
         v = -np.imag(dfdz) # (Npoints, Nt, Nr)
         U = np.sqrt(u**2 + v**2) # (Npoints, Nt, Nr)
 
+        #TODO: incorporate unsteady circulation!
+
+        # if gamma is unsteady, we need to compute the partial derivative w.r.t to it!
+        # dphi/dt= RE(df/dt) = RE( delfdelt + delf/delzv * delzv/dt + delf/delzvbar * delzvbar/dt), first term is not accounted for in Vella et al. 2026
+        if BLH is not None:
+            # dGammadt, _ = ifft_periodic(gamma_k * (-1j * kk[:, None] * 2 * np.pi / period), period, time, kk) # compute the derivative
+            # dGammadt_e = dGammadt[None, :, :] # (1, Nt, Nr)
+            
+            
+            # # log1 = np.log(Z_e - Zv_e)
+            # # log2 = np.log(Z_circ_conjugate_e - Zvbar_e)
+            # log1 = continuous_log(Z_e - Zv_e, axis=1)
+            # log2 = continuous_log(Z_circ_conjugate_e - Zvbar_e, axis=1)
+
+            # # ignoring angle dependence
+            # # log1 = np.log(np.abs(Z_e - Zv_e))
+            # # log2 = np.log(np.abs(Z_circ_conjugate_e - Zvbar_e))
+
+            # delfdelt = -1j * log1 / 2 / np.pi * dGammadt_e + 1j * log2 / 2 / np.pi * dGammadt_e
+
+            # # delfdelt = np.angle(Z_e) / 2 / np.pi * dGammadt_e - np.angle(- Zvbar_e) / 2 / np.pi * dGammadt_e
+            delfdelt = 0.0 # ignore
+       
+        else:
+            delfdelt = 0.0 # ignore
+        # delfdelt = 0.0 # ignore
+        
+
         pressure_dynamic = 0.5 * self.rho * (Uz_e**2 - U**2)
         pressure_vortex = self.rho * gamma_e * self.Omega * r_e / 2 / np.pi * np.real(
             1j / Zvbar_e + 1j / (Zv_e - Z_e) - 1j / (Zvbar_e - Z_circ_conjugate_e)
         ) # (Npoints, Nt, Nr)
+
+        if BLH is not None:
+            # source: i made it up
+           
+            # dGammadt_e / 2 / np.pi * np.angle(Z_e) * self.rho -  self.rho * dGammadt_e / 2 / np.pi * np.angle(-Zvbar_e) - 
+            pressure_vortex += -self.rho * np.real(delfdelt)
+
         pressure =  pressure_dynamic + pressure_vortex
 
         if overwrite_positions is not None:

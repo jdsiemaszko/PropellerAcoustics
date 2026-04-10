@@ -799,3 +799,67 @@ def read_airfoil_table(filename, skip_lines=None):
         df.columns = clean_cols
 
     return df
+
+
+def fft_periodic(signal_t, period, time, k):
+    """fft of a periodic signal
+    signal - array of shape (Nt, ...)
+    time - array of shape (Nt,), should contain an integer no. of periods
+    k - multiples of the frequency 2 * pi / period to compute the fft
+    """
+
+
+    # --- determine integer number of periods ---
+    t0 = time[0]
+    duration = time[-1] - t0
+    Nperiods = int(np.floor(duration / period))  # truncate (not round!)
+
+    if Nperiods < 1:
+        raise ValueError("Time array does not contain at least one full period.")
+
+    t_max = t0 + Nperiods * period
+
+    # --- truncate time and signal ---
+    mask = time <= t_max
+    time = time[mask]
+    signal_t = signal_t[mask, ...]
+
+    dt = np.mean(np.diff(time))
+
+
+    signal_k = 1 / period / Nperiods * np.sum(signal_t[None, ...] * np.exp(+1j *
+                 k[:, None, None] * 2 * np.pi / period *
+                 time[None, :, None]) * dt, axis=1) # shape (Nk, ...)
+    
+    return signal_k, k
+
+def ifft_periodic(signal_k, period, time, k):
+    """ ifft of a periodic signal
+    signal_k - array of shape (Nk, ...)
+    k - multiples of the frequency 2 * pi / period of shape (Nk, )
+    time - time array to compute the signal on, shape (Nt, )
+    """
+
+    signal_t = np.sum(signal_k[None, :, ...] * np.exp(-1j *
+                 k[None, :, None] * 2 * np.pi / period *
+                 time[:, None, None]), axis=1) # (Nt, Nr), gamma in time
+
+    
+    return signal_t, time
+
+
+def twoside_spectrum(oneside, k):
+
+    """
+    append the components corresponding to -k to the original arrays
+    no rescaling is applied
+    """
+
+
+    twoside = np.concatenate((np.conj(oneside)[:0:-1], oneside), axis=0) # (2*Nk-1, Nr)
+    kk = np.concatenate((-k[:0:-1], k), axis=0) # (2*Nk-1,) 
+    return twoside, kk
+
+def continuous_log(z, axis=1):
+    """Compute a continuous complex logarithm by unwrapping the phase."""
+    return np.log(np.abs(z)) + 1j * np.unwrap(np.angle(z), axis=axis)
