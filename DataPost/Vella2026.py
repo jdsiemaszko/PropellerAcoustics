@@ -46,7 +46,7 @@ TORQUEREF = 26.7/B/1000 # Nm
 #                     }
 
 NR = 5*2*2
-NDIPOLES = 18*2*2*2 # VERY IMPORTANT, will fail at higher harmonics!
+NDIPOLES = 18*2 # VERY IMPORTANT, will fail at higher harmonics!
 Ntheta = 18
 Nphi = 36
 numerics = {

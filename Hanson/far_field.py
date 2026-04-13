@@ -297,7 +297,7 @@ class HansonModel():
         # return np.array([R_arr, theta_arr, phi_arr])
         return np.array([X, Y, Z]), np.array([R_arr, theta_arr, phi_arr]), theta_m, phi_m # shape (3, Ntheta * Nphi) each
     
-    def plot3Ddirectivity(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.0,
+    def plot3Ddirectivity(self, m:float, loadings=None, valmax=None, valmin=None, R=1.0,
                         Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None, mode='rotor', loadings_2=None,
                         chord=None, t_c=None):
         
@@ -324,6 +324,11 @@ class HansonModel():
                 pmB_rotor_thickness, _ = self.getThicknessNoiseRotor(x_cart, np.array([m]), chord, t_c)
             pmB_stator, _ = self.getPressureStator(x_cart, np.array([m * self.B]).reshape(1,), Fstator=loadings_2, multiplier=self.nbeam) # of shape (Nx=Ntheta*Nphi, 1)
             pmB = pmB_rotor + pmB_stator + pmB_rotor_thickness
+        elif mode=='thickness':
+            if (chord is not None and t_c is not None):
+                pmB, _ = self.getThicknessNoiseRotor(x=x_cart, m=np.array([m]), chord=chord, thickness_to_chord=t_c)
+            else:
+                raise ValueError(f'chord and thickness-to-chord not specified')
         else:
             raise ValueError("Invalid mode, should be 'rotor', 'stator', or 'total'")
         pmB = pmB[:, 0] # shape (Nx,)
@@ -593,3 +598,19 @@ class HansonModel():
         plt.tight_layout()
 
         return fig, ax
+
+
+# sample class
+NRADIALSEGMENTS = 20
+NHARMONICS = 40
+axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
+origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
+NACA0012_T10_HANSON = HansonModel(
+radius_m=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
+axis=axis_prop, origin=origin_prop,
+# radial=np.array([1, 0, 0]), # coordinate system (not needed here)
+Omega_rads=8000 / 60 * 2 * np.pi,
+rho_kgm3=1.2, # fluid density [kg/m^3]
+c_mps= 340.0, # speed of sound [m/s]
+nb=1 # number of beams (irrelevant)
+)

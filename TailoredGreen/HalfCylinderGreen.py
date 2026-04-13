@@ -453,6 +453,26 @@ class SF_FullCylinderGreen(HalfCylinderGreen):
                 k += 1
 
         return pos, normals, areas, z_edges, th_edges
+    
+# class instance
+caxis = np.array([1.0, 0.0, 0.0])
+corigin = np.array([0.0, 0.0, -0.02])
+numerics = {
+'nmax': 16*2,
+'Nq_prop': 64,
+'Nq_evan': 32,
+'eps_radius' : 1e-24, # must be lower than eps_eval!
+'Nazim' : 18, # discretization of the boundary in the azimuth
+'Nax': 64, # in the axial direction
+'RMAX': 20, # max radius!
+'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
+# Note: the function is currently NOT checking if the panels are compact!
+}
+CG_NACA0012_T10 =  HalfCylinderGreen(radius=0.02/2, axis=caxis, origin=corigin, dim=3, 
+                        numerics=numerics)
+
 
 class HalfCylinderGreem_Iterative(HalfCylinderGreen):
     def __init__(self, radius, axis, origin, radial = None, dim=3,

@@ -139,6 +139,8 @@ U_flow_interp = U_flow_interp.reshape(len(z), len(r_rT))
 
 U_flow = -U_flow_interp[0, :]
 
+U_flow_2 = -U_flow_interp[1, :]
+
 # ------------------------------------------------------------------
 # Class initializations using shared instances
 # ------------------------------------------------------------------
@@ -168,7 +170,7 @@ beam_l = BeamLoadings(
     twist_rad=np.deg2rad(pitch)* np.ones(r_outer.shape),
     chord_m=c* np.ones(r_outer.shape),
     radius_m=r_outer,
-    Uz0_mps=U_flow,
+    Uz0_mps=U_flow_2,
     # Uz0_mps= np.sqrt(dT / dr / 4 / np.pi / rho0 / r0), # induced axial velocity according to momentum theory
     Tprime_Npm= dT / dr,
     Qprime_Npm= dQ / dr,
@@ -246,8 +248,8 @@ BL  =  beam_l.getBeamLoadingHarmonics()
 pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL, multiplier=1)[0][0]
 
 pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
-# pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
-pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
+pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
+# pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
 
 SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)

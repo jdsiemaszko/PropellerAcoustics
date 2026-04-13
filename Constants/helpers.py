@@ -351,12 +351,13 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
         mag = np.abs(g) # take square of magnitude as measure
 
-
-
         mag_db = p_to_SPL(mag)
         if valmax is None:
+            print(f'setting upper 3D plot limit to: {mag_db.max()} [dB]')
             valmax = min(mag_db.max(), 200)
+
         if valmin is None:
+            print(f'setting lower 3D plot limit to: {mag_db.min()} [dB]')
             valmin = max(mag_db.min(), -120)
             
         print(f'maximum magnitude: {np.max(mag_db)} [dB]')

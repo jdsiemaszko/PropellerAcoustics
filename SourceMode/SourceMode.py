@@ -20,7 +20,9 @@ class SourceMode():
     def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TailoredGreen, radial:np.ndarray=None,
                   numerics={
                       'Ndipoles':36
-                  }
+                  },
+                  dr = None,
+                  dt = None
 
                   ):
         self.green = green
@@ -32,6 +34,8 @@ class SourceMode():
         self.axis = axis / np.linalg.norm(axis)
         self.origin = origin
         self.radius = radius
+        self.dr = dr # radial segment length of the element, used to compute thickness noise
+        self.dt = dt # thickness of the element, used to compute thickness noise
         self.numerics=numerics
         if radial is None:
             # choose an arbitrary radial direction perpendicular to the axis
@@ -186,6 +190,48 @@ class SourceMode():
     def getScatteringGreen(self, x:np.ndarray, k:np.ndarray, G_surface=None):
         return self.green.getScatteringGreen(x, self.dipole_positions, k, green_at_surface=G_surface)
 
+    def getThicknessSources(self, m, Omega,  rho0=1.2):
+        # compute equivalent mass terms, shape (Nm, Ny), units of Pa * m = N / m
+
+        sources = -1j * rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
+                * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+        return sources
+
+
+    def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float):
+        # G is of shape (Nm, Nx, Ny)
+        monopoles = self.getThicknessSources(m, Omega) # shape (Nm, Ny) units of Pa * m = N / m
+        pmB = np.einsum('m y, m x y -> x m', monopoles, G) # shape Nx, Nm # units of Pa
+        return pmB * self.B
+
+
+    def getThicknessPressureDirect(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2):
+        """
+        compute the thickness noise, direct radiation only
+        """
+        green = self.green
+        G = green.getFreeSpaceGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        
+        return self._getMonopolePressure(x, m, G, Omega)
+    
+    def getThicknessPressureScattered(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2):
+        """
+        compute the thickness noise, direct radiation only
+        """
+        green = self.green
+        G = green.getScatteringGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        
+        return self._getMonopolePressure(x, m, G, Omega)
+
+    def getThicknessPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2):
+        """
+        compute the thickness noise, direct radiation only
+        """
+        green = self.green
+        G = green.getGreenFunction(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        
+        return self._getMonopolePressure(x, m, G, Omega)
+
     def plotGeometry(self):
         green = self.green
         fig, ax = plt.subplots(subplot_kw={'projection':'3d'})
@@ -321,15 +367,17 @@ class SourceModeArray():
     def __init__(self, BLH:np.ndarray, B:int,   Omega:float, gamma:np.ndarray, axis:np.ndarray,
                   origin:np.ndarray, radius:np.ndarray, green:TailoredGreen, radial:np.ndarray=None,
                   c = 340.0,
+                  rho0 = 1.2,
                 numerics={
                     'Ndipoles':36
-                }
+                },
+                dt = None
                 ):
         """
         BLH - shape (3, Nk, Nr) - array of blade loading harmonics (complex magnitudes!) in units newton per meter!
         r - array of edges of radial stations (incl start and end point!) (Nr+1)
         gamma - array of blade twists, same as above (Nr+1)
-
+        dt - segment thickness IN METERS, np.ndarray of size (Nr)
         """ 
 
 
@@ -339,6 +387,7 @@ class SourceModeArray():
         self.B = B
         self.Omega = Omega
         self.SoS = c # speed of sound 
+        self.rho0=rho0
 
 
         self.twist = gamma # Nr + 1
@@ -349,6 +398,7 @@ class SourceModeArray():
         self.seg_twist = (gamma[1:] + gamma[:-1]) / 2
         self.seg_radius = (radius[1:] + radius[:-1]) / 2
         self.dr = np.diff(radius) # (Nr)
+        self.dt = dt
         self.Nr = len(self.seg_radius) # number of radial segments
         self.Nk = self.BLH.shape[1] 
         # self.Nr = self.BLH.shape[1] #should be the same as size of seg_radius!
@@ -377,7 +427,7 @@ class SourceModeArray():
             self.children[index] = SourceMode(
                 BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
                         B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
-                numerics=self.numerics
+                numerics=self.numerics, dr = self.dr[index], dt = self.dt[index] if dt is not None else None
             ) # construct source modes at each radial station
 
     def getPressure(self, x:np.ndarray, m:np.ndarray, gradG=None):
@@ -412,6 +462,7 @@ class SourceModeArray():
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
+
     
     def getDirectPressure(self, x:np.ndarray, m:np.ndarray):
         if not isinstance(m, np.ndarray):
@@ -425,6 +476,40 @@ class SourceModeArray():
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
+    def getThicknessPressureDirect(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        print('computing direct thickness acoustic  pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            pmB += child.getThicknessPressureDirect(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+        return pmB
+    
+
+    def getThicknessPressureScattered(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        print('computing scattered thickness acoustic  pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            pmB += child.getThicknessPressureScattered(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+        return pmB
+    
+    def getThicknessPressure(self, x:np.ndarray, m:np.ndarray):
+        if not isinstance(m, np.ndarray):
+            m = np.array([m])
+
+        print('computing thickness acoustic pressure')
+        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        for index, child in enumerate(self.children):
+            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            pmB += child.getThicknessPressure(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+        return pmB
+
     
     def _getSurfacePressureEstFullCylinder(self, x:np.ndarray, m:np.ndarray):
         if not isinstance(m, np.ndarray):
@@ -443,10 +528,13 @@ class SourceModeArray():
             # compute the pressure from each ring
             pmB += child._getPressureFromGrad(x, m, gradG[:, :, :, index*child.numerics['Ndipoles']:(index+1)*child.numerics['Ndipoles']])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
-        return pmB
+        return pmB 
     
-    
-    def plotSelf(self, fig, ax, plot_normals='last'):
+    def plotSelf(self, fig=None, ax=None, plot_normals='last'):
+        
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(subplot_kw={'projection':'3d'})
+        
         for child in self.children:
             child.plotRing(fig, ax)
 
@@ -483,21 +571,75 @@ class SourceModeArray():
         self.children[-1].plotAxis(fig, ax)
         
     def plotFarFieldPressure(self, m, R=None, Nphi=36, Ntheta=18, c=340,extra_script=lambda fig, ax: None, blending=0.1,
-                             valmin = None, valmax=None, fig=None, ax=None):
+                             valmin = None, valmax=None, fig=None, ax=None, mode='tl'):
         # if extra_script is None:
         #     extra_script = self.plotSelf
+
+
+
+        """
+        mode: one of strings {'t', 'tl', 'dl', 'sl', 'd', 'tt', 'dt', 'st', 's'} representing, in order:
+        total, total loading, direct loading, scattered loading, direct, total thickness,
+        direct thickness, scattered thickness, scattered noise
+        """
 
         Omega = self.Omega
         x, Theta, Phi = self.green.getFarFieldx(np.min(m) * self.B * Omega / c, Nphi=Nphi, Ntheta=Ntheta, R=R)
 
-        pmB = self.getPressure(x, m)
+
+        if mode == 't':
+            pmB1 = self.getPressure(x, m)
+            pmB2 = self.getThicknessPressure(x, m)
+            pmB = pmB1 + pmB2
+            modestring = 'total'
+        elif mode == 'tl':
+            pmB = self.getPressure(x, m)
+            modestring = 'total loading'
+
+        elif mode == 'dl':
+            pmB = self.getDirectPressure(x, m)
+            modestring = 'direct loading'
+
+        elif mode == 'sl':
+            pmB = self.getScatteredPressure(x, m)
+            modestring = 'scattered loading'
+
+        elif mode == 'd':
+            pmB1 = self.getDirectPressure(x, m)
+            pmB2 = self.getThicknessPressureDirect(x, m)
+            pmB = pmB1 + pmB2
+
+            modestring = 'direct'
+
+        elif mode == 'tt':
+            pmB = self.getThicknessPressure(x, m)
+            modestring = 'total thickness'
+
+        elif mode == 'dt':
+            pmB = self.getThicknessPressureDirect(x, m)
+            modestring = 'direct thickness'
+
+        elif mode == 'st':
+            pmB = self.getThicknessPressureScattered(x, m)
+
+            modestring = 'scattered thickness'
+
+        elif mode == 's':
+            pmB1 = self.getScatteredPressure(x, m)
+            pmB2 = self.getThicknessPressureScattered(x, m)
+            pmB = pmB1 + pmB2
+            modestring = 'scattered thickness'
+
+        else:
+            raise ValueError(f'mode {mode} not recognized')
+
         k = Omega/c * m
         R = R if R is not None else (1e3 / k)
         fig, ax = plot_3D_directivity(
             pmB, Theta, Phi, 
             extra_script=extra_script,
             blending=blending,
-            title=f"Far-field directivity of $p_{{mB}}$",
+            title=f"Far-field directivity of $p_{{mB}}$ ({modestring})",
             valmin=valmin,
             valmax=valmax,
             fig=fig,
@@ -542,6 +684,43 @@ class SourceModeArray():
         SPL_mb = p_to_SPL(pmB)
         self.green._plotSurfaceSolution(SPL_mb, z_centers, th_centers, fig=fig, ax=ax, levels=20, cmap='viridis', title=None, extent_z=extend_z, )
         return fig, ax, pmB, z_centers, th_centers
+
+
+# sample class instance
+from PotentialInteraction.beam_to_blade import NACA0012_T10_PIN
+BLH = NACA0012_T10_PIN.getBladeLoadingHarmonics()
+NRADIALSEGMENTS = 20
+NHARMONICS = 40
+gf = TailoredGreen(dim=3) # free-field version!
+axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
+origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
+NACA0012_T10_SOURCEMODE_FF = SourceModeArray(
+                        BLH=BLH, # isolate the steady component 
+                        B = 2,
+                        Omega=8000 / 60 * 2 * np.pi, gamma = np.deg2rad(10) * np.ones(NRADIALSEGMENTS + 1),
+                        axis=axis_prop, origin=origin_prop,
+                        radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
+                        green=gf,
+                        numerics={'Ndipoles' : 36},
+                        c = 340.0,
+                        rho0=1.2,
+                        dt = 0.0122 * 0.025 * np.ones(NRADIALSEGMENTS)
+                        )
+from TailoredGreen.HalfCylinderGreen import CG_NACA0012_T10
+NACA0012_T10_SOURCEMODE_HALFCYLINDER = SourceModeArray(
+                        BLH=BLH, # isolate the steady component 
+                        B = 2,
+                        Omega=8000 / 60 * 2 * np.pi, gamma = np.deg2rad(10) * np.ones(NRADIALSEGMENTS + 1),
+                        axis=axis_prop, origin=origin_prop,
+                        radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
+                        green=CG_NACA0012_T10,
+                        numerics={'Ndipoles' : 36},
+                        c = 340.0,
+                        rho0=1.2,
+                        dt = 0.0122 * 0.025 * np.ones(NRADIALSEGMENTS)
+                        )
+
+
 
         
 if __name__ == "__main__":

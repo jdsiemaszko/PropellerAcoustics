@@ -166,7 +166,7 @@ if __name__ == "__main__":
     p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}.npy') * FACTOR
     # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}.npy')
 
-    BLH = blade_l.getBladeLoadingHarmonics()
+    BLH = blade_l.getBladeLoadingHarmonics(QS=True) # QS blade loading, used to compute the QS circulation!
     beam_loading = beam_l.getBeamLoadingHarmonics(BLH=BLH) 
     beam_loading_dynamic = beam_l.getBeamLoadingHarmonicsDynamic(BLH=BLH) # shape 3, Nk, Nr
     beam_loading_temporal = beam_l.getBeamLoadingHarmonicsVortex(BLH=BLH)

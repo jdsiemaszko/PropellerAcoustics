@@ -279,7 +279,6 @@ class BeamLoadings():
        
         else:
             delfdelt = 0.0 # ignore
-        # delfdelt = 0.0 # ignore
         
 
         pressure_dynamic = 0.5 * self.rho * (Uz_e**2 - U**2)
@@ -289,7 +288,6 @@ class BeamLoadings():
 
         if BLH is not None:
             # source: i made it up
-           
             # dGammadt_e / 2 / np.pi * np.angle(Z_e) * self.rho -  self.rho * dGammadt_e / 2 / np.pi * np.angle(-Zvbar_e) - 
             pressure_vortex += -self.rho * np.real(delfdelt)
 

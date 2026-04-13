@@ -108,7 +108,7 @@ class BladeLoadings():
 
         return wk
     
-    def getBladeLoadingHarmonics(self):
+    def getBladeLoadingHarmonics(self, QS=False):
         """
         returns loading ON the blade in the fourier domain
         result of shape (3, Nk, Nr)
@@ -153,9 +153,17 @@ class BladeLoadings():
         
         US_TERM = np.ones((Nk, Nr), dtype=np.complex128)
         US_TERM[0, :] = 1.0
-        C = theodorsen(sigma[1:, :])
-        T1 = jv(0, mu[1:, :]) - 1j * jv(1, mu[1:, :])
-        T2 = 1j * sigma[1:, :] / mu[1:, :] * jv(1, mu[1:, :])
+
+        if not QS:
+            C = theodorsen(sigma[1:, :])
+            T1 = jv(0, mu[1:, :]) - 1j * jv(1, mu[1:, :])
+            T2 = 1j * sigma[1:, :] / mu[1:, :] * jv(1, mu[1:, :])
+        else:
+            # quasi-steady
+            C = 1.0
+            T1 = jv(0, mu[1:, :]) - 1j * jv(1, mu[1:, :])
+            T2 = 0.0
+
 
         US_TERM[1:, :] = np.conjugate(C * T1 + T2)
         
@@ -187,3 +195,27 @@ class BladeLoadings():
     def getBladeLoadingMagnitude(self):
         Fblade = self.getBladeLoadingHarmonics()
         return Fblade[1, :, :] / np.cos(self.seg_twist[None, :]) # shape (Nk, Nr) assuming orientation
+    
+
+
+# example instance
+from DataPost.Vella2026 import U_flow, dT, dr, dQ
+
+NRADIALSEGMENTS = 20
+NHARMONICS = 40
+NACA0012_T10_PIN = BladeLoadings(
+    twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS + 1),
+    chord_m = 0.025 * np.ones(NRADIALSEGMENTS + 1),
+    radius_m=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
+    Uz0_mps=U_flow,
+    Tprime_Npm=dT / dr,
+    Qprime_Npm=dQ / dr,
+    B=2,
+    Dcylinder_m=0.02,
+    Lcylinder_m=0.02,
+    Omega_rads=8000/60*2*np.pi,
+    rho_kgm3=1.2,
+    c_mps=340.0,
+    kmax=NHARMONICS,
+    nb=1
+)
