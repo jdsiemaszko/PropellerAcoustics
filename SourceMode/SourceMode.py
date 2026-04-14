@@ -214,12 +214,13 @@ class SourceMode():
         
         return self._getMonopolePressure(x, m, G, Omega)
     
-    def getThicknessPressureScattered(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2):
+    def getThicknessPressureScattered(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2, G=None):
         """
         compute the thickness noise, direct radiation only
         """
         green = self.green
-        G = green.getScatteringGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        if G is None: # compute the gradient (expensive)
+            G = green.getScatteringGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
         
         return self._getMonopolePressure(x, m, G, Omega)
 
@@ -488,15 +489,18 @@ class SourceModeArray():
         return pmB
     
 
-    def getThicknessPressureScattered(self, x:np.ndarray, m:np.ndarray):
+    def getThicknessPressureScattered(self, x:np.ndarray, m:np.ndarray, G=None):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
+
+        if G is None:
+            G = [None] * self.Nr # 
 
         print('computing scattered thickness acoustic  pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getThicknessPressureScattered(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+            pmB += child.getThicknessPressureScattered(x, self.Omega, m, c=self.SoS, rho0=self.rho0, G=G[index])
         return pmB
     
     def getThicknessPressure(self, x:np.ndarray, m:np.ndarray):
@@ -564,6 +568,9 @@ class SourceModeArray():
             print(f'plot_normals value of {plot_normals} not recognized, not plotting any normals')
         ax.set_box_aspect([1, 1, 1])
 
+        return fig, ax
+    
+    
     def plotRing(self, fig, ax):
         self.children[-1].plotRing(fig, ax)
 
@@ -701,10 +708,10 @@ NACA0012_T10_SOURCEMODE_FF = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
                         green=gf,
-                        numerics={'Ndipoles' : 36},
+                        numerics={'Ndipoles' : 36*2},
                         c = 340.0,
                         rho0=1.2,
-                        dt = 0.0122 * 0.025 * np.ones(NRADIALSEGMENTS)
+                        dt = 0.122 * 0.025 * np.ones(NRADIALSEGMENTS)
                         )
 from TailoredGreen.HalfCylinderGreen import CG_NACA0012_T10
 NACA0012_T10_SOURCEMODE_HALFCYLINDER = SourceModeArray(
@@ -714,10 +721,10 @@ NACA0012_T10_SOURCEMODE_HALFCYLINDER = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
                         green=CG_NACA0012_T10,
-                        numerics={'Ndipoles' : 36},
+                        numerics={'Ndipoles' : 36*2},
                         c = 340.0,
                         rho0=1.2,
-                        dt = 0.0122 * 0.025 * np.ones(NRADIALSEGMENTS)
+                        dt = 0.122 * 0.025 * np.ones(NRADIALSEGMENTS)
                         )
 
 
