@@ -230,7 +230,7 @@ class HansonModel():
         Nr = Fstator.shape[2]
 
         # Preallocate with zeros (this automatically handles missing modes)
-        Fm = np.zeros((3, Nm, Nr), dtype=np.complex_)
+        Fm = np.zeros((3, Nm, Nr), dtype=np.complex128)
 
         # Find which requested modes exist
         valid_mask = np.array([mb in lookup for mb in m_int])

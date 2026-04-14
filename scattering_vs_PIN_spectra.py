@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 
-ind_theta = 6       # -60 to 60 in 10
-ind_phi = 9          # 0 to 350 in 10
+ind_theta = 7       # -60 to 60 in 10
+ind_phi = 0          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -66,12 +66,12 @@ SUFFIX = '_HIGHRES'
 
 # save gradients on the surface (run once per m)
 
-for index, sm in enumerate(sourceArray.children):
-    #TODO: reuse this for directivities
-    print(f'pre-computing surface gradients: {index+1}')
-    source_positions = sm.dipole_positions
-    gradG_surface = sm.green.getGreenGradAtSurface(source_positions, ms*B * Omega / c0) # shape (3, Nm, Nz, Ny)
-    np.save(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy', gradG_surface)
+# for index, sm in enumerate(sourceArray.children):
+#     #TODO: reuse this for directivities
+#     print(f'pre-computing surface gradients: {index+1}')
+#     source_positions = sm.dipole_positions
+#     gradG_surface = sm.green.getGreenGradAtSurface(source_positions, ms*B * Omega / c0) # shape (3, Nm, Nz, Ny)
+#     np.save(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy', gradG_surface)
 
 # save gradients in the far-field (run once per observer and m)
 for index, sm in enumerate(sourceArray.children):

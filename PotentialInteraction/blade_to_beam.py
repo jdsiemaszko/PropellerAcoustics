@@ -3,7 +3,7 @@
 import numpy as np
 import numpy as np
 from scipy.special import jv
-from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL, periodic_sum_interpolated, fft_periodic, ifft_periodic, continuous_log
+from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL, periodic_sum_interpolated, fft_periodic, ifft_periodic, continuous_log, fft_periodic, ifft_periodic, twoside_spectrum
 import matplotlib.pyplot as plt
 class BeamLoadings():
 
@@ -162,11 +162,48 @@ class BeamLoadings():
             axis=0
         ) # (Nt, Nr) # lift, oriented upwards
 
-        Fbeam = np.zeros((3, Nt, Nr), dtype=np.complex_) # Note: in the time domain!, size (3, Nt, Nr)
+        Fbeam = np.zeros((3, Nt, Nr), dtype=np.complex128) # Note: in the time domain!, size (3, Nt, Nr)
         Fbeam[1, :, :] = Fz
         Fbeam[2, :, :] = Fphi
 
         return Fbeam
+
+    def getGammaHarmonics(self, BLH=None):
+        Uz = self.Uz # Nr # negative
+        Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
+        if BLH is None:
+            T_per_unit_span = self.Tprime # Nr, units of N/m
+            Q_per_unit_span = self.Qprime # Nr, units of N/m
+            L_per_unit_span = np.sqrt(T_per_unit_span**2 + Q_per_unit_span**2)
+            gamma = L_per_unit_span / self.rho / Ur # Nr
+            return gamma
+
+        BLH_angle = np.arctan2(np.abs(BLH[2, :, :]), np.abs(BLH[1, :, :])) # phi / z 
+        BLH_magnitude = BLH[1, :, :] / np.cos(BLH_angle) # magnitude of the loading harmonics, shape (Nk, Nr)
+
+        gamma_k = BLH_magnitude / self.rho / Ur # Nr, Nk gamma in the frequency domain
+
+        return gamma_k
+    
+    def getGammaInTime(self, time, BLH=None):
+        gamma_k = self.getGammaHarmonics(BLH) # shape (Nk, Nr) or (Nr) if BLH is None
+ 
+        if BLH is None:
+            return np.ones_like(time)[:, None] * gamma_k[None, :], time
+
+        period = 2 * np.pi / self.Omega
+        gamma_k, k = twoside_spectrum(gamma_k, self.k)
+        gamma, _ = ifft_periodic(gamma_k, period, time, k) # shape (Nt, Nr), gamma in the time domain
+        return gamma, time
+    
+    def getLoadingInTime(self, time, BLH=None):
+        Fbeam = self.getBeamLoadingHarmonics(BLH=BLH) # shape (3, Nk, Nr)
+        period = 2 * np.pi / self.Omega
+        loadings_in_time = np.zeros((3, len(time), self.Nr), dtype=np.complex128)
+        for i in range(3):
+            fkk, k = twoside_spectrum(Fbeam[i, :, :], self.k)
+            loadings_in_time[i, :, :] = ifft_periodic(fkk, period, time, k)[0] # 3, Nt, Nr
+        return loadings_in_time, time
 
     def _getBeamVortexPressure(self, time, Npoints=360, overwrite_positions=None, BLH=None):
         """
@@ -176,42 +213,28 @@ class BeamLoadings():
         Nt = time.shape[0]
         Nr = self.Nr
 
-        T_per_unit_span = self.Tprime # Nr, units of N/m
-        Q_per_unit_span = self.Qprime # Nr, units of N/m
+
         
         Uz = self.Uz # Nr # negative
-
+        Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
 
         # stagger = np.arctan(Uz / self.Omega / self.seg_radius) # Nr
         # stagger = self.seg_twist # wrong?????
         #                             # VERY WRONG!
         # L_per_unit_span = T_per_unit_span * np.cos(stagger)
+        T_per_unit_span = self.Tprime # Nr, units of N/m
+        Q_per_unit_span = self.Qprime # Nr, units of N/m
         L_per_unit_span = np.sqrt(T_per_unit_span**2 + Q_per_unit_span**2)
         # L_per_unit_span = T_per_unit_span
 
-        Ur = np.sqrt(Uz**2 + (self.Omega * self.seg_radius)**2) # Nr
+
 
         # TODO: only consider the quasi-steady part?
         # should be of size Nr, Nt
         if BLH is not None:
             # BLH of size (3, Nk, Nr)
             # gamma of size (Nr, Nt)
-
-            BLH_angle = np.arctan2(np.abs(BLH[2, :, :]), np.abs(BLH[1, :, :])) # phi / z 
-            BLH_magnitude = BLH[1, :, :] / np.cos(BLH_angle) # magnitude of the loading harmonics, shape (Nk, Nr)
-
-            gamma_k = BLH_magnitude / self.rho / Ur # Nr, Nk gamma in the frequency domain
-            period = 2 * np.pi / self.Omega # rotational period
-
-            kk = np.arange(0, BLH.shape[1], 1)
-
-            # double the kk and gamma_k arrays
-
-            gamma_k = np.concatenate((np.conj(gamma_k)[:0:-1], gamma_k), axis=0) # (2*Nk-1, Nr)
-            kk = np.concatenate((-kk[:0:-1], kk), axis=0) # (2*Nk-1,) 
-            gamma = np.sum(gamma_k[None, :, :] * np.exp(-1j *
-                 kk[None, :, None] * 2 * np.pi / period *
-                 time[:, None, None]), axis=1) # (Nt, Nr), gamma in time
+            gamma = self.getGammaInTime(time, BLH)[0] # shape (Nt, Nr)    
 
         else:
             gamma = L_per_unit_span / self.rho / Ur # Nr

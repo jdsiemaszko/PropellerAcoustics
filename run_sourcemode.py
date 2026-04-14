@@ -26,7 +26,7 @@ cg = CylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3,
 
 #SOURCE MODE
 TWIST = np.deg2rad(00)
-loadings = np.array([0.0, 1.0 * np.cos(TWIST), 1.0 * np.sin(TWIST)], dtype=np.complex_).reshape(3, 1, 1)
+loadings = np.array([0.0, 1.0 * np.cos(TWIST), 1.0 * np.sin(TWIST)], dtype=np.complex128).reshape(3, 1, 1)
 DR = 0.1
 source = SourceMode(BLH=loadings.reshape(3, 1) * DR, B=2, gamma=TWIST,
                      axis=np.array([0., 0.0, 1.]), origin=np.array([0, 0.0,0.0]), radius=D_prop/2,

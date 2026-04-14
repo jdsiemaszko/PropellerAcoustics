@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from PotentialInteraction.blade_to_beam import BeamLoadings
+from PotentialInteraction.beam_to_blade import BladeLoadings
 import scipy.io
 from Constants.helpers import periodic_sum_interpolated
 from Hanson.far_field import HansonModel
@@ -127,10 +128,28 @@ beam_l = BeamLoadings(
     nb=1
 )
 
+blade_l = BladeLoadings(
+    twist_rad=np.deg2rad(10)* np.ones(r_outer.shape),
+    chord_m=c* np.ones(r_outer.shape),
+    radius_m=r_outer,
+    Uz0_mps=-U_flow_m01R,
+    Tprime_Npm=dT / dr,
+    Qprime_Npm=dQ / dr,
+    B=B,
+    Dcylinder_m=D_bras,
+    Lcylinder_m=g,
+    Omega_rads=Omega,
+    rho_kgm3=rho,
+    c_mps=340,
+    kmax=40,
+    nb=1
+)
+
 # loadings = beam_l.getBeamLoadingHarmonics()
 # pass
-
-loadings_in_time = beam_l._getBeamVortexLoads(time)
+BLH = blade_l.getBladeLoadingHarmonics()
+loadings_in_time = beam_l._getBeamVortexLoads(time, BLH = BLH)
+loadings_in_time_steady = beam_l._getBeamVortexLoads(time, BLH = None)
 
 fig, ax = plt.subplots()
 
@@ -139,10 +158,13 @@ nr = 15
 print(r_pos[15], r[15])
 
 period = 2 * np.pi / B / Omega
-ax.plot(time / period, Fx[nr, :], color='b',linestyle='dashed')
-ax.plot(time / period, -Fphi[nr, :], color='r',linestyle='dashed') # opposite sign 
-ax.plot(time / period, loadings_in_time[1, :, nr], color='b', label='$F_x$')
-ax.plot(time / period, loadings_in_time[2, :, nr], color='r', label='$F_\phi$')
+# ax.plot(time / period, Fx[nr, :], color='b',linestyle='dashed')
+# ax.plot(time / period, -Fphi[nr, :], color='r',linestyle='dashed') # opposite sign 
+ax.plot(time / period, loadings_in_time[1, :, nr], color='b', label='Unsteady ($F_x$)')
+ax.plot(time / period, loadings_in_time[2, :, nr], color='r', label='Unsteady ($F_\phi$)')
+
+ax.plot(time / period, loadings_in_time_steady[1, :, nr], color='b', label='Steady ($F_x$)',linestyle='dashed')
+ax.plot(time / period, loadings_in_time_steady[2, :, nr], color='r', label='Steady ($F_\phi$)',linestyle='dashed')
 
 ax.set_xlabel('$t/T$')
 ax.set_ylabel('$F$ [N/m]')
@@ -155,6 +177,8 @@ points_per_period = 20
 k_local = np.arange(1, 41, 1)
 T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
 T_periodic, F_beam = periodic_sum_interpolated(loadings_in_time, period=period, time=time, kind='cubic', t_new=T_periodic)
+_, F_beam_steady = periodic_sum_interpolated(loadings_in_time_steady, period=period, time=time, kind='cubic', t_new=T_periodic)
+
 dt = T_periodic[1] - T_periodic[0]
 Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
 
@@ -164,15 +188,20 @@ F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(1j *
             k_local[None, :, None, None] * 2 * np.pi / period * 
             T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp
 
+F_beam_k_steady = 1/period * np.sum(F_beam_steady[:, None, :, :] * np.exp(1j *
+            k_local[None, :, None, None] * 2 * np.pi / period * 
+            T_periodic[None, None, :, None]) * dt, axis=2) # our convention for fourier transform: minus in the exp
 
 
 
 fig, ax = plt.subplots()
 
-ax.plot(k_local, np.abs(Fx_k[nr, :])*B, color='b',linestyle='dashed', marker='s')
-ax.plot(k_local, np.abs(Fphi_k[nr, :])*B, color='r',linestyle='dashed', marker='s') # opposite sign 
-ax.plot(k_local, np.abs(F_beam_k[1, :, nr]), color='b', label='$F_x$', marker='^')
-ax.plot(k_local, np.abs(F_beam_k[2, :, nr]), color='r', label='$F_\phi$', marker='^')
+# ax.plot(k_local, np.abs(Fx_k[nr, :])*B, color='b',linestyle='dashed', marker='s')
+# ax.plot(k_local, np.abs(Fphi_k[nr, :])*B, color='r',linestyle='dashed', marker='s') # opposite sign 
+ax.plot(k_local, np.abs(F_beam_k[1, :, nr]), color='b', label='Unsteady ($F_x$)', marker='^')
+ax.plot(k_local, np.abs(F_beam_k[2, :, nr]), color='r', label='Unsteady ($F_\phi$)', marker='^')
+ax.plot(k_local, np.abs(F_beam_k_steady[1, :, nr]), color='b', label='Steady ($F_x$)', marker='^', linestyle='dashed')
+ax.plot(k_local, np.abs(F_beam_k_steady[2, :, nr]), color='r', label='Steady ($F_\phi$)', marker='^', linestyle='dashed')
 
 ax.set_xlabel('$k$')
 ax.set_ylabel('$F$ [N/m]')
@@ -184,8 +213,7 @@ plt.show()
 
 # Initialize Module
 NSEG = len(r0)
-hm = HansonModel(twist_rad = np.deg2rad(10 * np.ones(NSEG+1)), # blade twist array [rad] of size Nr+1 (segment edges)
-                chord_m = c * np.ones(NSEG+1), # blade chord array [m] of size Nr+1
+hm = HansonModel(
                 radius_m=r_outer, # blade radius stations [m] of size Nr + 1
                 axis=np.array([0, 0, 1]), origin=np.array([0, 0, 0]), radial=np.array([1, 0, 0]), # coordinate system (not needed here)
                 B=2, # number of blades
@@ -205,19 +233,26 @@ SPL_REF = p_to_SPL(P_REF)
 
 data = scipy.io.loadmat('Data/Vella2026/BPF_BEAM.mat')
 BPF_REF = data['BPF'][0] / Omega / B * 2 * np.pi
-
+MS = np.arange(1, 21, 1)*B
 p, _ = hm.getPressureStator(
-        x = np.array([R * np.cos(theta) * np.cos(phi), R * np.cos(theta) * np.sin(phi), R*np.sin(theta)]).T, # position to plot the spectrum at
-        m = np.arange(1, 21, 1)*B, # modes to compute, only mutiples of BPF!
-        Fbeam=beam_l.getBeamLoadingHarmonics())
+        x = np.array([R * np.cos(theta) * np.cos(phi), R * np.cos(theta) * np.sin(phi), R*np.sin(theta)]).reshape((3, 1)), # position to plot the spectrum at
+        m = MS, # modes to compute, only mutiples of BPF!
+        Fstator=beam_l.getBeamLoadingHarmonics(BLH=BLH))
+
+p_steady, _ = hm.getPressureStator(
+        x = np.array([R * np.cos(theta) * np.cos(phi), R * np.cos(theta) * np.sin(phi), R*np.sin(theta)]).reshape((3, 1)), # position to plot the spectrum at
+        m = MS, # modes to compute, only mutiples of BPF!
+        Fstator=beam_l.getBeamLoadingHarmonics(BLH=None))
 
 # 3) Plot spectrum at a point
 fig, ax = plt.subplots()
-ax.plot(BPF_REF, p_to_SPL(p.reshape((20,))), color='r', marker='x', markersize=10)
-ax.plot(BPF_REF, SPL_REF, color='k', linestyle='dashed', marker='^')
+ax.plot(BPF_REF, p_to_SPL(p.reshape((len(MS),))), color='r', marker='^', label='Unsteady')
+ax.plot(BPF_REF, p_to_SPL(p_steady.reshape((len(MS),))), color='b', marker='s', label='Steady')
+ax.plot(BPF_REF, SPL_REF, color='k', linestyle='dashed', label='Reference (Vella et al. 2026)')
 ax.set_xlabel('$f^+$')
 ax.set_ylabel('$SPL$')
 ax.grid()
+ax.legend()
 plt.tight_layout()
 plt.show()
 
@@ -225,7 +260,7 @@ plt.show()
 
 
 fig, ax = plt.subplots()
-ax.plot(np.arange(1, 11, 1), np.angle(p.reshape((10,))), color='r', marker='x', markersize=10)
+ax.plot(np.arange(1,len(MS)+1, 1), np.angle(p.reshape((len(MS),))), color='r', marker='x', markersize=10)
 ax.plot(BPF_REF, np.angle(P_REF), color='k', linestyle='dashed', marker='^')
 
 

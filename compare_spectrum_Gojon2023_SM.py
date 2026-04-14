@@ -235,11 +235,11 @@ x_cart = np.array([
 ]).reshape((3, 1))
 
 Nr = len(r0)
-steady_loading = np.zeros((3, Nk+1, Nr), dtype=np.complex_)
+steady_loading = np.zeros((3, Nk+1, Nr), dtype=np.complex128)
 steady_loading[1, 0, :] = dT / dr
 steady_loading[2, 0, :] = dQ / dr
 
-unsteady_loading = np.zeros((3, Nk+1, Nr), dtype=np.complex_)
+unsteady_loading = np.zeros((3, Nk+1, Nr), dtype=np.complex128)
 unsteady_loading[:, 1:, :] = blade_l.getBladeLoadingHarmonics()[:, 1:, :]
 
 

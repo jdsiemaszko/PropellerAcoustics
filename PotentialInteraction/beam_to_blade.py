@@ -108,6 +108,23 @@ class BladeLoadings():
 
         return wk
     
+    def getUpwashInTime(self, time):
+        wk = self.getDistortionHarmonics() # (Nk, Nr)
+        period = 2 * np.pi / self.Omega
+        wk, k = twoside_spectrum(wk, self.k)
+        w, _ = ifft_periodic(wk, period, time, k)
+        return w, time
+    
+    def getLoadingInTime(self, time):
+
+        Fblade = self.getBladeLoadingHarmonics() # shape (3, Nk, Nr)
+        period = 2 * np.pi / self.Omega
+        loadings_in_time = np.zeros((3, len(time), self.Nr), dtype=np.complex128)
+        for i in range(3):
+            fkk, k = twoside_spectrum(Fblade[i, :, :], self.k)
+            loadings_in_time[i, :, :] = ifft_periodic(fkk, period, time, k)[0]
+        return loadings_in_time, time
+
     def getBladeLoadingHarmonics(self, QS=False):
         """
         returns loading ON the blade in the fourier domain
