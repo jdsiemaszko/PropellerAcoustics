@@ -7,3 +7,4 @@ SourceMode/__pycache__/SourceMode.cpython-310.pyc
 /.vscode/*.json
 Data/*
 /.Data/*
+Data.zip
