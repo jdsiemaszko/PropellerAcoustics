@@ -98,11 +98,11 @@ Omega = RPM * 2 * np.pi / 60
 c0 = 340
 rho0 = 1.
 
-for index, sm in enumerate(NACA0012_T10_SOURCEMODE_HALFCYLINDER.children):
-    print(f'pre-computing surface Greens functions: {index+1} of {Nr}')
-    source_positions = sm.dipole_positions
-    G_surface = sm.green.getGreenAtSurface(source_positions, ms*B * Omega / c0) # shape (Nm, Nz, Ny)
-    np.save(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
+# for index, sm in enumerate(NACA0012_T10_SOURCEMODE_HALFCYLINDER.children):
+#     print(f'pre-computing surface Greens functions: {index+1} of {Nr}')
+#     source_positions = sm.dipole_positions
+#     G_surface = sm.green.getGreenAtSurface(source_positions, ms*B * Omega / c0) # shape (Nm, Nz, Ny)
+#     np.save(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
 
 # save gradients in the far-field (run once per observer and m)
 for index, sm in enumerate(NACA0012_T10_SOURCEMODE_HALFCYLINDER.children):
@@ -120,9 +120,8 @@ for index, sm in enumerate(NACA0012_T10_SOURCEMODE_HALFCYLINDER.children):
 
 
 p_scattered = NACA0012_T10_SOURCEMODE_HALFCYLINDER.getThicknessPressureScattered(x_cart, ms, G=G_arr)[0]
-np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
-
-p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy')
+# np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
+# p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy')
 
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental", color='k', alpha=0.75)

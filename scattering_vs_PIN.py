@@ -116,6 +116,8 @@ BLH_S[:, 0, :] = BLH[:, 0, :]
 sourceArray = SourceModeArray(
                         # BLH=BLH, 
                         BLH=BLH_S, # isolate the steady component 
+                        # BLH=BLH_US, 
+
                         B = B,
                         Omega=Omega, gamma =twist,
                         axis=axis_prop, origin=origin_prop,
@@ -123,7 +125,8 @@ sourceArray = SourceModeArray(
                         green = cg,
                         # green = gf,
                         numerics={'Ndipoles' : NDIPOLES},
-                        c = c0
+                        c = c0,
+                        dt = 0.122 * 0.025 * np.ones_like(twist) # thickness
                         )
 
 

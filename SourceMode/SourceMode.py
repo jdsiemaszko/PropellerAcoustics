@@ -193,14 +193,17 @@ class SourceMode():
     def getThicknessSources(self, m, Omega,  rho0=1.2):
         # compute equivalent mass terms, shape (Nm, Ny), units of Pa * m = N / m
 
-        sources = -1j * rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
+        # sources = -1j * rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
+                # * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+
+        sources = -rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
                 * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
         return sources
 
 
-    def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float):
+    def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float, rho0:float):
         # G is of shape (Nm, Nx, Ny)
-        monopoles = self.getThicknessSources(m, Omega) # shape (Nm, Ny) units of Pa * m = N / m
+        monopoles = self.getThicknessSources(m, Omega, rho0=rho0) # shape (Nm, Ny) units of Pa * m = N / m
         pmB = np.einsum('m y, m x y -> x m', monopoles, G) # shape Nx, Nm # units of Pa
         return pmB * self.B
 
@@ -210,9 +213,9 @@ class SourceMode():
         compute the thickness noise, direct radiation only
         """
         green = self.green
-        G = green.getFreeSpaceGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+        G = green.getFreeSpaceGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (Nm, Nx, Ny)
         
-        return self._getMonopolePressure(x, m, G, Omega)
+        return self._getMonopolePressure(x, m, G, Omega, rho0)
     
     def getThicknessPressureScattered(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2, G=None):
         """
@@ -220,9 +223,9 @@ class SourceMode():
         """
         green = self.green
         if G is None: # compute the gradient (expensive)
-            G = green.getScatteringGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
+            G = green.getScatteringGreen(x, self.dipole_positions, m * Omega * self.B / c) # shape (Nm, Nx, Ny)
         
-        return self._getMonopolePressure(x, m, G, Omega)
+        return self._getMonopolePressure(x, m, G, Omega, rho0)
 
     def getThicknessPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2):
         """
@@ -231,7 +234,7 @@ class SourceMode():
         green = self.green
         G = green.getGreenFunction(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
         
-        return self._getMonopolePressure(x, m, G, Omega)
+        return self._getMonopolePressure(x, m, G, Omega, rho0)
 
     def plotGeometry(self):
         green = self.green
