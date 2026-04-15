@@ -167,11 +167,12 @@ class HansonModel():
             x, self.axis, self.origin, self.radial, self.normal
         ) # each of size Nx
 
-        Mtip = self.r1 * self.Omega / c0
-        Mr = self.radius_c * self.Omega / c0
-        kx = 2 * m[:, None] * self.B * chord[None, :] / self.r1 / 2 * Mtip / Mr[None, :] # shape Nm, Nr
+
 
         #TODO: some fuckery with kx?
+        # Mtip = self.r1 * self.Omega / c0
+        # Mr = self.radius_c * self.Omega / c0
+        # kx = 2 * m[:, None] * self.B * chord[None, :] / self.r1 / 2 * Mtip / Mr[None, :] # shape Nm, Nr
         # matrix = Mr[None, None, :]**2 * jv(m[None, :, None]*self.B, m[None, :, None]*self.B*Mr[None, None, :] *
         #                                    np.sin(theta[:, None, None])) * kx[None, :, :]**2 * thickness_to_chord[None, None, :] # Nx, Nm, Nr # TODO: check?
 
