@@ -22,7 +22,8 @@ class SourceMode():
                       'Ndipoles':36
                   },
                   dr = None,
-                  dt = None
+                  dt = None,
+                  chord = None,
 
                   ):
         self.green = green
@@ -36,6 +37,7 @@ class SourceMode():
         self.radius = radius
         self.dr = dr # radial segment length of the element, used to compute thickness noise
         self.dt = dt # thickness of the element, used to compute thickness noise
+        self.chord = chord # chord used in thickness noise (Glegg)
         self.numerics=numerics
         if radial is None:
             # choose an arbitrary radial direction perpendicular to the axis
@@ -196,7 +198,7 @@ class SourceMode():
         # sources = -1j * rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
                 # * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
 
-        sources = -rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
+        sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord * np.exp(1j
                 * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
         return sources
 
@@ -375,13 +377,15 @@ class SourceModeArray():
                 numerics={
                     'Ndipoles':36
                 },
-                dt = None
+                dt = None,
+                chord = None
                 ):
         """
         BLH - shape (3, Nk, Nr) - array of blade loading harmonics (complex magnitudes!) in units newton per meter!
         r - array of edges of radial stations (incl start and end point!) (Nr+1)
         gamma - array of blade twists, same as above (Nr+1)
         dt - segment thickness IN METERS, np.ndarray of size (Nr)
+        chord - segment chord in METERS, size (Nr)
         """ 
 
 
@@ -403,6 +407,7 @@ class SourceModeArray():
         self.seg_radius = (radius[1:] + radius[:-1]) / 2
         self.dr = np.diff(radius) # (Nr)
         self.dt = dt
+        self.chord = chord # Nr
         self.Nr = len(self.seg_radius) # number of radial segments
         self.Nk = self.BLH.shape[1] 
         # self.Nr = self.BLH.shape[1] #should be the same as size of seg_radius!
@@ -431,7 +436,8 @@ class SourceModeArray():
             self.children[index] = SourceMode(
                 BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
                         B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
-                numerics=self.numerics, dr = self.dr[index], dt = self.dt[index] if dt is not None else None
+                numerics=self.numerics, dr = self.dr[index], dt = self.dt[index] if dt is not None else None,
+                chord = self.chord[index] if self.chord is not None else None
             ) # construct source modes at each radial station
 
     def getPressure(self, x:np.ndarray, m:np.ndarray, gradG=None):
@@ -714,7 +720,8 @@ NACA0012_T10_SOURCEMODE_FF = SourceModeArray(
                         numerics={'Ndipoles' : 36*2},
                         c = 340.0,
                         rho0=1.2,
-                        dt = 0.122 * 0.025 * np.ones(NRADIALSEGMENTS)
+                        dt = 0.0809 * 0.025 * np.ones(NRADIALSEGMENTS),
+                        chord = 0.025 * np.ones(NRADIALSEGMENTS),
                         )
 from TailoredGreen.HalfCylinderGreen import CG_NACA0012_T10
 NACA0012_T10_SOURCEMODE_HALFCYLINDER = SourceModeArray(
@@ -727,7 +734,8 @@ NACA0012_T10_SOURCEMODE_HALFCYLINDER = SourceModeArray(
                         numerics={'Ndipoles' : 36*2},
                         c = 340.0,
                         rho0=1.2,
-                        dt = 0.122 * 0.025 * np.ones(NRADIALSEGMENTS)
+                        dt = 0.0809 * 0.025 * np.ones(NRADIALSEGMENTS),
+                        chord = 0.025 * np.ones(NRADIALSEGMENTS),
                         )
 
 

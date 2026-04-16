@@ -20,7 +20,7 @@ R0_PROP = 0.5 # m
 R1_PROP = 1.5 # m
 OMEGA = 1.0 # rad/s 
 K_BPF = OMEGA * NBLADES / SOS # 1
-ROBS = 100.0 / K_BPF # far field!
+ROBS = 10.0 / K_BPF # far field!
 
 K = 1 # K'th forcing harmonic
 M = 2 # m'th pressure mode to resolve

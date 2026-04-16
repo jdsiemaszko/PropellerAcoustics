@@ -181,6 +181,21 @@ class HansonModel():
         #                                                 matrix * self.dr[None, None, :], axis=-1) # integrate over r
         
 
+        # matrix = jv(m[None, :, None] * self.B, m[None, :, None] * self.B * self.Omega / c0 * self.radius_c[None, None, :]
+        #             * np.sin(theta[:, None, None])) * np.exp(1j
+        #             * (m[None, :, None]  * self.B) * (phi[:, None, None]  - np.pi/2))  # shape Nx, Nm, Nr
+
+        # pt_mb = np.einsum('xmr,r,r,r -> xm',
+        #     matrix,
+        #     thickness_to_chord * chord,
+        #     self.radius_c,
+        #     self.dr
+        # )
+
+        # pt_mb *= -1j * m * self.B * multiplier * self.Omega**2 * self.rho * np.exp(1j
+        #         * m * self.B * self.Omega / c0 * R) / 4 / np.pi / R
+
+        
         matrix = jv(m[None, :, None] * self.B, m[None, :, None] * self.B * self.Omega / c0 * self.radius_c[None, None, :]
                     * np.sin(theta[:, None, None])) * np.exp(1j
                     * (m[None, :, None]  * self.B) * (phi[:, None, None]  - np.pi/2))  # shape Nx, Nm, Nr
@@ -188,11 +203,11 @@ class HansonModel():
         pt_mb = np.einsum('xmr,r,r,r -> xm',
             matrix,
             thickness_to_chord * chord,
-            self.radius_c,
+            chord,
             self.dr
         )
 
-        pt_mb *= -1j * m * self.B * multiplier * self.Omega**2 * self.rho * np.exp(1j
+        pt_mb *= -m**2 * self.B**2 * multiplier * self.Omega**2 * self.rho * np.exp(1j
                 * m * self.B * self.Omega / c0 * R) / 4 / np.pi / R
 
         return pt_mb, x

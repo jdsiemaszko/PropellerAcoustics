@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 
-ind_theta = 6       # -60 to 60 in 10
+ind_theta = 2       # -60 to 60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -55,24 +55,32 @@ ms = np.arange(1, 11, 1) # harmonics to extract
 
 
 
-pSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
-                                    #    blade_l.getBladeLoadingHarmonics()
-                                    BLH_S
-                                       )[0][0]
+# pSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+#                                     #    blade_l.getBladeLoadingHarmonics()
+#                                     BLH_S
+#                                        )[0][0]
 
-pUSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+# pUSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+#                                     #    blade_l.getBladeLoadingHarmonics()
+#                                     BLH_US
+#                                        )[0][0]
+# pLmB_model_rotor = pSmB_model_rotor + pUSmB_model_rotor
+# SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
+# SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
+pLmB_model_rotor = han.getPressureRotor(x_cart, ms, 
                                     #    blade_l.getBladeLoadingHarmonics()
-                                    BLH_US
+                                    BLH
                                        )[0][0]
 
 ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.122 * np.ones_like(r0))[0][0] # NACA0012
-BL  =  beam_l.getBeamLoadingHarmonics()
+BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
 pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
-pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
-pmB_model_rotor_loading = pSmB_model_rotor + pUSmB_model_rotor
-# pmB_model_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
-pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
+
+pmB_model_rotor_total = pLmB_model_rotor + ptmB_model_rotor
+pmB_model_rotor_loading = pLmB_model_rotor
+pmB_model_total = pLmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
+# pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
 
 
 
@@ -134,8 +142,6 @@ p_rotor_total = p_direct + p_direct_thickness
 p_total_minus_scattered_thickness = p_total_scattering - p_scattered_thickness
 
 # SPLS PIN MODEL
-SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
-SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
 SPL_rotor_loading = p_to_SPL(pmB_model_rotor_loading)
 
 SPL_rotor_total = p_to_SPL(pmB_model_rotor_total)

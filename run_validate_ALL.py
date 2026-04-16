@@ -19,7 +19,7 @@ def print_hdf5_structure(name, obj):
 # _________ INPUTS __________
 
 # arbitrary 
-ms = np.array([1, 2, 4, 8]) # modes to plot
+ms = np.array([1, 2, 3, 4]) # modes to plot
 
 # ASSUMPTIONS
 NBLADES = 2

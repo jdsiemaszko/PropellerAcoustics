@@ -50,8 +50,8 @@ pUSmB_model_rotor = han.getPressureRotor(x_cart, ms,
                                     BLH_US
                                        )[0][0]
 
-ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.122 * np.ones_like(r0))[0][0] # NACA0012
-BL  =  beam_l.getBeamLoadingHarmonics()
+ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.0809 * np.ones_like(r0))[0][0] # NACA0012
+BL  =  beam_l.getBeamLoadingHarmonics(BLH = BLH)
 pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
 pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
@@ -95,6 +95,7 @@ p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
 np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
 
 p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy')
+p_scattered_US = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_UNSTEADY_{MODE}_{ind_theta}_{ind_phi}.npy')
 
 SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
@@ -103,6 +104,8 @@ SPL_rotor_thickness = p_to_SPL(ptmB_model_rotor)
 SPL_beam = p_to_SPL(pmB_model_beam)
 
 SPL_scattered = p_to_SPL(p_scattered)
+SPL_scattered_US = p_to_SPL(p_scattered_US)
+
 
 
 
@@ -124,7 +127,9 @@ ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental, total", c
 # ax.plot(ms, SPL_beam, label=f"Model (beam, loading)", color='m', marker='o')
 # ax.plot(ms, SPL_total, label=f"Model (total)", color='k', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_beam, label=f"Beam PIN", color='r', marker='o')
-ax.plot(ms, SPL_scattered, label=f"Blade Scattering", color='b', marker='s')
+ax.plot(ms, SPL_scattered, label=f"Blade Scattering (steady)", color='b', marker='s')
+ax.plot(ms, SPL_scattered_US, label=f"Blade Scattering (unsteady)", color='g', marker='^')
+
 
 
 

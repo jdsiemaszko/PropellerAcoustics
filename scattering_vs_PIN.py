@@ -114,8 +114,8 @@ BLH_US[:, 1:, :] = BLH[:, 1:, :]
 BLH_S = np.zeros_like(BLH)
 BLH_S[:, 0, :] = BLH[:, 0, :]
 sourceArray = SourceModeArray(
-                        # BLH=BLH, 
-                        BLH=BLH_S, # isolate the steady component 
+                        BLH=BLH, 
+                        # BLH=BLH_S, # isolate the steady component 
                         # BLH=BLH_US, 
 
                         B = B,
@@ -126,7 +126,9 @@ sourceArray = SourceModeArray(
                         # green = gf,
                         numerics={'Ndipoles' : NDIPOLES},
                         c = c0,
-                        dt = 0.122 * 0.025 * np.ones_like(twist) # thickness
+                        dt = 0.122 * 0.025 * np.ones_like(twist), # thickness
+                        chord = 0.025 * np.ones_like(twist) # chord length
+
                         )
 
 

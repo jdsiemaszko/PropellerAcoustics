@@ -86,7 +86,7 @@ x_cart = np.array([
 ms = np.arange(1, 11, 1)
 
 p_t_sm = NACA0012_T10_SOURCEMODE_FF.getThicknessPressureDirect(x_cart, ms)
-p_t_han, _ = NACA0012_T10_HANSON.getThicknessNoiseRotor(x_cart, ms, chord=0.025 * np.ones(20), thickness_to_chord = 0.122 * np.ones(20))
+p_t_han, _ = NACA0012_T10_HANSON.getThicknessNoiseRotor(x_cart, ms, chord=0.025 * np.ones(20), thickness_to_chord = 0.0809 * np.ones(20))
 
 # ------------------------------------------------ scattered pressure (reuse solutions)
 # extract and rearrange
@@ -101,7 +101,7 @@ rho0 = 1.
 # for index, sm in enumerate(NACA0012_T10_SOURCEMODE_HALFCYLINDER.children):
 #     print(f'pre-computing surface Greens functions: {index+1} of {Nr}')
 #     source_positions = sm.dipole_positions
-#     G_surface = sm.green.getGreenAtSurface(source_positions, ms*B * Omega / c0) # shape (Nm, Nz, Ny)
+    # G_surface = sm.green.getGreenAtSurface(source_positions, ms*B * Omega / c0) # shape (Nm, Nz, Ny)
 #     np.save(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
 
 # save gradients in the far-field (run once per observer and m)
@@ -160,24 +160,24 @@ plt.tight_layout()
 plt.show()
 
 
-# fig, ax = plt.subplots(figsize=(7, 4))
-# ax.plot(ms, np.rad2deg(np.angle(p_t_sm[0])), label=f"Source-Mode (Direct)", color='r', marker='^')
-# # ax.plot(ms, p_to_SPL(p_t_sm_scat[0]), label=f"Source-Mode (Scattered)", color='g', marker='o')
-# ax.plot(ms, np.rad2deg(np.angle(p_t_han[0])), label=f"Hanson", color='b', marker='s')
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.plot(ms, np.rad2deg(np.angle(p_t_sm[0])), label=f"Source-Mode (Direct)", color='r', marker='^')
+# ax.plot(ms, p_to_SPL(p_t_sm_scat[0]), label=f"Source-Mode (Scattered)", color='g', marker='o')
+ax.plot(ms, np.rad2deg(np.angle(p_t_han[0])), label=f"Hanson", color='b', marker='s')
 
 
 
-# ax.legend()
-# ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
-# ax.set_ylabel("Angle (deg)")
-# ax.set_xscale('log')
-# # ax.set_yscale('log')
+ax.legend()
+ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
+ax.set_ylabel("Angle (deg)")
+ax.set_xscale('log')
+# ax.set_yscale('log')
 
-# ax.grid(visible=True, which='major', color='k', linestyle='-')
-# ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
+ax.grid(visible=True, which='major', color='k', linestyle='-')
+ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
 
 
-# plt.xlim(0.1, 100)
-# plt.ylim(-180, 180)
-# plt.tight_layout()
-# plt.show()
+plt.xlim(0.1, 100)
+plt.ylim(-180, 180)
+plt.tight_layout()
+plt.show()
