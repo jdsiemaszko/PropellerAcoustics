@@ -22,13 +22,13 @@ cg_2D = CylinderGreen(radius=0.5, axis=axis[:2], origin=origin[:2], dim=2,
                 })
 
 
-# fig = plt.figure(figsize=(7, 7))
-# ax = fig.add_subplot(111, projection="3d")
-# cg_3D.plotSelf(fig, ax)
-# ax.set_aspect('equal')
-# # ax.set_axis_off()
-# plt.show()
-# plt.close()
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(111, projection="3d")
+cg_3D.plotSelf(fig, ax)
+ax.set_aspect('equal')
+# ax.set_axis_off()
+plt.show()
+plt.close()
 
 # fig = plt.figure(figsize=(7, 7))
 # ax = fig.add_subplot(111, projection="3d")

@@ -25,7 +25,7 @@ cg = CylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3,
                     }) # cylinder
 
 #SOURCE MODE
-TWIST = np.deg2rad(00)
+TWIST = np.deg2rad(10)
 loadings = np.array([0.0, 1.0 * np.cos(TWIST), 1.0 * np.sin(TWIST)], dtype=np.complex128).reshape(3, 1, 1)
 DR = 0.1
 source = SourceMode(BLH=loadings.reshape(3, 1) * DR, B=2, gamma=TWIST,
@@ -46,13 +46,13 @@ hm = HansonModel(
                 nb = 2 # number of beams (irrelevant)
                 )
 
-# fig = plt.figure(figsize=(7, 7))
-# ax = fig.add_subplot(111, projection="3d")
-# source.plotSelf(fig, ax)
-# # ax.set_box_aspect([1, 1, 1])
-# ax.set_aspect('equal')
-# plt.show()
-# plt.close()
+fig = plt.figure(figsize=(7, 7))
+ax = fig.add_subplot(111, projection="3d")
+source.plotSelf(fig, ax)
+# ax.set_box_aspect([1, 1, 1])
+ax.set_aspect('equal')
+plt.show()
+plt.close()
 
 fig = plt.figure(figsize=(7, 7))
 ax1 = fig.add_subplot(111, projection="3d")
