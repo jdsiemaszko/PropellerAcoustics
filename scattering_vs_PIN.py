@@ -49,12 +49,13 @@ ddr = r0[1] - r0[0]
 r_outer = np.concatenate((r0-ddr/2, [r0[-1]+ddr/2]))
 ddr = np.diff(r_outer)
 Nk = 40
-
+U_flow_momentum = np.sqrt(dT / dr /  4 / np.pi / rho0 / r0)
 blade_l = BladeLoadings(
     twist_rad= twist,
     chord_m= chord,
     radius_m=r_outer,
-    Uz0_mps=U_flow,
+    # Uz0_mps=U_flow,
+    Uz0_mps = U_flow_momentum,
     Tprime_Npm=dT / dr,
     Qprime_Npm=dQ / dr,
     B=B,
@@ -71,7 +72,8 @@ beam_l = BeamLoadings(
     twist_rad=twist,
     chord_m=chord,
     radius_m=r_outer,
-    Uz0_mps=U_flow,
+    # Uz0_mps=U_flow,
+    Uz0_mps = U_flow_momentum,
     Tprime_Npm= dT / dr,
     Qprime_Npm= dQ / dr,
     B=B,
@@ -126,7 +128,7 @@ sourceArray = SourceModeArray(
                         # green = gf,
                         numerics={'Ndipoles' : NDIPOLES},
                         c = c0,
-                        dt = 0.122 * 0.025 * np.ones_like(twist), # thickness
+                        dt = 0.082 * 0.025 * np.ones_like(twist), # thickness
                         chord = 0.025 * np.ones_like(twist) # chord length
 
                         )

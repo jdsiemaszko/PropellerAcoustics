@@ -5,6 +5,10 @@ import numpy as np
 from scipy.special import jv
 from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL, periodic_sum_interpolated, fft_periodic, ifft_periodic, continuous_log, fft_periodic, ifft_periodic, twoside_spectrum
 import matplotlib.pyplot as plt
+
+
+
+
 class BeamLoadings():
 
     def __init__(self, twist_rad:np.ndarray, chord_m:np.ndarray, radius_m:np.ndarray,
@@ -14,7 +18,7 @@ class BeamLoadings():
                   B=2, Dcylinder_m=0.0, Lcylinder_m=0.0, Omega_rads=1.0, rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1):
 
         """
-        arrays: twist, chord, radius of size Nr+1, defined as edges of radial stationsc:\Program Files\Mendeley Reference Manager\resources\app.asar\dist\production.html
+        arrays: twist, chord, radius of size Nr+1, defined as edges of radial stations
         Uz, Tprime, Qprime of size Nr, defined at centers of radial stations.
         These are the  mean velocity, thrust and axial force along the blade. T and Q per unit span
 
