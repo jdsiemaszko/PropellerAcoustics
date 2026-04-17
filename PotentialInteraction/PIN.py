@@ -1,7 +1,7 @@
 import numpy as np
 import numpy as np
 from scipy.special import jv
-from Constants.helpers import periodic_sum, plot_directivity_contour, p_to_SPL, periodic_sum_interpolated, fft_periodic, ifft_periodic, continuous_log, fft_periodic, ifft_periodic, twoside_spectrum
+from Constants.helpers import theodorsen
 import matplotlib.pyplot as plt
 
 class PotentialInteraction:
@@ -9,8 +9,8 @@ class PotentialInteraction:
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
                 radius_m:np.ndarray,
-                Tprime_Npm:np.ndarray,
-                Qprime_Npm:np.ndarray,
+                Fzprime_Npm:np.ndarray,
+                Fphiprime_Npm:np.ndarray,
                 B,
                 Dcylinder_m, Lcylinder_m, Omega_rads,
                 rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1,
@@ -44,19 +44,19 @@ class PotentialInteraction:
         self.kmax = kmax
         self.k = np.arange(0, kmax+1, 1) # array of modal orders
     
-        self.Tprime = Tprime_Npm # Nr
-        self.Qprime = Qprime_Npm # Nr
+        self.Fzprime = Fzprime_Npm # Nr
+        self.Fphiprime = Fphiprime_Npm # Nr
 
         if U0_mps is not None:
             self.Ui = U0_mps # (2, Nr) x positive to the right, y positive upwards
         else:
 
-            Uiz = -np.sqrt(self.Tprime /  4 / np.pi / self.rho / self.seg_radius) # positive upwards
-            Uiphi = -self.Qprime / 4 / np.pi / self.rho / self.seg_radius / Uiz # positive to the right, Note: dQ is the side force, not torque!
+            Uiz = -np.sqrt(self.Fzprime /  4 / np.pi / self.rho / self.seg_radius) # positive upwards
+            Uiphi = -self.Fphiprime / 4 / np.pi / self.rho / self.seg_radius / Uiz # positive to the right, Note: dQ is the side force, not torque!
             self.Ui = np.stack([Uiphi, Uiz]) # shape (2, Nr)
 
         # pre-compute common arrays
-        Nphi = 100
+        Nphi = self._numerics.get('Nphi', 360)
         self.phi = np.linspace(-np.pi, np.pi, Nphi)
         
 
@@ -68,12 +68,74 @@ class PotentialInteraction:
         pass
     
 
-    def getBladeLoading(self):
+    def getBladeLoadingHarmonics(self, QS=False):
         """
-        loading on the blades in N/m along the radial direction
+        returns loading ON the blade in the fourier domain
+        result of shape (3, Nk, Nr)
+        3: radial, axial, tangential
+        k's correspond to frequencies k * Omega
+        QS - if True, use quasi-steady assumption, else use full unsteady Sears function
+        """
 
-        """
-        pass
+        w = self.getBladeDownwash() # Nr, Nphi
+        k = self.k # Nk
+        phi = self.phi # Nphi
+
+        dphi = np.diff(self.phi)[0]
+        wk = 1 / 2 / np.pi * np.sum(
+            dphi * np.exp(1j * k[None, None, :] * self.phi[None, :, None])*
+            w[:, :, None], axis=1 # reduce the phi axis, result of shape Nr, Nk
+        )
+        wk = wk.T # Nk, Nr for consistency
+
+
+        Ur = np.sqrt(
+            (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
+        ) # relative velocity over the blade (mean?), shape Nr
+
+        # --- Theodorsen arguments ---
+        sigma = k[:, None] * self.Omega * self.seg_chord[None, :] / (2.0 * Ur[None, :])      # (Nk, Nr)
+        beta = np.pi/2 - self.seg_twist # alpha in Wu et al. 2022, shape Nr
+
+        mu = (
+            1j * k[:, None]  * self.seg_chord[None, :] / (2.0 * self.seg_radius[None, :])
+            * np.exp(-1j * beta[None, :])
+            )                                           # (Nk, Nr)
+        Nk, Nr = wk.shape
+        US_TERM = np.ones((Nk, Nr), dtype=np.complex128)
+        US_TERM[0, :] = 1.0
+
+        if not QS:
+            C = theodorsen(sigma[1:, :])
+            T1 = jv(0, mu[1:, :]) - 1j * jv(1, mu[1:, :])
+            T2 = 1j * sigma[1:, :] / mu[1:, :] * jv(1, mu[1:, :])
+        else:
+            # quasi-steady
+            C = 1.0
+            T1 = jv(0, mu[1:, :]) - 1j * jv(1, mu[1:, :])
+            T2 = 0.0
+
+
+        US_TERM[1:, :] = np.conjugate(C * T1 + T2)
+        
+        Lkprime = (
+            np.pi * self.rho * self.seg_chord[None, :] * Ur[None, :]
+            * wk
+            * US_TERM
+        )                                       # (Nk, Nr)
+
+        # --- allocate blade forces ---
+        Fblade = np.zeros((3, Nk, Nr), dtype=np.complex128) # radial, axial, tangential
+
+        Fblade[1, :, :] = -Lkprime * np.cos(self.seg_twist[None, :]) # positive upwards, but Lkprime is oriented downwards for positive wk!
+        Fblade[2, :, :] = -Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
+
+
+        # steady loads. Note: phase shift
+        Fblade[1, 0, :] = self.Fzprime # axial, positive upwards, NOTE: Fzprime is PER BLADE, so is Fphiprime
+        Fblade[2, 0, :] = self.Fphiprime # tangential, positive backwards
+
+        return Fblade
 
 
     def getBladeDownwash(self):
