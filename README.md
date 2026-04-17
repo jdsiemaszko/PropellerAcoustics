@@ -6,7 +6,7 @@ Modules include:
 
 2) Tailored Green - module responsible for computing the Tailored and free-field Green's functions. instances for Free-field, Infinite Cylinder, and Semi-infinite Cylinder included.
 
-3) Source Mode - a general propagator for rotating (dipole) sources from Roger & Moreau 2008. Equivalent to the general model from above in the free-field, but allows for the inclusion of scattering effects if interfaced with a Tailored Green's function. This model is interfaced with a TailoredGreen instance, allowing for interchanging of the scattering geometry.
+3) Source Mode - a general propagator for rotating (dipole and monopole) sources from Roger & Moreau 2008. Equivalent to the general model from above in the free-field, but allows for the inclusion of scattering effects if interfaced with a Tailored Green's function. This model is interfaced with a TailoredGreen instance, allowing for interchanging of the scattering geometry.
 
 4) PotentialInteraction - analytical model for computing propeller and cylinder surface loadings based on Vella et al. 2026, Wu et al. 2022
 
