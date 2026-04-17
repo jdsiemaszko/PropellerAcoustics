@@ -1,7 +1,7 @@
 import numpy as np
 import numpy as np
 from scipy.special import jv
-from Constants.helpers import theodorsen
+from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated
 import matplotlib.pyplot as plt
 
 class PotentialInteraction:
@@ -56,17 +56,145 @@ class PotentialInteraction:
             self.Ui = np.stack([Uiphi, Uiz]) # shape (2, Nr)
 
         # pre-compute common arrays
-        Nphi = self._numerics.get('Nphi', 360)
+        Nphi = self._numerics.get('Nphi', 120)
         self.phi = np.linspace(-np.pi, np.pi, Nphi)
-        
+        Nthetab = self._numerics.get('Nthetab', 36)
+        self.theta_beam = np.linspace(0, 2 * np.pi, Nthetab, endpoint=False) # angles on the cylinder surface, measured from the prop. plane, size (Npoints)
 
-    def getStrutLoading(self):
+        self.Ur = np.sqrt(
+            (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
+        ) # relative velocity over the blade (mean?), shape Nr
+
+    def getStrutLoadingHarmonics(self):
         """"
         strut loading in N/m along the strut radial stations
         returns: [Fr positive outwards, Fphi positive opposite to blade rotation, Fz positive upsteam]
         """
-        pass
+        pressure  = self.getStrutPressure() # Nthetab, Nphi, Nr
+
+        thetab = self.theta_beam
+        deltathetab = np.diff(thetab)[0]
+
+        Fphi = self.Dcylinder / 2 * np.sum(
+            pressure *
+            np.cos(thetab)[:, None, None] *
+            deltathetab,
+            axis=0
+        ) # (Nphi, Nr), drag, oriented backwards
+
+
+        Fz = -self.Dcylinder / 2 * np.sum(
+            pressure *
+            np.sin(thetab)[:, None, None] * 
+            deltathetab,
+            axis=0
+        ) # (Nphi, Nr) # lift, oriented upwards
+
+        F_beam = np.zeros((3, self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Note: in the time domain!, size (3, Nt, Nr)
+        F_beam[1, :, :] = Fz
+        F_beam[2, :, :] = Fphi
+
+        # go to the frequency domain
+        period = 2 * np.pi / self.B / self.Omega
+        points_per_period = self._numerics.get('points_per_period', 20)
+        k_local_max = np.ceil(self.kmax / self.B) # only resolve up to ceil(kmax/B) multiples of B*Omega
+        k_local = np.arange(1, k_local_max+1, 1)
+
+        T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
+        T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi * self.Omega, kind='cubic', t_new=T_periodic)
+
+        Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
+        dt = np.diff(T_periodic)[0]
+
+        # shape (3, Nk, Nr)
+        F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
+                 k_local[None, :, None, None] * 2 * np.pi / period * 
+                 T_periodic[None, None, :, None]) * dt, axis=2)
+
+        # Note: indez k corresponds to frequency k*B*Omega => need to map onto global k array!
+        # this is DIFFERENT from the propeller computation!
+
+        # fill the array with zeros where k!= multiple of nb
+        k_global = self.k
+        F_beam_k_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
+
+        # find where self.k==k_global
+        # fill these entries with value of Fblade
+        # leave the rest at zero
+        # find where self.k == k_global and fill
+        for i, k_val in enumerate(k_local):
+            idx = np.where(k_global == k_val*self.B)[0] # should be EXACTLY one entry!
+            if idx.size > 0:
+                 F_beam_k_global[:, idx[0], :] =  F_beam_k[:, i, :]
+
+        return F_beam_k_global
     
+    def getGammaInPhi(self):
+        """
+        get QS-unsteady circulation as a function of phi
+        """
+        gamma_k = self.getGammaHarmonics() #Nk, Nr
+        gamma_kk, kk = twoside_spectrum(gamma_k, self.k) # get two-sided spectrum
+        gamma_phi, phi = ifft_periodic(gamma_kk, 2 * np.pi, self.phi, kk) # Nphi, Nr
+
+        return gamma_phi
+
+    def getGammaHarmonics(self):
+        # quasi=steady loading: circulatory!
+        BLH = self.getBladeLoadingHarmonics(QS=True) # 3, Nk, Nr
+        Ur = self.Ur
+
+        BLH_angle = np.arctan2(np.abs(BLH[2, :, :]), np.abs(BLH[1, :, :])) # phi / z 
+        BLH_magnitude = BLH[1, :, :] / np.cos(BLH_angle) # magnitude of the loading harmonics, shape (Nk, Nr)
+
+        gamma_k = BLH_magnitude / self.rho / Ur # Nk, Nr -  gamma in the frequency domain
+        return gamma_k
+
+    def getStrutPressure(self):
+        """
+        returns pressure distribution over the strut, as a function of r, phi, and theta (beam polar angle w.r.t rotor plane)
+        """
+
+        gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
+
+        # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
+        zv = self.seg_radius[None, :] * self.phi[:, None] + 1j * self.Lcylinder 
+        zvbar = np.conjugate(zv) # complex conjugate
+
+        thetab = self.theta_beam
+        deltathetab = np.diff(thetab)[0]
+
+        z = self.Dcylinder/2 * np.exp(1j * thetab) # positions along the cylinder surface, complex, size (Nthetab)
+        zprime = self.Dcylinder**2 / 4 / z # circle conjugate
+
+        # complex derivative of the complex potential dfdz = u - i * v (which follows from f being holomorphic on Z!=Zv), size (Npoints, Nt, Nr)
+        # dfdz = -1j * gamma_e / 2 / np.pi / (Z_e-Zv_e) + 1j * gamma_e / 2 / np.pi / (Z_circ_conjugate_e - Zvbar_e) * (-Z_circ_conjugate_e / Z_e) + 1j * Uz_e * (1 + Z_circ_conjugate_e / Z_e)
+
+        # inflow part
+        Uimag = np.linalg.norm(self.Ui, axis=0) # Nr
+        alpha0 = np.arctan2(self.Ui[0], -self.Ui[1]) # Nr
+
+        # TODO: check for errors
+        dfdz = 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0[None, None, :]) + np.exp(1j * alpha0[None, None, :]
+                ) * zprime[:, None, None] / z[:, None, None]) -1j * gamma[None, :, :] / 2 / np.pi / (z[:, None, None] -
+                zv[None, :, :]) + 1j * gamma[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
+                zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
+
+        u, v = np.real(dfdz), -np.imag(dfdz)
+
+
+        u = np.real(dfdz) # (Nthetab, Nphi, Nr)
+        v = -np.imag(dfdz) # (Nthetab, Nphi, Nr)
+        U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
+
+        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2)
+        pressure_vortex = self.rho * gamma[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
+            1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
+        ) # (Nthetab, Nphi, Nr)
+
+        pressure = pressure_dynamic + pressure_vortex
+
+        return pressure # Nthetab, Nphi, Nr
 
     def getBladeLoadingHarmonics(self, QS=False):
         """
@@ -88,10 +216,7 @@ class PotentialInteraction:
         )
         wk = wk.T # Nk, Nr for consistency
 
-
-        Ur = np.sqrt(
-            (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
-        ) # relative velocity over the blade (mean?), shape Nr
+        Ur = self.Ur # Nr
 
         # --- Theodorsen arguments ---
         sigma = k[:, None] * self.Omega * self.seg_chord[None, :] / (2.0 * Ur[None, :])      # (Nk, Nr)
@@ -136,7 +261,6 @@ class PotentialInteraction:
         Fblade[2, 0, :] = self.Fphiprime # tangential, positive backwards
 
         return Fblade
-
 
     def getBladeDownwash(self):
         """
