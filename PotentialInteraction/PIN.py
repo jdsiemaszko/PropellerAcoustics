@@ -65,11 +65,7 @@ class PotentialInteraction:
             (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
         ) # relative velocity over the blade (mean?), shape Nr
 
-    def getStrutLoadingHarmonics(self):
-        """"
-        strut loading in N/m along the strut radial stations
-        returns: [Fr positive outwards, Fphi positive opposite to blade rotation, Fz positive upsteam]
-        """
+    def getStrutLoading(self):
         pressure  = self.getStrutPressure() # Nthetab, Nphi, Nr
 
         thetab = self.theta_beam
@@ -93,15 +89,26 @@ class PotentialInteraction:
         F_beam = np.zeros((3, self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Note: in the time domain!, size (3, Nt, Nr)
         F_beam[1, :, :] = Fz
         F_beam[2, :, :] = Fphi
+    
+        return F_beam
+    
+
+    def getStrutLoadingHarmonics(self):
+        """"
+        strut loading in N/m along the strut radial stations
+        returns: [Fr positive outwards, Fphi positive opposite to blade rotation, Fz positive upsteam]
+        """
+        
+        F_beam = self.getStrutLoading() # shape (3, Nt, Nr)
 
         # go to the frequency domain
-        period = 2 * np.pi / self.B / self.Omega
+        period = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
         points_per_period = self._numerics.get('points_per_period', 20)
         k_local_max = np.ceil(self.kmax / self.B) # only resolve up to ceil(kmax/B) multiples of B*Omega
         k_local = np.arange(1, k_local_max+1, 1)
 
         T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
-        T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi * self.Omega, kind='cubic', t_new=T_periodic)
+        T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi / self.Omega, kind='cubic', t_new=T_periodic)
 
         Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
         dt = np.diff(T_periodic)[0]
@@ -362,3 +369,72 @@ class PotentialInteraction:
         ax.set_ylim(0, np.max(r))
 
         return fig, ax
+        
+
+    def plotStrutLoading3D(self, fig=None, ax=None):
+        F_beam = self.getStrutLoading()  # shape (3, Nt=Nphi, Nr)
+        phi = self.phi
+        r_rt = self.seg_radius / self.r1  # r/rtip
+
+        component_labels = ['Fx (radial)', 'Fy (axial)', 'Fz (tangential)']
+        # component_cmaps  = ['RdBu_r', 'RdBu_r', 'RdBu_r']
+        component_cmaps  = ['viridis', 'viridis', 'viridis']
+
+
+        # Build meshgrid in polar coords
+        PHI, R = np.meshgrid(phi, r_rt, indexing='ij')   # (Nphi, Nr)
+        # X = R * np.cos(PHI)
+        # Y = R * np.sin(PHI)
+
+        X = R
+        Y = PHI
+
+
+        if fig is None or ax is None:
+            fig, axes = plt.subplots(
+                1, 3,
+                figsize=(18, 5),
+                subplot_kw={'projection': '3d'}
+            )
+        else:
+            # ax should be a list/array of 3 Axes3D
+            axes = ax
+
+        for i, (axi, label, cmap) in enumerate(zip(axes, component_labels, component_cmaps)):
+            Z = np.real(F_beam[i])                        # (Nphi, Nr)
+            magnitude = np.abs(Z)
+
+            vmax = np.max(np.abs(Z))
+
+            norm = plt.Normalize(vmin=-vmax, vmax=vmax)
+            colors = plt.get_cmap(cmap)(norm(Z))  # (Nphi, Nr, 4) RGBA
+
+            surf = axi.plot_surface(
+                X, Y, Z,
+                facecolors=colors,
+                rstride=1, cstride=1,
+                linewidth=0,
+                antialiased=True,
+                shade=False
+            )
+
+            # Colorbar
+            mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+            mappable.set_array(Z)
+            fig.colorbar(mappable, ax=axi, shrink=0.55, aspect=12, pad=0.1,
+                        label='Force [N]')
+
+            axi.set_title(label, fontsize=11)
+            # axi.set_xlabel('x/r$_{tip}$')
+            # axi.set_ylabel('y/r$_{tip}$')
+            axi.set_xlabel('$r/r_{tip}$')
+            axi.set_ylabel('$\phi=t\Omega$')
+            
+            axi.set_zlabel('F [N]')
+            axi.view_init(elev=15, azim=75-60+180)
+
+        fig.suptitle('Strut beam loading — polar surface', fontsize=13, y=1.01)
+        plt.tight_layout()
+        return fig, axes
+
+

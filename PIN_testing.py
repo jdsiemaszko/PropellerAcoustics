@@ -62,6 +62,7 @@ beam_l = BeamLoadings(
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
     Uz0_mps=np.sqrt(Fz/  4 / np.pi / pin.rho / pin.seg_radius),
+    # Uz0_mps = np.zeros_like(Fz), # no inflow!
     Tprime_Npm=Fz,
     Qprime_Npm=Fphi,
     B=2,
@@ -75,7 +76,10 @@ beam_l = BeamLoadings(
 )
 
 
-pin.plotDownwashInRotorPlane()
+# pin.plotDownwashInRotorPlane()
+# plt.show()
+
+pin.plotStrutLoading3D()
 plt.show()
 
 
@@ -103,7 +107,18 @@ fig, ax = plt.subplots()
 ax.plot(k, np.abs(Fbeam[1, :, 30]), marker='s', color='r', label='PIN')
 ax.plot(k, np.abs(Fbeam_old[1, :, 30]), marker='^', color='b', label='Old')
 ax.set_xlabel('k')
-ax.set_ylabel('$|F^z_{beam}|$')
+ax.set_ylabel('$|F^z_{beam}|$ [N/m]')
+ax.legend()
+ax.grid()
+plt.title('Beam Loadings')
+plt.show()
+
+fig, ax = plt.subplots()
+
+ax.plot(k, np.rad2deg(np.angle(Fbeam[1, :, 30])), marker='s', color='r', label='PIN')
+ax.plot(k, np.rad2deg(np.angle(Fbeam_old[1, :, 30])), marker='^', color='b', label='Old')
+ax.set_xlabel('k')
+ax.set_ylabel('$Arg(F^z_{beam})$ [deg]')
 ax.legend()
 ax.grid()
 plt.title('Beam Loadings')
