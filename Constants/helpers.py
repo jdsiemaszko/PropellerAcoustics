@@ -864,3 +864,13 @@ def twoside_spectrum(oneside, k):
 def continuous_log(z, axis=1):
     """Compute a continuous complex logarithm by unwrapping the phase."""
     return np.log(np.abs(z)) + 1j * np.unwrap(np.angle(z), axis=axis)
+
+
+def read_force_file(filepath):
+    data = np.loadtxt(filepath, skiprows=1)
+
+    r = data[:, 0]
+    Fx = data[:, 1]
+    Fz = data[:, 2]
+
+    return r, Fx, Fz

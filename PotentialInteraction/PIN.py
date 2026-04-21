@@ -56,9 +56,9 @@ class PotentialInteraction:
             self.Ui = np.stack([Uiphi, Uiz]) # shape (2, Nr)
 
         # pre-compute common arrays
-        Nphi = self._numerics.get('Nphi', 120)
-        self.phi = np.linspace(-np.pi, np.pi, Nphi)
-        Nthetab = self._numerics.get('Nthetab', 36)
+        Nphi = self._numerics.get('Nphi', 360)
+        self.phi = np.linspace(-np.pi, np.pi, Nphi, endpoint=False)
+        Nthetab = self._numerics.get('Nthetab', 360)
         self.theta_beam = np.linspace(0, 2 * np.pi, Nthetab, endpoint=False) # angles on the cylinder surface, measured from the prop. plane, size (Npoints)
 
         self.Ur = np.sqrt(
@@ -102,37 +102,59 @@ class PotentialInteraction:
         F_beam = self.getStrutLoading() # shape (3, Nt, Nr)
 
         # go to the frequency domain
-        period = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
-        points_per_period = self._numerics.get('points_per_period', 20)
-        k_local_max = np.ceil(self.kmax / self.B) # only resolve up to ceil(kmax/B) multiples of B*Omega
-        k_local = np.arange(1, k_local_max+1, 1)
+        # points_per_period = self._numerics.get('points_per_period', 20)
+        # k_local_max = np.ceil(self.kmax / self.B) # only resolve up to ceil(kmax/B) multiples of B*Omega
+        # k_local = np.arange(1, k_local_max+1, 1)
 
-        T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
-        T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi / self.Omega, kind='cubic', t_new=T_periodic)
+        # T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
+        #TODO: fix - this in incorrect as F_beam is not linear with number of vortices!
+        # Need to apply the linear addition earlier, at the potential computation
+        # T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi / self.Omega, kind='cubic', t_new=T_periodic)
 
-        Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
-        dt = np.diff(T_periodic)[0]
+        # Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
+        # dt = np.diff(T_periodic)[0]
 
-        # shape (3, Nk, Nr)
-        F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
-                 k_local[None, :, None, None] * 2 * np.pi / period * 
-                 T_periodic[None, None, :, None]) * dt, axis=2)
+        # # shape (3, Nk, Nr)
+        # F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
+        #          k_local[None, :, None, None] * 2 * np.pi / period * 
+        #          T_periodic[None, None, :, None]) * dt, axis=2)
 
-        # Note: indez k corresponds to frequency k*B*Omega => need to map onto global k array!
+        # corrected
+        period_vortex = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
+
+        period_global = 2 * np.pi / self.Omega # rotation period, DIFFERENT FROM blade passage period!
+
+        N_periods = int(period_global / period_vortex)
+
+        # TODO: fix! some bs here
+        phi_extended = np.linspace(self.phi[0], self.phi[0] + N_periods * np.pi * 2, self.phi.shape[0] * N_periods, endpoint=False) # extended phi array covering multiple periods, shape (Np_extended,)
+        F_beam_extended = np.tile(F_beam, (1, N_periods, 1)) # extend the time series to multiple periods, shape (3, Nt*N_periods, Nr)
+        dt = np.diff(phi_extended)[0] / self.Omega # timestep corresponding to phi array
+        F_beam_k_global = 1/period_global/N_periods * np.sum(F_beam_extended[:, None, :, :] * np.exp(+1j *
+                self.k[None, :, None, None] * 2 * np.pi / period_global * 
+                 (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
+        
+        # correct the contributions k!=mB (should be small anyway)
+        for i, k_val in enumerate(self.k):
+            if k_val % self.B != 0:
+                F_beam_k_global[:, i, :] = 0.0 # zero out contributions that are not multiples of B, should be inconsequential
+        F_beam_k_global[:, 0, :] = 0.0 # zero-out mean loading on the beam, should be inconsequential
+
+        # Note: indez k corresponds to frequency k*B*Omega => need to map onto global k array with multiples of k*Omega!
         # this is DIFFERENT from the propeller computation!
 
-        # fill the array with zeros where k!= multiple of nb
-        k_global = self.k
-        F_beam_k_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
+        # # fill the array with zeros where k!= multiple of nb
+        # k_global = self.k
+        # F_beam_k_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
 
-        # find where self.k==k_global
-        # fill these entries with value of Fblade
-        # leave the rest at zero
-        # find where self.k == k_global and fill
-        for i, k_val in enumerate(k_local):
-            idx = np.where(k_global == k_val*self.B)[0] # should be EXACTLY one entry!
-            if idx.size > 0:
-                 F_beam_k_global[:, idx[0], :] =  F_beam_k[:, i, :]
+        # # find where self.k==k_global
+        # # fill these entries with value of Fblade
+        # # leave the rest at zero
+        # # find where self.k == k_global and fill
+        # for i, k_val in enumerate(k_local):
+        #     idx = np.where(k_global == k_val*self.B)[0] # should be EXACTLY one entry!
+        #     if idx.size > 0:
+        #          F_beam_k_global[:, idx[0], :] =  F_beam_k[:, i, :]
 
         return F_beam_k_global
     
@@ -155,6 +177,11 @@ class PotentialInteraction:
         BLH_magnitude = BLH[1, :, :] / np.cos(BLH_angle) # magnitude of the loading harmonics, shape (Nk, Nr)
 
         gamma_k = BLH_magnitude / self.rho / Ur # Nk, Nr -  gamma in the frequency domain
+        # gamma_k[0, :] = self.Fzprime / self.rho / Ur # overwrite!
+
+
+        gamma_k[1:, :] = 0.0
+
         return gamma_k
 
     def getStrutPressure(self):
@@ -164,9 +191,7 @@ class PotentialInteraction:
 
         gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
 
-        # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
-        zv = self.seg_radius[None, :] * self.phi[:, None] + 1j * self.Lcylinder 
-        zvbar = np.conjugate(zv) # complex conjugate
+
 
         thetab = self.theta_beam
         deltathetab = np.diff(thetab)[0]
@@ -182,24 +207,52 @@ class PotentialInteraction:
         alpha0 = np.arctan2(self.Ui[0], -self.Ui[1]) # Nr
 
         # TODO: check for errors
-        dfdz = 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0[None, None, :]) + np.exp(1j * alpha0[None, None, :]
-                ) * zprime[:, None, None] / z[:, None, None]) -1j * gamma[None, :, :] / 2 / np.pi / (z[:, None, None] -
-                zv[None, :, :]) + 1j * gamma[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
-                zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
+        # TODO: apply summation over multiple vortices passing at T/B
+        vortex_period = 2 * np.pi / self.B / self.Omega # vortex passage period
+        pressure = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
+        dfdz = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
+        
+        # add the mean flow term
+        dfdz += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0[None, None, :]) + np.exp(1j * alpha0[None, None, :]
+                    ) * zprime[:, None, None] / z[:, None, None]) 
+        
+        for vortex_index in range(-12, 12, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+            # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
+            # phased vortices: shift the passage time by vortex_index * T/B
+            zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega) + 1j * self.Lcylinder 
+            zvbar = np.conjugate(zv) # complex conjugate
 
+            # add the linear contribution to dfdz
+            #TODO: shift gamma on the other blades by half a period times vortex_index!
+            phi = self.phi
+            shift = vortex_index * vortex_period * self.Omega
+            shifted_phi = (phi - shift) % (2 * np.pi)
+
+            # sort once
+            sort_idx = np.argsort(shifted_phi)
+            phi_sorted = shifted_phi[sort_idx]
+
+            gamma_shifted = np.apply_along_axis(
+                lambda g: np.interp(phi, phi_sorted, g[sort_idx], period=2*np.pi),
+                axis=0,
+                arr=gamma
+            )
+            
+            dfdz_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (z[:, None, None] -
+                    zv[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
+                    zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
+            dfdz += dfdz_vortex
+
+            pressure_vortex = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
+                1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
+            ) # (Nthetab, Nphi, Nr)
+            
+            pressure += pressure_vortex # add the linear contribution to the pressure
+        
         u, v = np.real(dfdz), -np.imag(dfdz)
-
-
-        u = np.real(dfdz) # (Nthetab, Nphi, Nr)
-        v = -np.imag(dfdz) # (Nthetab, Nphi, Nr)
         U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
-
-        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2)
-        pressure_vortex = self.rho * gamma[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
-            1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
-        ) # (Nthetab, Nphi, Nr)
-
-        pressure = pressure_dynamic + pressure_vortex
+        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!
+        pressure += pressure_dynamic # add the nonlinear contribution
 
         return pressure # Nthetab, Nphi, Nr
 
@@ -231,7 +284,7 @@ class PotentialInteraction:
 
         mu = (
             1j * k[:, None]  * self.seg_chord[None, :] / (2.0 * self.seg_radius[None, :])
-            * np.exp(-1j * beta[None, :])
+            * np.exp(-1j * beta[None, :]) # TODO: check which form correct: me or Riccardo's?
             )                                           # (Nk, Nr)
         Nk, Nr = wk.shape
         US_TERM = np.ones((Nk, Nr), dtype=np.complex128)
@@ -259,8 +312,8 @@ class PotentialInteraction:
         # --- allocate blade forces ---
         Fblade = np.zeros((3, Nk, Nr), dtype=np.complex128) # radial, axial, tangential
 
-        Fblade[1, :, :] = -Lkprime * np.cos(self.seg_twist[None, :]) # positive upwards, but Lkprime is oriented downwards for positive wk!
-        Fblade[2, :, :] = -Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
+        Fblade[1, :, :] = Lkprime * np.cos(self.seg_twist[None, :]) # positive upwards, but Lkprime is oriented downwards for positive wk!
+        Fblade[2, :, :] = Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
 
 
         # steady loads. Note: phase shift
@@ -370,13 +423,12 @@ class PotentialInteraction:
 
         return fig, ax
         
-
     def plotStrutLoading3D(self, fig=None, ax=None):
         F_beam = self.getStrutLoading()  # shape (3, Nt=Nphi, Nr)
         phi = self.phi
         r_rt = self.seg_radius / self.r1  # r/rtip
 
-        component_labels = ['Fx (radial)', 'Fy (axial)', 'Fz (tangential)']
+        component_labels = ['$F_r$ (radial)', '$F_z$ (axial)', '$F_\phi$ (tangential)']
         # component_cmaps  = ['RdBu_r', 'RdBu_r', 'RdBu_r']
         component_cmaps  = ['viridis', 'viridis', 'viridis']
 

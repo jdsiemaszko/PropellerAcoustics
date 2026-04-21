@@ -199,8 +199,8 @@ class BladeLoadings():
         # Fblade[2, :, :] = Lkprime * np.cos(beta_r)   # tangential
 
 
-        Fblade[1, :, :] = -Lkprime * np.cos(self.seg_twist[None, :]) # positive upwards, but Lkprime is oriented downwards for positive wk!
-        Fblade[2, :, :] = -Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
+        Fblade[1, :, :] = Lkprime * np.cos(self.seg_twist[None, :]) # positive upwstream
+        Fblade[2, :, :] = Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
 
 
         # steady loads. Note: phase shift

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from PotentialInteraction.beam_to_blade import BladeLoadings
 from PotentialInteraction.blade_to_beam import BeamLoadings
+from PotentialInteraction.PIN import PotentialInteraction
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
 from TailoredGreen.CylinderGreen import CylinderGreen
 from TailoredGreen.TailoredGreen import TailoredGreen
@@ -86,6 +87,25 @@ beam_l = BeamLoadings(
     nb=NBEAMS
 )
 
+PIN = PotentialInteraction(
+    twist_rad=twist,
+    chord_m=chord,
+    radius_m=r_outer,
+    # Uz0_mps=U_flow,
+    # U0_mps = U_flow_momentum,
+    Fzprime_Npm= dT / dr,
+    Fphiprime_Npm= dQ / dr,
+    B=B,
+    Dcylinder_m=D_bras,
+    Lcylinder_m=g,
+    Omega_rads=Omega,
+    rho_kgm3=rho0,
+    c_mps=c0,
+    kmax=Nk,
+    nb=NBEAMS,
+    numerics={'Nphi': 180, 'Nthetab': 36}
+)
+
 # CYLINDER GREEN'S FUNCTION
 caxis = np.array([1.0, 0.0, 0.0])
 D_prop = 0.2
@@ -110,7 +130,8 @@ axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
 origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
 
 
-BLH = blade_l.getBladeLoadingHarmonics()
+# BLH = blade_l.getBladeLoadingHarmonics()
+BLH = PIN.getBladeLoadingHarmonics()
 BLH_US = np.zeros_like(BLH)
 BLH_US[:, 1:, :] = BLH[:, 1:, :]
 BLH_S = np.zeros_like(BLH)

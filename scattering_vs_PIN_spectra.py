@@ -51,7 +51,8 @@ pUSmB_model_rotor = han.getPressureRotor(x_cart, ms,
                                        )[0][0]
 
 ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.0809 * np.ones_like(r0))[0][0] # NACA0012
-BL  =  beam_l.getBeamLoadingHarmonics(BLH = BLH)
+# BL  =  beam_l.getBeamLoadingHarmonics(BLH = BLH)
+BL = PIN.getStrutLoadingHarmonics()
 pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
 pmB_model_rotor_total = pSmB_model_rotor + pUSmB_model_rotor + ptmB_model_rotor
@@ -142,7 +143,9 @@ spl_zamponi = data2[' y']
 fs_zamponi = data2['x']
 
 ax.plot(fs_vella/BPF, spl_vella, label=f"Vella et al. (2026)", color='m', marker='^')
-ax.plot(np.round(fs_zamponi), spl_zamponi + 10*np.log10(2), label=f"Zamponi et al.(2026)", color='c', marker='^')
+ax.plot(np.round(fs_zamponi), spl_zamponi, label=f"Zamponi et al.(2026)", color='c', marker='o')
+ax.plot(np.round(fs_zamponi), spl_zamponi + 10 * np.log10(2), label=f"Zamponi et al.(2026) (corrected)", color='g', marker='p')
+
 
 ax.legend()
 ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")

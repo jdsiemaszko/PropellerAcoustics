@@ -69,16 +69,16 @@ class SourceMode():
         dalpha = 2 * np.pi / Ndipoles
         return dipole_positions, dipole_angles, dalpha
     
-    def _rotate_loadings(self):
+    def _rotate_loadings(self, BLH=None):
         """
         rotate loading harmonics along the rotation axis
-        BLH - array of size (3, Nk), in blade-centered coordinates
+        BLH - array of size (3, Nk), in blade-centered coordinates, optionally overwriting self.BLH
         output: array of size (3, Nk, Ndipoles) in global coordinates
         """
         angles = self.dipole_angles              # (Ndipoles,)
         axis = self.axis / np.linalg.norm(self.axis)  # ensure unit vector
 
-        BLH = self.BLH  # (3, Nk)
+        BLH = self.BLH if BLH is None else BLH  # (3, Nk)
 
         Nk = BLH.shape[1]
         Nd = len(angles)
@@ -119,7 +119,13 @@ class SourceMode():
 
         return BLH_rotated
 
-    def computeLoadingVectors(self, m:np.ndarray):
+    def computeLoadingVectors(self, m:np.ndarray, BLH=None):
+        """
+        compute the LOCAL loading vectors around the source mode
+        BLH - optional overwrite of self.BLH
+        """
+
+        BLH = self.BLH if BLH is None else BLH
 
         # loadings = np.zeros((self.NBLH, m.shape[0], self.numerics['Ndipoles'], 3)) # (Ns, Nm, Ndipoles, 3 (ndim)))
 
@@ -139,7 +145,7 @@ class SourceMode():
         # print(loadings.shape, expterm.shape, force_unit.shape, self.dipole_angles.shape)
 
         # UPDATE (3D loading)
-        BLH_rotated = self._rotate_loadings() # shape (Ns, Ndipoles, 3)
+        BLH_rotated = self._rotate_loadings(BLH=BLH) # shape (Ns, Ndipoles, 3)
         loadings_positive = expterm[:, :, :, None] * BLH_rotated[:, None, :, :]
         loadings_negative = np.conjugate(BLH_rotated[:, None, :, :]) * expterm_negative[:, :, :, None]
 
@@ -156,16 +162,16 @@ class SourceMode():
 
         return loadings
     
-    def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None):
+    def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, BLH=None):
 
         green = self.green
         # EXPENSIVE STEP - avoid by passing gradient directly if pre-computed
         if gradG is None:
             gradG = green.getGradientGreenAnalytical(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
 
-        return self._getPressureFromGrad(x, m, gradG)
+        return self._getPressureFromGrad(x, m, gradG, BLH=BLH)
     
-    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, surface_gradG=None):
+    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, surface_gradG=None, BLH=None):
 
         green = self.green
 
@@ -173,16 +179,16 @@ class SourceMode():
         if gradG is None:
             gradG = green.getScatteringGreenGradient(x, self.dipole_positions, m * Omega * self.B / c, green_grad_at_surface = surface_gradG) # shape (3, Nm, Nx, Ny)
 
-        return self._getPressureFromGrad(x, m, gradG)
+        return self._getPressureFromGrad(x, m, gradG, BLH=BLH)
 
-    def getDirectPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340.):
+    def getDirectPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., BLH=None):
         green = self.green
         gradG = green.getFreeSpaceGreenGradient(x, self.dipole_positions, m * Omega * self.B / c) # shape (3, Nm, Nx, Ny)
-        return self._getPressureFromGrad(x, m, gradG)
+        return self._getPressureFromGrad(x, m, gradG, BLH=BLH)
     
-    def _getPressureFromGrad(self,x:np.ndarray, m:np.ndarray, GradG:np.ndarray):
+    def _getPressureFromGrad(self,x:np.ndarray, m:np.ndarray, GradG:np.ndarray, BLH=None):
         # GradG is of shape (3, Nm, Nx, Ny)
-        loadings = self.computeLoadingVectors(m) # shape (2 * Ns - 1, Nm, Ny, 3) units of NEWTON
+        loadings = self.computeLoadingVectors(m, BLH=BLH) # shape (2 * Ns - 1, Nm, Ny, 3) units of NEWTON
         pmB = -1.0 * np.einsum('s m y k, k m x y -> x m', loadings, GradG)
         return pmB * self.B
     
@@ -440,21 +446,31 @@ class SourceModeArray():
                 chord = self.chord[index] if self.chord is not None else None
             ) # construct source modes at each radial station
 
-    def getPressure(self, x:np.ndarray, m:np.ndarray, gradG=None):
+    def updateBLH(self, BLH):
+        """
+        update the BLH value and propagate it to self.children (couldn't be bothered with setters)
+        """
+        self.BLH = BLH # change in parent, of size 3, Nk, Nr
+        for index, (child, BLH_seg) in enumerate(zip(self.children, np.transpose(self.BLH, axes=(2, 0, 1)))):
+            child.BLH = BLH_seg # change in child, of size 3, Nk
+
+    def getPressure(self, x:np.ndarray, m:np.ndarray, gradG=None, BLH=None):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
         if gradG is None:
             gradG = [None] * self.Nr # 
+        if BLH is None:
+            BLH = [None] * self.Nr # 
 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index])
+            pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
-    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray, gradG=None):
+    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray, gradG=None, BLH=None):
         """
         gradG - optional argument to pass pre-computed gradient of the scattering green's function (recommended if dealing with same source-observer pairs)
         of shape (Nr, 3, Nm, Nx, Ny) - one gradG object per source mode, each of shape (3, Nm, Nx, Ny)
@@ -463,26 +479,29 @@ class SourceModeArray():
             m = np.array([m])
         if gradG is None:
             gradG = [None] * self.Nr # 
+        if BLH is None:
+            BLH = [None] * self.Nr # 
 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index])
+            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
 
     
-    def getDirectPressure(self, x:np.ndarray, m:np.ndarray):
+    def getDirectPressure(self, x:np.ndarray, m:np.ndarray, BLH=None):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
-
+        if BLH is None:
+            BLH = [None] * self.Nr # 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS)
+            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS, BLH=BLH[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
