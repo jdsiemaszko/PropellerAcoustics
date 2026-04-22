@@ -147,7 +147,7 @@ class HansonModel():
         pmb = np.sum(pmb, axis=-1) # sum along the k axis, shape (Nx, Nm)
      
         # pre-factor
-        pmb *= +1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(+1j * wavenumber[None, :] *  R[:, None])
+        pmb *= 1j * wavenumber[None, :] * multiplier / (4 * np.pi * R[:, None]) * np.exp(+1j * wavenumber[None, :] *  R[:, None])
 
         return pmb, x
     

@@ -1,0 +1,144 @@
+from PotentialInteraction.PIN import PotentialInteraction
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from PotentialInteraction.beam_to_blade import NACA0012_T10_PIN, BladeLoadings
+from PotentialInteraction.blade_to_beam import BeamLoadings
+from Constants.helpers import read_force_file
+
+
+r_inner, Fz, Fphi = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt')
+
+dr = np.diff(r_inner)[0]
+r_outer = np.hstack([r_inner-dr/2, r_inner[-1]+dr/2])
+NRADIALSEGMENTS = np.shape(r_outer)[0]
+NHARMONICS = 40
+
+
+pin = PotentialInteraction(
+    twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
+    chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
+    radius_m=r_outer,
+    # Uz0_mps=U_flow,
+    Fzprime_Npm=Fz,
+    Fphiprime_Npm=Fphi,
+    B=2,
+    Dcylinder_m=0.02,
+    Lcylinder_m=0.02,
+    Omega_rads=8000/60*2*np.pi,
+    rho_kgm3=1.2,
+    c_mps=340.0,
+    kmax=NHARMONICS,
+    nb=1,
+    numerics={'Nphi': 180, 'Nthetab': 36}
+)
+
+blade_l = BladeLoadings(
+    twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
+    chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
+    radius_m=r_outer,
+    Uz0_mps=np.sqrt(Fz/  4 / np.pi / pin.rho / pin.seg_radius),
+    Tprime_Npm=Fz,
+    Qprime_Npm=Fphi,
+    B=2,
+    Dcylinder_m=0.02,
+    Lcylinder_m=0.02,
+    Omega_rads=8000/60*2*np.pi,
+    rho_kgm3=1.2,
+    c_mps=340.0,
+    kmax=NHARMONICS,
+    nb=1
+)
+
+beam_l = BeamLoadings(
+    twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
+    chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
+    radius_m=r_outer,
+    Uz0_mps=np.sqrt(Fz/  4 / np.pi / pin.rho / pin.seg_radius),
+    # Uz0_mps = np.zeros_like(Fz), # no inflow!
+    Tprime_Npm=Fz,
+    Qprime_Npm=Fphi,
+    B=2,
+    Dcylinder_m=0.02,
+    Lcylinder_m=0.02,
+    Omega_rads=8000/60*2*np.pi,
+    rho_kgm3=1.2,
+    c_mps=340.0,
+    kmax=NHARMONICS,
+    nb=1
+)
+
+
+# pin.plotDownwashInRotorPlane()
+# plt.show()
+
+pin.plotStrutLoading3D()
+plt.show()
+
+
+Fblade = pin.getBladeLoadingHarmonics()
+Fblade_old = blade_l.getBladeLoadingHarmonics()
+
+Fbeam = pin.getStrutLoadingHarmonics()
+Fbeam_old = beam_l.getBeamLoadingHarmonics(BLH=Fblade_old)
+
+k = pin.k
+
+# fig, ax = plt.subplots()
+
+# ax.plot(k, np.abs(Fblade[1, :, 30]), marker='s', color='r', label='PIN')
+# ax.plot(k, np.abs(Fblade_old[1, :, 30]), marker='^', color='b', label='Old')
+
+# ax.plot(k, np.abs(Fblade[2, :, 30]), marker='s', color='r', linestyle='dashed')
+# ax.plot(k, np.abs(Fblade_old[2, :, 30]), marker='^', color='b', linestyle='dashed')
+# ax.set_xlabel('k')
+# ax.set_ylabel('$|F^z_{blade}|$')
+# ax.legend()
+# ax.grid()
+# plt.title('Blade Loadings')
+# plt.show()
+
+# fig, ax = plt.subplots()
+
+# ax.plot(k, np.rad2deg(np.angle(Fblade[1, :, 30])), marker='s', color='r', label='PIN')
+# ax.plot(k, np.rad2deg(np.angle(Fblade_old[1, :, 30])), marker='^', color='b', label='Old')
+
+# ax.plot(k, np.rad2deg(np.angle(Fblade[2, :, 30])), marker='s', color='r', linestyle='dashed')
+# ax.plot(k, np.rad2deg(np.angle(Fblade_old[2, :, 30])), marker='^', color='b', linestyle='dashed')
+# ax.set_xlabel('k')
+# ax.set_ylabel('$Arg(F^z_{blade})$ [deg]')
+# ax.legend()
+# ax.grid()
+# plt.title('Blade Loadings')
+# plt.show()
+
+
+fig, ax = plt.subplots()
+
+ax.plot(k, np.abs(Fbeam[1, :, 30]), marker='s', color='r', label='PIN')
+ax.plot(k, np.abs(Fbeam_old[1, :, 30]), marker='^', color='b', label='Old')
+
+ax.plot(k, np.abs(Fbeam[2, :, 30]), marker='s', color='r', linestyle='dashed')
+ax.plot(k, np.abs(Fbeam_old[2, :, 30]), marker='^', color='b', linestyle='dashed')
+ax.set_xlabel('k')
+ax.set_ylabel('$|F^z_{beam}|$ [N/m]')
+ax.legend()
+ax.grid()
+plt.title('Beam Loadings')
+plt.show()
+
+fig, ax = plt.subplots()
+
+ax.plot(k, np.rad2deg(np.angle(Fbeam[1, :, 30])), marker='s', color='r', label='PIN')
+ax.plot(k, np.rad2deg(np.angle(Fbeam_old[1, :, 30])), marker='^', color='b', label='Old')
+
+ax.plot(k, np.rad2deg(np.angle(Fbeam[2, :, 30])), marker='s', color='r', linestyle='dashed')
+ax.plot(k, np.rad2deg(np.angle(Fbeam_old[2, :, 30])), marker='^', color='b', linestyle='dashed')
+
+ax.set_xlabel('k')
+ax.set_ylabel('$Arg(F^z_{beam})$ [deg]')
+ax.legend()
+ax.grid()
+plt.title('Beam Loadings')
+plt.show()
+

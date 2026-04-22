@@ -18,8 +18,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+SUFFIX = '_D360_HR'
+# SUFFIX = '_HIGHRES'
 
-ind_theta = 2       # -60 to 60 in 10
+ind_theta = 6       # -60 to 60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -47,10 +49,7 @@ x_cart = np.array([
     radius * np.cos(np.deg2rad(theta)),
 ]).reshape((3, 1))
 
-Nr = len(r0)
-
-
-
+Nr = len(r_inner)
 ms = np.arange(1, 11, 1) # harmonics to extract
 
 
@@ -72,7 +71,7 @@ pLmB_model_rotor = han.getPressureRotor(x_cart, ms,
                                     BLH
                                        )[0][0]
 
-ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.122 * np.ones_like(r0))[0][0] # NACA0012
+ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner))[0][0] # NACA0012
 BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
 pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
@@ -85,7 +84,6 @@ pmB_model_total = pLmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assumin
 
 
 
-SUFFIX = '_HIGHRES'
 # SUFFIX = '
 
 # -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
