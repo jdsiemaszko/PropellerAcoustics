@@ -16,7 +16,6 @@ class PotentialInteraction:
                 rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1,
                 U0_mps:np.ndarray=None, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
                 numerics = {},
-
                 ):
         self.B = B
         self.Dcylinder = Dcylinder_m
@@ -207,7 +206,6 @@ class PotentialInteraction:
         alpha0 = np.arctan2(self.Ui[0], -self.Ui[1]) # Nr
 
         # TODO: check for errors
-        # TODO: apply summation over multiple vortices passing at T/B
         vortex_period = 2 * np.pi / self.B / self.Omega # vortex passage period
         pressure = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
         dfdz = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
@@ -223,7 +221,6 @@ class PotentialInteraction:
             zvbar = np.conjugate(zv) # complex conjugate
 
             # add the linear contribution to dfdz
-            #TODO: shift gamma on the other blades by half a period times vortex_index!
             phi = self.phi
             shift = vortex_index * vortex_period * self.Omega
             shifted_phi = (phi - shift) % (2 * np.pi)
@@ -384,7 +381,7 @@ class PotentialInteraction:
             fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
 
         # Plot contour (polar)
-        Nlevels = 50
+        Nlevels = 51
         wmax = np.max(np.abs(w_normal))
         levels = np.linspace(-wmax, wmax, Nlevels)
         contour = ax.contourf(Phi, R, w_normal, levels=levels, cmap='seismic')
@@ -482,11 +479,10 @@ class PotentialInteraction:
             axi.set_xlabel('$r/r_{tip}$')
             axi.set_ylabel('$\phi=t\Omega$')
             
-            axi.set_zlabel('F [N]')
+            axi.set_zlabel('F [N/m]')
             axi.view_init(elev=15, azim=75-60+180)
 
         fig.suptitle('Strut beam loading — polar surface', fontsize=13, y=1.01)
         plt.tight_layout()
         return fig, axes
-
 
