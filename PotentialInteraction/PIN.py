@@ -177,10 +177,10 @@ class PotentialInteraction:
         BLH_magnitude = BLH[1, :, :] / np.cos(BLH_angle) # magnitude of the loading harmonics, shape (Nk, Nr)
 
         gamma_k = BLH_magnitude / self.rho / Ur # Nk, Nr -  gamma in the frequency domain
+        
+        # testing
         # gamma_k[0, :] = self.Fzprime / self.rho / Ur # overwrite!
-
-
-        gamma_k[1:, :] = 0.0
+        # gamma_k[1:, :] = 0.0
 
         return gamma_k
 

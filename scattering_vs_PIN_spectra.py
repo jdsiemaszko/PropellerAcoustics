@@ -3,9 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+SUFFIX = '_D360_HR'
 
-ind_theta = 6       # -60 to 60 in 10
-ind_phi = 9          # 0 to 350 in 10
+ind_theta = 7       # -60 to 60 in 10
+ind_phi = 0          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -32,7 +33,7 @@ x_cart = np.array([
     radius * np.cos(np.deg2rad(theta)),
 ]).reshape((3, 1))
 
-Nr = len(r0)
+Nr = len(r_inner)
 
 
 
@@ -50,7 +51,7 @@ pUSmB_model_rotor = han.getPressureRotor(x_cart, ms,
                                     BLH_US
                                        )[0][0]
 
-ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r0), 0.0809 * np.ones_like(r0))[0][0] # NACA0012
+ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.0809 * np.ones_like(r_inner))[0][0] # NACA0012
 # BL  =  beam_l.getBeamLoadingHarmonics(BLH = BLH)
 BL = PIN.getStrutLoadingHarmonics()
 pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL)[0][0]
@@ -62,7 +63,6 @@ pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_be
 
 
 
-SUFFIX = '_HIGHRES'
 # SUFFIX = ''
 
 # save gradients on the surface (run once per m)

@@ -12,7 +12,7 @@ from TailoredGreen.CylinderGreen import CylinderGreen
 from TailoredGreen.TailoredGreen import TailoredGreen
 from Hanson.far_field import HansonModel
 from SourceMode.SourceMode import SourceModeArray
-from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot_directivity_contour, plot_3D_directivity, plot_3D_phase_directivity
+from Constants.helpers import p_to_SPL, plot_BPF_peaks, spl_from_autopower, plot_directivity_contour, plot_3D_directivity, plot_3D_phase_directivity, read_force_file
 
 
 # pick dataset 
@@ -46,19 +46,27 @@ else:
 # ------------------------------------------------------------------
 # Class initializations using shared instances
 # ------------------------------------------------------------------
-ddr = r0[1] - r0[0]
-r_outer = np.concatenate((r0-ddr/2, [r0[-1]+ddr/2]))
-ddr = np.diff(r_outer)
+# ddr = r0[1] - r0[0]
+# r_outer = np.concatenate((r0-ddr/2, [r0[-1]+ddr/2]))
+# ddr = np.diff(r_outer)
+
+r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+dr = np.diff(r_inner)[0]
+r_outer = np.hstack([r_inner-dr/2, r_inner[-1]+dr/2])
+twist = np.deg2rad(10) * np.ones_like(r_outer)
+chord = 0.025 * np.ones_like(r_outer)
+t_c = 0.082 * np.ones_like(r_outer) # NACA0012
+
 Nk = 40
-U_flow_momentum = np.sqrt(dT / dr /  4 / np.pi / rho0 / r0)
+U_flow_momentum = np.sqrt(Fz /  4 / np.pi / rho0 / r_inner)
 blade_l = BladeLoadings(
     twist_rad= twist,
     chord_m= chord,
     radius_m=r_outer,
     # Uz0_mps=U_flow,
     Uz0_mps = U_flow_momentum,
-    Tprime_Npm=dT / dr,
-    Qprime_Npm=dQ / dr,
+    Tprime_Npm=Fz,
+    Qprime_Npm=Fphi,
     B=B,
     Dcylinder_m=D_bras,
     Lcylinder_m=g,
@@ -75,8 +83,8 @@ beam_l = BeamLoadings(
     radius_m=r_outer,
     # Uz0_mps=U_flow,
     Uz0_mps = U_flow_momentum,
-    Tprime_Npm= dT / dr,
-    Qprime_Npm= dQ / dr,
+    Tprime_Npm=Fz,
+    Qprime_Npm=Fphi,
     B=B,
     Dcylinder_m=D_bras,
     Lcylinder_m=g,
@@ -93,8 +101,8 @@ PIN = PotentialInteraction(
     radius_m=r_outer,
     # Uz0_mps=U_flow,
     # U0_mps = U_flow_momentum,
-    Fzprime_Npm= dT / dr,
-    Fphiprime_Npm= dQ / dr,
+    Fzprime_Npm=Fz,
+    Fphiprime_Npm=Fphi,
     B=B,
     Dcylinder_m=D_bras,
     Lcylinder_m=g,
@@ -112,7 +120,7 @@ D_prop = 0.2
 D = 20 / 1000
 L = 20 / 1000
 corigin = np.array([0.0, 0.0, -L])
-
+NBLADES = B
 
 if NBEAMS == 2:
     cg = CylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
@@ -121,8 +129,28 @@ if NBEAMS == 2:
     #                 numerics=numerics)
 
 elif NBEAMS == 1:
-    cg =  HalfCylinderGreen(radius=D_bras/2, axis=caxis, origin=corigin, dim=3, 
-                        numerics=numerics)
+    cg =  HalfCylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
+                numerics= {
+                    'nmax': 32,
+                    'Nq_prop': 64,
+                    'Nq_evan': 32,
+                    'eps_radius' : 1e-24, # must be lower than eps_eval!
+                    'Nazim' : 18, # discretization of the boundary in the azimuth
+                    'Nax': 64, # in the axial direction
+                    'RMAX': 20, # max radius!
+                    # 'nmax': 16,
+                    # 'Nq_prop': 32,
+                    # 'Nq_evan': 16,
+                    # 'eps_radius' : 1e-24, # must be lower than eps_eval!
+                    # 'Nazim' : 9, # discretization of the boundary in the azimuth
+                    # 'Nax': 32, # in the axial direction
+                    # 'RMAX': 15, # max radius!
+
+                    'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+                    'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+                    'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
+                    # Note: the function is currently NOT checking if the panels are compact!
+                    })
 
 gf = TailoredGreen(dim=3) # free-field version!
 # SOURCE MODE MODULE
@@ -136,22 +164,19 @@ BLH_US = np.zeros_like(BLH)
 BLH_US[:, 1:, :] = BLH[:, 1:, :]
 BLH_S = np.zeros_like(BLH)
 BLH_S[:, 0, :] = BLH[:, 0, :]
-sourceArray = SourceModeArray(
-                        BLH=BLH, 
-                        # BLH=BLH_S, # isolate the steady component 
-                        # BLH=BLH_US, 
 
-                        B = B,
+sourceArray = SourceModeArray(
+                        # BLH=np.zeros((3, Nk, Nr)),
+                        BLH = BLH, 
+                        B = NBLADES,
                         Omega=Omega, gamma =twist,
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg,
-                        # green = gf,
                         numerics={'Ndipoles' : NDIPOLES},
                         c = c0,
-                        dt = 0.082 * 0.025 * np.ones_like(twist), # thickness
-                        chord = 0.025 * np.ones_like(twist) # chord length
-
+                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        chord = chord,
                         )
 
 
@@ -164,8 +189,10 @@ axis=axis_prop, origin=origin_prop,
 Omega_rads=Omega, # rotation speed [rad/s]
 rho_kgm3=rho0, # fluid density [kg/m^3]
 c_mps= c0, # speed of sound [m/s]
-nb=NBEAMS # number of beams (irrelevant)
+nb=NBEAMS # number of beams 
 )
+
+
 
 if __name__ == "__main__":
     # _____________ PLOTTING & RESULTS _______________
