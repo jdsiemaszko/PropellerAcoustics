@@ -37,7 +37,7 @@ class ConformalPIN(PotentialInteraction):
         # self.Rd = 1.0 # arbitrary?
         self.Rr = self.Rd / self.Nsides
         self.rho_corner = rho_corner * self.Rr # define relative to maximum allowed rho!
-        self.zs = self.getSurfacePoints()
+        self.zs, self.zeta_s = self.getSurfacePoints()
         
     def getZ(self, zeta):
         """
@@ -90,7 +90,7 @@ class ConformalPIN(PotentialInteraction):
 
         zeta_s = self.Rd * np.exp(1j * self.theta_beam)
         z_s = self.getZ(zeta_s) 
-        return z_s
+        return z_s, zeta_s
     
 
     def getStrutPressure(self):
@@ -152,17 +152,14 @@ class ConformalPIN(PotentialInteraction):
                     zetavbar[None, :, :]) * (-zetasprime[:, None, None] / zetas[:, None, None]) # Nthetab, Nr, Nphi
             dfdzeta += dfdzeta_vortex
 
-            dphidt_dzetavdzv_infinity = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
-                1j / zetavbar[None, :, :] + 1j / (zetav[None, :, :] - zetas[:, None, None])
-            ) # (Nthetab, Nphi, Nr)
-
-            dphidt_dzetavdzv = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(+1j / (zetavbar[None, :, :] - zetasprime[:, None, None])
+            dphidt_dzetavdzv= self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
+                1j / zetavbar[None, :, :] + 1j / (zetav[None, :, :] - zetas[:, None, None]) - 1j / (zetavbar[None, :, :] - zetasprime[:, None, None])
             ) # (Nthetab, Nphi, Nr)
             
 
             # add the linear contribution to the pressure, including the dzetadz mapping at zetav.
             # note that at |zeta| -> infinity we have dzeta/dz = 1
-            pressure += dphidt_dzetavdzv_infinity * 1.0 - dphidt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :] 
+            pressure += dphidt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :] 
         
         dfdz = dfdzeta * self.getDzetaDz(zetas)[None, :, :] # apply the mapping
 
@@ -222,7 +219,36 @@ class ConformalPIN(PotentialInteraction):
 
         return w_normal
     
+    def getStrutLoading(self):
+        pressure  = self.getStrutPressure() # Nthetab, Nphi, Nr
 
+        thetab = self.theta_beam
+        deltathetab = np.diff(thetab)[0]
+
+        # compute forces by integrating over thetab,
+        # mapping the surface position!
+
+        dzsdtheta = self.getDzetaDz(self.zeta_s) * 1j * self.zeta_s
+
+        Fphi = np.sum(
+            pressure *
+            np.real()[:, None, None] * 
+            deltathetab,
+            axis=0
+        ) # (Nphi, Nr), drag, oriented backwards
+
+        Fz = -np.sum(
+            pressure *
+            np.imag(zs)[:, None, None] * 
+            deltathetab,
+            axis=0
+        ) # (Nphi, Nr) # lift, oriented upwards
+
+        F_beam = np.zeros((3, self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Note: in the time domain!, size (3, Nt, Nr)
+        F_beam[1, :, :] = Fz
+        F_beam[2, :, :] = Fphi
+    
+        return F_beam
 
     def plotCrossSection(self, fig=None, ax=None):
         zs = self.zs
