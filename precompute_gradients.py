@@ -6,9 +6,15 @@ import numpy as np
 from Constants.helpers import read_force_file
 
 # ------------------- Inputs -----------------------------
-SUFFIX = '_HIGHRES'
+SUFFIX = '_D360_HR'
 MODE='half'
 
+print(f'using suffix {SUFFIX}, existing files will be overwritten.')
+print(f'proceed? (y/n)')
+proceed = input().lower() == 'y'
+if not proceed:
+    print('aborting')
+    exit()
 ms = np.arange(1, 11, 1) # example, anything more than 10 is likely overkill and would require A LOT of dipoles to resolve!
  
 axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
@@ -39,13 +45,13 @@ corigin = np.array([0.0, 0.0, -L])
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
 cg =  HalfCylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
                 numerics= {
-                    'nmax': 16,
-                    'Nq_prop': 32,
-                    'Nq_evan': 16,
+                    'nmax': 32,
+                    'Nq_prop': 64,
+                    'Nq_evan': 32,
                     'eps_radius' : 1e-24, # must be lower than eps_eval!
-                    'Nazim' : 9, # discretization of the boundary in the azimuth
-                    'Nax': 32, # in the axial direction
-                    'RMAX': 15, # max radius!
+                    'Nazim' : 18, # discretization of the boundary in the azimuth
+                    'Nax': 64, # in the axial direction
+                    'RMAX': 20, # max radius!
                     'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
                     'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
                     'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
