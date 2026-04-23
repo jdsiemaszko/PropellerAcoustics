@@ -250,7 +250,7 @@ class HypotrochoidalPIN(PotentialInteraction):
     
         return F_beam
 
-    def plotCrossSection(self, fig=None, ax=None):
+    def plotZ(self, fig=None, ax=None):
         zs = self.zs
 
         zs = np.append(zs, zs[0]) # close the circle
@@ -260,22 +260,45 @@ class HypotrochoidalPIN(PotentialInteraction):
             fig, ax = plt.subplots()
 
         # Plot the mapped points
-        ax.plot(np.real(zs), np.imag(zs), label="Beam Surface", color='blue', marker='x')
+        ax.plot(np.real(zs), np.imag(zs), label="Beam Surface", color='k')
 
-        # Plot circle of radius Rd
-        theta = self.theta_beam
-        circle = self.Rd * np.exp(1j * theta)
-        ax.plot(np.real(circle), np.imag(circle), linestyle='--', label="|z| = Rd", color='k')
+        # # Plot circle of radius Rd
+        # theta = self.theta_beam
+        # circle = self.Rd * np.exp(1j * theta)
+        # ax.plot(np.real(circle), np.imag(circle), linestyle='--', label="|z| = Rd", color='k')
 
         # Formatting
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel("$Re(z_s)$")
         ax.set_ylabel("$Im(z_s)$")
-        ax.set_title("Strut Cross Section, N={}".format(self.Nsides))
+        ax.set_title("Physical Domain, N={}".format(self.Nsides))
         ax.legend()
         ax.grid(True)
 
         return fig, ax
+    
+    def plotZeta(self, fig=None, ax=None):
+        zetas = self.zeta_s
+
+        zetas = np.append(zetas, zetas[0]) # close the circle
+
+        # Create figure/axes if not provided
+        if fig is None or ax is None:
+            fig, ax = plt.subplots()
+
+        # Plot the mapped points
+        ax.plot(np.real(zetas), np.imag(zetas), label="Beam Surface", color='k')
+
+        # Formatting
+        ax.set_aspect('equal', adjustable='box')
+        ax.set_xlabel("$Re(\zeta_s)$")
+        ax.set_ylabel("$Im(\zeta_s)$")
+        ax.set_title("Computational Domain, N={}".format(self.Nsides))
+        ax.legend()
+        ax.grid(True)
+
+        return fig, ax
+
     
 
     def plotMap(self, fig=None, ax=None):
