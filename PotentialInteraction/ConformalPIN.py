@@ -3,7 +3,7 @@ import numpy as np
 from scipy.optimize import root, least_squares, fsolve, minimize
 import matplotlib.pyplot as plt
 
-class ConformalPIN(PotentialInteraction):
+class HypotrochoidalPIN(PotentialInteraction):
     def __init__(self, Nsides:int, theta0:float, rho_corner:float,
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
@@ -152,14 +152,14 @@ class ConformalPIN(PotentialInteraction):
                     zetavbar[None, :, :]) * (-zetasprime[:, None, None] / zetas[:, None, None]) # Nthetab, Nr, Nphi
             dfdzeta += dfdzeta_vortex
 
-            dphidt_dzetavdzv= self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
-                1j / zetavbar[None, :, :] + 1j / (zetav[None, :, :] - zetas[:, None, None]) - 1j / (zetavbar[None, :, :] - zetasprime[:, None, None])
-            ) # (Nthetab, Nphi, Nr)
+            dfdt_dzetavdzv= self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (1j / zetavbar[None, :, :] +
+                     1j / (zetav[None, :, :] - zetas[:, None, None]) - 1j / (zetavbar[None, :, :] - zetasprime[:, None, None]))
+             # (Nthetab, Nphi, Nr)
             
 
             # add the linear contribution to the pressure, including the dzetadz mapping at zetav.
             # note that at |zeta| -> infinity we have dzeta/dz = 1
-            pressure += dphidt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :] 
+            pressure += np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :]) # apply the real over the entire expression!
         
         dfdz = dfdzeta * self.getDzetaDz(zetas)[None, :, :] # apply the mapping
 
@@ -228,21 +228,21 @@ class ConformalPIN(PotentialInteraction):
         # compute forces by integrating over thetab,
         # mapping the surface position!
 
-        dzsdtheta = self.getDzetaDz(self.zeta_s) * 1j * self.zeta_s
+        dzsdtheta = self.getDzetaDz(self.zeta_s)**(-1) * 1j * self.zeta_s
 
         Fphi = np.sum(
             pressure *
-            np.real()[:, None, None] * 
+            np.imag(dzsdtheta)[:, None, None] * 
             deltathetab,
             axis=0
-        ) # (Nphi, Nr), drag, oriented backwards
+        ) # (Nphi, Nr), drag, positive backwards
 
         Fz = -np.sum(
             pressure *
-            np.imag(zs)[:, None, None] * 
+            -np.real(dzsdtheta)[:, None, None] * 
             deltathetab,
             axis=0
-        ) # (Nphi, Nr) # lift, oriented upwards
+        ) # (Nphi, Nr) # lift, positive upwards
 
         F_beam = np.zeros((3, self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Note: in the time domain!, size (3, Nt, Nr)
         F_beam[1, :, :] = Fz

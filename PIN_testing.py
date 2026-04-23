@@ -83,8 +83,8 @@ hanson = HansonModel(
 # pin.plotDownwashInRotorPlane()
 # plt.show()
 
-# pin.plotStrutLoading3D()
-# plt.show()
+pin.plotStrutLoading3D()
+plt.show()
 
 
 Fblade = pin.getBladeLoadingHarmonics()
