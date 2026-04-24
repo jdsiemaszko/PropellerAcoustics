@@ -357,9 +357,13 @@ class PotentialInteraction:
             v + Uimag[:, None] * np.cos(alpha0)[:, None]  # v sgould approach -Uimag * sin(alpha0) at infinity
         ])
 
+        # sum periodically to extract the periodic downwash!
+
+        _, w_periodic = periodic_sum_interpolated(np.swapaxes(w_vec, 1, 2), period=2 * np.pi, time=self.phi, kind='cubic', t_new=self.phi)
+        w_periodic = np.swapaxes(w_periodic, 1, 2)
 
         alpha = self.seg_twist[:, None]
-        w_normal = w_vec[0] * (-np.sin(alpha)) + w_vec[1] * np.cos(alpha) # Nr, Nphi
+        w_normal = w_periodic[0] * (-np.sin(alpha)) + w_periodic[1] * np.cos(alpha) # Nr, Nphi
 
 
         return w_normal
