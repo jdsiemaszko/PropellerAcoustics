@@ -83,8 +83,8 @@ hanson = HansonModel(
 # pin.plotDownwashInRotorPlane()
 # plt.show()
 
-pin.plotStrutLoading3D()
-plt.show()
+# pin.plotStrutLoading3D()
+# plt.show()
 
 
 Fblade = pin.getBladeLoadingHarmonics()
@@ -128,70 +128,70 @@ x_cart = np.array([
 ]).reshape((3, 1))
 
 
-p_rotor_loading, _ = hanson.getPressureRotor(x_cart, ms, Fblade=Fblade)
-p_rotor_thickness, _ = hanson.getThicknessNoiseRotor(x_cart, ms, chord=0.025 * np.ones(NRADIALSEGMENTS-1), thickness_to_chord=0.12 * np.ones(NRADIALSEGMENTS-1))
-p_beam, _ = hanson.getPressureStator(x_cart, ms * B, Fstator=Fbeam)
+# p_rotor_loading, _ = hanson.getPressureRotor(x_cart, ms, Fblade=Fblade)
+# p_rotor_thickness, _ = hanson.getThicknessNoiseRotor(x_cart, ms, chord=0.025 * np.ones(NRADIALSEGMENTS-1), thickness_to_chord=0.12 * np.ones(NRADIALSEGMENTS-1))
+# p_beam, _ = hanson.getPressureStator(x_cart, ms * B, Fstator=Fbeam)
 
 
 
-fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(ms, p_to_SPL(p_rotor_loading)[0], label=f"BladeLoading", color='r', marker='^')
-ax.plot(ms, p_to_SPL(p_rotor_thickness)[0], label=f"Blade Thickness", color='b', marker='^')
-ax.plot(ms, p_to_SPL(p_rotor_thickness+p_rotor_loading)[0], label=f"Rotor Total", color='y', marker='^')
-ax.plot(ms, p_to_SPL(p_beam)[0], label=f"Beam Loading", color='m', marker='^')
-ax.plot(ms, p_to_SPL(p_beam + p_rotor_thickness + p_rotor_loading)[0], label=f"Total", color='k', marker='^')
-ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental", color='k', alpha=0.75)
-fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
-                         plot_kwargs={
-                             'color':'k',
-                             'linestyle':'dashed',
-                             'alpha':0.75
-                         })
+# fig, ax = plt.subplots(figsize=(7, 4))
+# ax.plot(ms, p_to_SPL(p_rotor_loading)[0], label=f"BladeLoading", color='r', marker='^')
+# ax.plot(ms, p_to_SPL(p_rotor_thickness)[0], label=f"Blade Thickness", color='b', marker='^')
+# ax.plot(ms, p_to_SPL(p_rotor_thickness+p_rotor_loading)[0], label=f"Rotor Total", color='y', marker='^')
+# ax.plot(ms, p_to_SPL(p_beam)[0], label=f"Beam Loading", color='m', marker='^')
+# ax.plot(ms, p_to_SPL(p_beam + p_rotor_thickness + p_rotor_loading)[0], label=f"Total", color='k', marker='^')
+# ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental", color='k', alpha=0.75)
+# fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+#                          plot_kwargs={
+#                              'color':'k',
+#                              'linestyle':'dashed',
+#                              'alpha':0.75
+#                          })
 
-ax.legend(ncol=2)
-ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
-ax.set_ylabel("SPL (dB)")
-ax.set_xscale('log')
+# ax.legend(ncol=2)
+# ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
+# ax.set_ylabel("SPL (dB)")
+# ax.set_xscale('log')
 
-ax.grid(visible=True, which='major', color='k', linestyle='-')
-ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
-ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
-plt.xlim(0.1, 100)
-plt.ylim(0, 70)
-plt.tight_layout()
-plt.show()
+# ax.grid(visible=True, which='major', color='k', linestyle='-')
+# ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
+# ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
+# plt.xlim(0.1, 100)
+# plt.ylim(0, 70)
+# plt.tight_layout()
+# plt.show()
 
 
 
 k = pin.k
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-ax.plot(k, np.abs(Fblade[1, :, 30]), marker='s', color='r', label='PIN')
-ax.plot(k, np.abs(Fblade_old[1, :, 30]), marker='^', color='b', label='Old')
+# ax.plot(k, np.abs(Fblade[1, :, 30]), marker='s', color='r', label='PIN')
+# ax.plot(k, np.abs(Fblade_old[1, :, 30]), marker='^', color='b', label='Old')
 
-ax.plot(k, np.abs(Fblade[2, :, 30]), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.abs(Fblade_old[2, :, 30]), marker='^', color='b', linestyle='dashed')
-ax.set_xlabel('k')
-ax.set_ylabel('$|F^z_{blade}|$')
-ax.legend()
-ax.grid()
-plt.title('Blade Loadings')
-plt.show()
+# ax.plot(k, np.abs(Fblade[2, :, 30]), marker='s', color='r', linestyle='dashed')
+# ax.plot(k, np.abs(Fblade_old[2, :, 30]), marker='^', color='b', linestyle='dashed')
+# ax.set_xlabel('k')
+# ax.set_ylabel('$|F^z_{blade}|$')
+# ax.legend()
+# ax.grid()
+# plt.title('Blade Loadings')
+# plt.show()
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-ax.plot(k, np.rad2deg(np.angle(Fblade[1, :, 30])), marker='s', color='r', label='PIN')
-ax.plot(k, np.rad2deg(np.angle(Fblade_old[1, :, 30])), marker='^', color='b', label='Old')
+# ax.plot(k, np.rad2deg(np.angle(Fblade[1, :, 30])), marker='s', color='r', label='PIN')
+# ax.plot(k, np.rad2deg(np.angle(Fblade_old[1, :, 30])), marker='^', color='b', label='Old')
 
-ax.plot(k, np.rad2deg(np.angle(Fblade[2, :, 30])), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.rad2deg(np.angle(Fblade_old[2, :, 30])), marker='^', color='b', linestyle='dashed')
-ax.set_xlabel('k')
-ax.set_ylabel('$Arg(F^z_{blade})$ [deg]')
-ax.legend()
-ax.grid()
-plt.title('Blade Loadings')
-plt.show()
+# ax.plot(k, np.rad2deg(np.angle(Fblade[2, :, 30])), marker='s', color='r', linestyle='dashed')
+# ax.plot(k, np.rad2deg(np.angle(Fblade_old[2, :, 30])), marker='^', color='b', linestyle='dashed')
+# ax.set_xlabel('k')
+# ax.set_ylabel('$Arg(F^z_{blade})$ [deg]')
+# ax.legend()
+# ax.grid()
+# plt.title('Blade Loadings')
+# plt.show()
 
 
 fig, ax = plt.subplots()

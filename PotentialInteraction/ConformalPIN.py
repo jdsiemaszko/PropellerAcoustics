@@ -2,6 +2,7 @@ from .PIN import PotentialInteraction
 import numpy as np
 from scipy.optimize import root, least_squares, fsolve, minimize
 import matplotlib.pyplot as plt
+from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated
 
 class HypotrochoidalPIN(PotentialInteraction):
     def __init__(self, Nsides:int, theta0:float, rho_corner:float,
@@ -186,8 +187,12 @@ class HypotrochoidalPIN(PotentialInteraction):
 
         Ds = self.Dcylinder
         Ls = self.Lcylinder
+        Nphi = self._numerics.get('Nphi', 360)
+        N = 10 # arbitrary, N>2 should be okay
+        phi_long = np.linspace(-N * np.pi, N * np.pi, Nphi * N, endpoint=False)
 
-        z = 1j * Ls + self.seg_radius[:, None] * self.phi[None, :] # Nr, Nphi
+        z = 1j * Ls + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi
+
         zeta = self.getZeta(z) # map to computational domain
 
         # CIRCLE conjugate
@@ -212,10 +217,15 @@ class HypotrochoidalPIN(PotentialInteraction):
             v + Uimag[:, None] * np.cos(alpha0)[:, None]  # v sgould approach -Uimag * sin(alpha0) at infinity
         ])
 
+        # NEED A LONGER ARRAY   
+        _, w_periodic = periodic_sum_interpolated(np.swapaxes(w_vec, 1, 2), period=2 * np.pi, time=phi_long, kind='cubic', t_new=self.phi)
+        w_periodic = np.swapaxes(w_periodic, 1, 2)
 
-        alpha = self.seg_twist[:, None]
-        w_normal = w_vec[0] * (-np.sin(alpha)) + w_vec[1] * np.cos(alpha) # Nr, Nphi
 
+        # alpha = self.seg_twist[:, None]
+        alpha = np.arctan2(-self.Ui[1], self.Omega * self.seg_radius - self.Ui[0])[:, None] # Nr, None
+
+        w_normal = w_periodic[0] * (-np.sin(alpha)) + w_periodic[1] * np.cos(alpha) # Nr, Nphi
 
         return w_normal
     

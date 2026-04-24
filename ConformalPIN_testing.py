@@ -12,7 +12,7 @@ NHARMONICS = 40
 ms = np.arange(1, 16, 1)
 
 pin = HypotrochoidalPIN(
-    Nsides=3, theta0=np.deg2rad(45), rho_corner=0.5,
+    Nsides=3, theta0=np.deg2rad(30), rho_corner=0.65,
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
