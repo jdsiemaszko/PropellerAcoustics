@@ -21,7 +21,7 @@ import matplotlib.colors as colors
 SUFFIX = '_D360_HR'
 # SUFFIX = '_HIGHRES'
 
-ind_theta = 6       # -60 to 60 in 10
+ind_theta = 0       # -60 to 60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -39,8 +39,12 @@ with load_h5(f"{datadir}/{casefile}_autopower.h5") as f:
 
     BPF = B * RPM / 60
     data = ap[f"Autopower_RPM_{RPM}_Pa2"][:, ind_theta, ind_phi] # (freq, polar, azimuth), (aziuth=0 = > beam axis, azimuth=9 => 90 deg)
+
 theta = 90 - theta_exp
 phi = 180 - phi_exp
+
+# theta = -theta
+# phi = -phi
 print(f'Theta_exp = {theta_exp} deg, Phi_exp = {phi_exp} deg')
 print(f'Theta = {theta} deg, Phi = {phi} deg')
 x_cart = np.array([
