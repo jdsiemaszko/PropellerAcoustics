@@ -12,7 +12,7 @@ NHARMONICS = 40
 ms = np.arange(1, 16, 1)
 
 pin = HypotrochoidalPIN(
-    Nsides=3, theta0=np.deg2rad(45), rho_corner=0.5,
+    Nsides=4, theta0=np.deg2rad(45), rho_corner=0.5,
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
@@ -30,27 +30,30 @@ pin = HypotrochoidalPIN(
     numerics={'Nphi': 180, 'Nthetab': 36}
 )
 
-# pin.plotCrossSection()
-# pin.plotMap()
-# plt.show()
+fig, ax = pin.plotZ()
+fig, ax = pin.plotMap(fig=fig, ax=ax)
+plt.show()
 
 # pin.plotDownwashInRotorPlane()
 # plt.show()
 
+pin.plotStrutLoading3D()
+plt.show()
+
 # inverse transform OKAY
-fig, ax = pin.plotZ()
+# fig, ax = pin.plotZ()
 
-for L in [0.02, 0.01, 0.0075, 0.005]:
-    z = pin.phi[None, :] * pin.seg_radius[:, None] + 1j * L
-    zeta = pin.getZeta(z)
-    ax.plot(np.real(z[30, :]), np.imag(z[30, :]), label=f'L={L:.4f}')
-    ax.legend()
-plt.show()
+# for L in [0.02, 0.01, 0.0075, 0.005]:
+#     z = pin.phi[None, :] * pin.seg_radius[:, None] + 1j * L
+#     zeta = pin.getZeta(z)
+#     ax.plot(np.real(z[30, :]), np.imag(z[30, :]), label=f'L={L:.4f}')
+#     ax.legend()
+# plt.show()
 
-fig, ax = pin.plotZeta()
-for L in [0.02, 0.01, 0.0075, 0.005]:
-    z = pin.phi[None, :] * pin.seg_radius[:, None] + 1j * L
-    zeta = pin.getZeta(z)
-    ax.plot(np.real(zeta[30, :]), np.imag(zeta[30, :]), label=f'L={L:.4f}')
-    ax.legend()
-plt.show()
+# fig, ax = pin.plotZeta()
+# for L in [0.02, 0.01, 0.0075, 0.005]:
+#     z = pin.phi[None, :] * pin.seg_radius[:, None] + 1j * L
+#     zeta = pin.getZeta(z)
+#     ax.plot(np.real(zeta[30, :]), np.imag(zeta[30, :]), label=f'L={L:.4f}')
+#     ax.legend()
+# plt.show()

@@ -32,7 +32,7 @@ pin = PotentialInteraction(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 180, 'Nthetab': 36}
+    numerics={'Nphi': 720, 'Nthetab': 36*2}
 )
 
 blade_l = BladeLoadings(
