@@ -2,6 +2,7 @@ from PotentialInteraction.ConformalPIN import HypotrochoidalPIN
 import numpy as np
 from Constants.helpers import read_force_file, p_to_SPL, spl_from_autopower, plot_BPF_peaks
 import matplotlib.pyplot as plt
+from Constants.data_assim import getGojonData
 
 r_inner, Fz, Fphi = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt')
 
@@ -57,3 +58,4 @@ plt.show()
 #     ax.plot(np.real(zeta[30, :]), np.imag(zeta[30, :]), label=f'L={L:.4f}')
 #     ax.legend()
 # plt.show()
+
