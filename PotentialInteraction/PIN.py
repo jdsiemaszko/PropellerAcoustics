@@ -134,10 +134,10 @@ class PotentialInteraction:
                  (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
         
         # correct the contributions k!=mB (should be small anyway)
-        for i, k_val in enumerate(self.k):
-            if k_val % self.B != 0:
-                F_beam_k_global[:, i, :] = 0.0 # zero out contributions that are not multiples of B, should be inconsequential
-        F_beam_k_global[:, 0, :] = 0.0 # zero-out mean loading on the beam, should be inconsequential
+        # for i, k_val in enumerate(self.k):
+        #     if k_val % self.B != 0:
+        #         F_beam_k_global[:, i, :] = 0.0 # zero out contributions that are not multiples of B, should be inconsequential
+        # F_beam_k_global[:, 0, :] = 0.0 # zero-out mean loading on the beam, should be inconsequential
 
         # Note: indez k corresponds to frequency k*B*Omega => need to map onto global k array with multiples of k*Omega!
         # this is DIFFERENT from the propeller computation!
@@ -214,7 +214,7 @@ class PotentialInteraction:
         dfdz += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0[None, None, :]) + np.exp(1j * alpha0[None, None, :]
                     ) * zprime[:, None, None] / z[:, None, None]) 
         
-        for vortex_index in range(-12, 12, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+        for vortex_index in range(-50, 50, 1): # sum an arbitrary amount of vortices, further ones should be negligible
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
             # phased vortices: shift the passage time by vortex_index * T/B
             zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega) + 1j * self.Lcylinder 
@@ -335,8 +335,11 @@ class PotentialInteraction:
 
         # complex variable
         # Note: here we need the assumption r * pi >> Lcylinder!
+        Nphi = self._numerics.get('Nphi', 360)
+        N = 10 # arbitrary, N>2 should be okay
+        phi_long = np.linspace(-N * np.pi, N * np.pi, Nphi * N, endpoint=False)
 
-        z = 1j * Ls + self.seg_radius[:, None] * self.phi[None, :] # Nr, Nphi
+        z = 1j * Ls + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi
 
         # CIRCLE conjugate
         zprime = Ds**2 / 4 / z
@@ -357,9 +360,15 @@ class PotentialInteraction:
             v + Uimag[:, None] * np.cos(alpha0)[:, None]  # v sgould approach -Uimag * sin(alpha0) at infinity
         ])
 
+        # sum periodically to extract the periodic downwash!
+        # NEED A LONGER ARRAY   
+        _, w_periodic = periodic_sum_interpolated(np.swapaxes(w_vec, 1, 2), period=2 * np.pi, time=phi_long, kind='cubic', t_new=self.phi)
+        w_periodic = np.swapaxes(w_periodic, 1, 2)
 
-        alpha = self.seg_twist[:, None]
-        w_normal = w_vec[0] * (-np.sin(alpha)) + w_vec[1] * np.cos(alpha) # Nr, Nphi
+        # alpha = self.seg_twist[:, None]
+
+        alpha = np.arctan2(-self.Ui[1], self.Omega * self.seg_radius - self.Ui[0])[:, None] # Nr, None
+        w_normal = w_periodic[0] * (-np.sin(alpha)) + w_periodic[1] * np.cos(alpha) # Nr, Nphi
 
 
         return w_normal

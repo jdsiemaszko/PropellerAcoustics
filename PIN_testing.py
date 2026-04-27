@@ -80,8 +80,8 @@ hanson = HansonModel(
 )
 
 
-# pin.plotDownwashInRotorPlane()
-# plt.show()
+pin.plotDownwashInRotorPlane()
+plt.show()
 
 pin.plotStrutLoading3D()
 plt.show()
