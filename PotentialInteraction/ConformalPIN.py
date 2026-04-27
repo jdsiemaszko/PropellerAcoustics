@@ -162,7 +162,7 @@ class HypotrochoidalPIN(PotentialInteraction):
             # note that at |zeta| -> infinity we have dzeta/dz = 1
             pressure += np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :]) # apply the real over the entire expression!
         
-        dfdz = dfdzeta * self.getDzetaDz(zetas)[None, :, :] # apply the mapping
+        dfdz = dfdzeta * self.getDzetaDz(zetas)[:, None, None] # apply the mapping
 
         u, v = np.real(dfdz), -np.imag(dfdz)
         U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
@@ -281,7 +281,7 @@ class HypotrochoidalPIN(PotentialInteraction):
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel("$Re(z_s)$")
         ax.set_ylabel("$Im(z_s)$")
-        ax.set_title("Physical Domain, N={}".format(self.Nsides))
+        # ax.set_title("Physical Domain, N={}".format(self.Nsides))
         ax.legend()
         ax.grid(True)
 
