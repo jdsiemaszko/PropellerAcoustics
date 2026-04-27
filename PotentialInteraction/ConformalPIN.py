@@ -25,9 +25,9 @@ class HypotrochoidalPIN(PotentialInteraction):
                             Fphiprime_Npm,
                             B,
                             Dcylinder_m, Lcylinder_m, Omega_rads,
-                            rho_kgm3=rho_kgm3, c_mps = c_mps, kmax = kmax, nb = 1,
+                            rho_kgm3=rho_kgm3, c_mps = c_mps, kmax = kmax, nb = nb,
                             U0_mps=U0_mps, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
-                            numerics = {},
+                            numerics = numerics,
                             )
         
 
@@ -35,7 +35,6 @@ class HypotrochoidalPIN(PotentialInteraction):
         self.theta0 = theta0
 
         self.Rd = Dcylinder_m/2
-        # self.Rd = 1.0 # arbitrary?
         self.Rr = self.Rd / self.Nsides
         self.rho_corner = rho_corner * self.Rr # define relative to maximum allowed rho!
         self.zs, self.zeta_s = self.getSurfacePoints()
@@ -205,7 +204,7 @@ class HypotrochoidalPIN(PotentialInteraction):
         # f = 1j * Uimag * (z * np.exp(-1j * alpha0) - Ds**2 / 4 / z * np.exp(1j * alpha0))
 
         # derivative of potential: df/dz = u - 1j * v, explicit because why wouldn't we
-        dfdzeta = 1j * Uimag[:, None] * (np.exp(-1j * alpha0_zeta[:, None]) + np.exp(1j * alpha0[:, None]) * zetaprime / zeta) # Nr, Nphi
+        dfdzeta = 1j * Uimag[:, None] * (np.exp(-1j * alpha0_zeta[:, None]) + np.exp(1j * alpha0_zeta[:, None]) * zetaprime / zeta) # Nr, Nphi
 
         dfdz = dfdzeta * self.getDzetaDz(zeta)
 

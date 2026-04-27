@@ -15,10 +15,12 @@ NHARMONICS = 40
 ms = np.arange(1, 16, 1)
 
 B=2
-RPM = 4000
+RPM = 8000
 RPM_ref = 8000
-CT = 0.0625 # approximate only
+# CT = 0.0625 # approximate only
 
+NPHI = 360
+NTHETA = 360
 # rescale loading to approximately match loading at this RPM
 Fz *= (RPM/RPM_ref)**2
 Fphi = (RPM/RPM_ref)**2
@@ -39,7 +41,7 @@ pin_triangle = HypotrochoidalPIN(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 720, 'Nthetab': 36*4}
+    numerics={'Nphi': NPHI, 'Nthetab':NTHETA}
 )
 
 pin_square = HypotrochoidalPIN(
@@ -58,7 +60,7 @@ pin_square = HypotrochoidalPIN(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 720, 'Nthetab': 36*4}
+    numerics={'Nphi': NPHI, 'Nthetab':NTHETA}
 )
 
 pin_circle = HypotrochoidalPIN(
@@ -77,7 +79,7 @@ pin_circle = HypotrochoidalPIN(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 720, 'Nthetab': 36*4}
+    numerics={'Nphi': NPHI, 'Nthetab':NTHETA}
 )
 
 hanson = HansonModel(
