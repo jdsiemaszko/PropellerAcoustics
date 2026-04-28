@@ -4,8 +4,8 @@ from scipy.optimize import root, least_squares, fsolve, minimize
 import matplotlib.pyplot as plt
 from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated
 
-class HypotrochoidalPIN(PotentialInteraction):
-    def __init__(self, Nsides:int, theta0:float, rho_corner:float,
+class ConformalPIN(PotentialInteraction):
+    def __init__(self,
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
                 radius_m:np.ndarray,
@@ -29,36 +29,24 @@ class HypotrochoidalPIN(PotentialInteraction):
                             U0_mps=U0_mps, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
                             numerics = numerics,
                             )
-        
 
-        self.Nsides = Nsides
-        self.theta0 = theta0
-
-        self.Rd = Dcylinder_m/2
-        self.Rr = self.Rd / self.Nsides
-        self.rho_corner = rho_corner * self.Rr # define relative to maximum allowed rho!
+        self.Rd = Dcylinder_m/2 # cylinder radius in the comp domain!
         self.zs, self.zeta_s = self.getSurfacePoints()
         
     def getZ(self, zeta):
         """
-        transform from the computational domain (cylinder flow) to the physical domain (Nsides-gonal flow)
+        transform from the computational domain to the physical domain, this should be overwritten in subclasses
         """
-        # z = self.Rd * ((1-1/self.Nsides) * zeta + self.rho_corner / self.Rd *
-        #                 zeta **(-self.Nsides+1)) * np.exp(1j * self.theta0)
-
-        z = zeta + self.rho_corner / (1-1/self.Nsides) * (zeta/self.Rd) ** (-self.Nsides + 1)
-        z *= np.exp(1j * self.theta0)
-        return z
+        
+        return zeta
     
     def getDzetaDz(self, zeta):
         """
-        get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta
+        get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta,
+        this should be overwritten in subclasses
         """
 
-        # dzetadz = (np.exp(1j * self.theta0) * self.Rd * ((1-1/self.Nsides)-self.rho_corner/self.Rd * (self.Nsides-1) * zeta**(-self.Nsides)))**(-1) 
-        dzetadz = (np.exp(1j * self.theta0) * (1 - self.rho_corner * self.Nsides / self.Rd  * (zeta/self.Rd)**(-self.Nsides)))**(-1) 
-
-        return dzetadz
+        return np.ones_like(zeta)
     
     def getSurfacePoints(self):
         # xt = (self.Rd - self.Rr) * np.cos(self.theta_beam + self.theta0) + self.rho_corner * np.cos((self.Rd-self.Rr)/self.Rr * self.theta_beam - self.theta0)
@@ -66,29 +54,17 @@ class HypotrochoidalPIN(PotentialInteraction):
 
         # return xt + 1j * yt
 
+        # assumption about surface location: should be overwritten if different!
         zeta_s = self.Rd * np.exp(1j * self.theta_beam)
         z_s = self.getZ(zeta_s) 
         return z_s, zeta_s
     
-    def getZeta(self, z, MAXITER=int(1e3), epstol=1e-8):
+    def getZeta(self, z):
         """
-        Vectorized implicit solve z = self.getZ(zeta)
-        using polar parametrization: zeta = r * exp(i phi)
-        with bounds on r and phi.
+        inverse transform from physical to computational. 
+        this should be overwritten in subclasses
         """
-
-        # zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
-        zeta = z
-        for iter in range(MAXITER):
-            dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
-
-            zeta += dzeta
-            error = np.abs(self.getZ(zeta) - z) / self.Rd
-
-            if np.all(error) < epstol:
-                break
-
-        return zeta
+        return z
     
 
     def getStrutPressure(self):
@@ -104,7 +80,7 @@ class HypotrochoidalPIN(PotentialInteraction):
         thetab = self.theta_beam
         deltathetab = np.diff(thetab)[0]
 
-        zetas = self.Rd * np.exp(1j * thetab) # positions along the cylinder surface, complex, size (Nthetab)
+        zetas = self.zeta_s
         zetasprime = self.Rd**2 / zetas # circle conjugate
 
         # inflow part
@@ -235,7 +211,7 @@ class HypotrochoidalPIN(PotentialInteraction):
         # compute forces by integrating over thetab,
         # mapping the surface position!
 
-        dzsdtheta = self.getDzetaDz(self.zeta_s)**(-1) * 1j * self.zeta_s
+        dzsdtheta = self.getDzetaDz(self.zeta_s)**(-1) * 1j * self.zeta_s # assuming zeta = Rd * e^(i*theta)
 
         Fphi = np.sum(
             pressure *
@@ -306,8 +282,6 @@ class HypotrochoidalPIN(PotentialInteraction):
 
         return fig, ax
 
-    
-
     def plotMap(self, fig=None, ax=None):
         radii = np.linspace(self.Rd, self.Rd * 3, 50)
 
@@ -329,11 +303,84 @@ class HypotrochoidalPIN(PotentialInteraction):
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel("$Re(z_s)$")
         ax.set_ylabel("$Im(z_s)$")
-        ax.set_title("Strut Cross Section, N={}".format(self.Nsides))
+        # ax.set_title("Strut Cross Section, N={}".format(self.Nsides))
         ax.legend()
         ax.grid(True)
 
         return fig, ax
     
+class HypotrochoidalPIN(ConformalPIN):
+    def __init__(self, Nsides:int, theta0:float, rho_corner:float,
+                twist_rad:np.ndarray, 
+                chord_m:np.ndarray, 
+                radius_m:np.ndarray,
+                Fzprime_Npm:np.ndarray,
+                Fphiprime_Npm:np.ndarray,
+                B,
+                Dcylinder_m, Lcylinder_m, Omega_rads,
+                rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1,
+                U0_mps:np.ndarray=None, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
+                numerics = {},):
+        
+        self.Rd = Dcylinder_m/2
+        self.Nsides = Nsides
+        self.Rr = self.Rd / self.Nsides
+        self.rho_corner = rho_corner * self.Rr # define relative to maximum allowed rho!
+        self.theta0 = theta0
+        # run the __init__ of the superclass ConformalPIN
+        super().__init__(twist_rad, 
+                            chord_m, 
+                            radius_m,
+                            Fzprime_Npm,
+                            Fphiprime_Npm,
+                            B,
+                            Dcylinder_m, Lcylinder_m, Omega_rads,
+                            rho_kgm3=rho_kgm3, c_mps = c_mps, kmax = kmax, nb = nb,
+                            U0_mps=U0_mps, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
+                            numerics = numerics,
+                            )
+        
+    def getZ(self, zeta):
+        """
+        transform from the computational domain (cylinder flow) to the physical domain (Nsides-gonal flow)
+        """
+        # z = self.Rd * ((1-1/self.Nsides) * zeta + self.rho_corner / self.Rd *
+        #                 zeta **(-self.Nsides+1)) * np.exp(1j * self.theta0)
+
+        z = zeta + self.rho_corner / (1-1/self.Nsides) * (zeta/self.Rd) ** (-self.Nsides + 1)
+        z *= np.exp(1j * self.theta0)
+        return z
+    
+    def getDzetaDz(self, zeta):
+        """
+        get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta
+        """
+
+        # dzetadz = (np.exp(1j * self.theta0) * self.Rd * ((1-1/self.Nsides)-self.rho_corner/self.Rd * (self.Nsides-1) * zeta**(-self.Nsides)))**(-1) 
+        dzetadz = (np.exp(1j * self.theta0) * (1 - self.rho_corner * self.Nsides / self.Rd  * (zeta/self.Rd)**(-self.Nsides)))**(-1) 
+
+        return dzetadz
+    
+    def getZeta(self, z, MAXITER=int(1e3), epstol=1e-8):
+        """
+        Vectorized implicit solve z = self.getZ(zeta)
+        using polar parametrization: zeta = r * exp(i phi)
+        with bounds on r and phi.
+        """
+
+        # zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
+        zeta = z
+        for iter in range(MAXITER):
+            dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
+
+            zeta += dzeta
+            error = np.abs(self.getZ(zeta) - z) / self.Rd
+
+            if np.all(error) < epstol:
+                break
+
+        return zeta
+    
+
 # class JoukowskiPIN(HypotrochoidalPIN):
 
