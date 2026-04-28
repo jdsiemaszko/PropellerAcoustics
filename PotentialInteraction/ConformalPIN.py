@@ -104,13 +104,14 @@ class ConformalPIN(PotentialInteraction):
 
         Ucomplex_z = self.Ui[0] + 1j * self.Ui[1]
         Ucomplex_z_conj = np.conj(Ucomplex_z)
-        Ucomplex_zeta_conj = Ucomplex_z_conj[:, None]  * (self.getDzetaDzInfinity(zetas))**(-1)
+        Ucomplex_zeta_conj = Ucomplex_z_conj[None, None, :]  * (self.getDzetaDzInfinity(zetas)[:, None, None])**(-1)
 
         # apply to the potential field:
         # f = conj(Uinfinityzeta) * zeta = conj(Uinfinityz) * z + milne thomson terms
 
         # add the mean flow term
-        dfdzeta = Ucomplex_zeta_conj - np.conj(Ucomplex_zeta_conj) * zetasprime / zetas # potential in the computational frame
+        dfdzeta = np.zeros((self.zeta_s.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128)
+        dfdzeta += Ucomplex_zeta_conj - np.conj(Ucomplex_zeta_conj) * zetasprime[:, None, None] / zetas[:, None, None] # potential in the computational frame
 
         # dfdzeta += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0_zeta[None, None, :]) + np.exp(1j * alpha0_zeta[None, None, :]
         #             ) * zetasprime[:, None, None] / zetas[:, None, None]) 
@@ -417,7 +418,7 @@ class HypotrochoidalPIN(ConformalPIN):
         """
         return np.ones_like(zeta) * np.exp(-1j * self.theta0) # account for rotation, otherwise this converges to one
     
-class JoukowskiPIN(ConformalPIN):
+class JoukowskyPIN(ConformalPIN):
     def __init__(self,
                  
                 zeta_0:np.complex128, # circle center, in complex coordinates!
@@ -436,10 +437,12 @@ class JoukowskiPIN(ConformalPIN):
                 numerics = {},
                 Rd = None, # overwrite parameter for Rd, if set, allows for airfoils with no cusp at the trailing edge
                 ):
+        self._numerics = numerics
         self.Rref = Dcylinder_m / 2
         self.zeta_0 = zeta_0 # rescale!
         self.Lref = Lref
-        self.Rd = np.abs(zeta_0 - Dcylinder_m / 2)
+        eps_radius = self._numerics.get('eps_radius', 1e-6)
+        self.Rd = np.abs(zeta_0 - self.Rref) + eps_radius * self.Rref if Rd is None else Rd # add a small parameter 
 
         # effective radius: slightly higher than Dcylinder/2 to cover the point at zeta = -Dcylinder/2
 

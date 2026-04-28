@@ -1,4 +1,4 @@
-from PotentialInteraction.ConformalPIN import HypotrochoidalPIN, JoukowskiPIN
+from PotentialInteraction.ConformalPIN import HypotrochoidalPIN, JoukowskyPIN
 import numpy as np
 from Constants.helpers import read_force_file, p_to_SPL, spl_from_autopower, plot_BPF_peaks
 import matplotlib.pyplot as plt
@@ -82,10 +82,10 @@ pin_circle = HypotrochoidalPIN(
     numerics={'Nphi': NPHI, 'Nthetab':NTHETA}
 )
 
-pin_airfoil = JoukowskiPIN(
+pin_airfoil = JoukowskyPIN(
     zeta_0=-0.08 * 0.005 + 0.00 * 0.005 * 1j,
     theta0=np.deg2rad(-90),
-    Lref = 0.025,
+    Lref = 0.049,
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
@@ -94,7 +94,7 @@ pin_airfoil = JoukowskiPIN(
     Fphiprime_Npm=Fphi,
     B=B,
     Dcylinder_m=0.01,
-    Lcylinder_m=0.02,
+    Lcylinder_m=0.02 + 0.25 * 0.05, # adjust spacing: beam origin at 0.25 chord
     Omega_rads = RPM / 60*2*np.pi,
     rho_kgm3=1.2,
     c_mps=340.0,
@@ -136,7 +136,7 @@ plt.show()
 
 # inverse transform OKAY
 fig, ax = pin_airfoil.plotZ()
-LS = [0.02, 0.015, 0.0129, 0.0125]
+LS = np.array([0.02, 0.015, 0.0129, 0.0125]) + 0.25 * 0.05 # shift the spacing by quarter chord
 for L in LS:
     z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
     zeta = pin_airfoil.getZeta(z)
@@ -154,48 +154,48 @@ plt.show()
 
 
 
-# ind_theta = 6
-# ind_phi = 9
-# D = 0.01
-# L = 0.02
-# dir  = './Experimental/dataverse_files'
+ind_theta = 6
+ind_phi = 9
+D = 0.01
+L = 0.02
+dir  = './Experimental/dataverse_files'
 
-# # data_T, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp = getGojonData(ind_theta, ind_phi, dir, D, L, shape='T', B=2, RPM = 8000)
-# # data_S, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp  = getGojonData(ind_theta, ind_phi, dir, D, L, shape='S', B=2, RPM = 8000)
-# # data_D, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp = getGojonData(ind_theta, ind_phi, dir, D, L, shape='D', B=2, RPM = 8000)
+# data_T, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp = getGojonData(ind_theta, ind_phi, dir, D, L, shape='T', B=2, RPM = 8000)
+# data_S, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp  = getGojonData(ind_theta, ind_phi, dir, D, L, shape='S', B=2, RPM = 8000)
+# data_D, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp = getGojonData(ind_theta, ind_phi, dir, D, L, shape='D', B=2, RPM = 8000)
 
-# fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = plt.subplots(figsize=(7, 4))
 
-# for shape, color, marker, pin_model in zip(['T', 'S', 'D'], ['r', 'g', 'b'], ['^', 's', 'o'], [pin_triangle, pin_square, pin_circle]):
-#     data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile = getGojonData(ind_theta, ind_phi, dir, D, L, shape=shape, B=B, RPM = RPM)
+for shape, color, marker, pin_model in zip(['T', 'S', 'D', 'A'], ['r', 'g', 'b', 'm'], ['^', 's', 'o', '*'], [pin_triangle, pin_square, pin_circle, pin_airfoil]):
+    if shape != 'A':
+        data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile = getGojonData(ind_theta, ind_phi, dir, D, L, shape=shape, B=B, RPM = RPM)
+        # continue
+        ax.plot(freq[0] / BPF, spl_from_autopower(data), 
+                # label=f"{shape}{1000*L:.0f}",
+                label = casefile,
+                color=color, alpha=0.75)
+        fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+                                plot_kwargs={
+                                    'color':color,
+                                    'linestyle':'dashed',
+                                    'alpha':0.75,
+                                    'marker' : marker
+                                })
+        
+    strut_loading = pin_model.getStrutLoadingHarmonics()
+    p_model, _ = hanson.getPressureStator(x_cart, ms * B, Fstator=strut_loading)
 
+    ax.plot(ms, p_to_SPL(p_model)[0, :], color=color, marker=marker, label=f'model ({shape})')
 
-#     ax.plot(freq[0] / BPF, spl_from_autopower(data), 
-#             # label=f"{shape}{1000*L:.0f}",
-#             label = casefile,
-#               color=color, alpha=0.75)
-#     fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
-#                             plot_kwargs={
-#                                 'color':color,
-#                                 'linestyle':'dashed',
-#                                 'alpha':0.75,
-#                                 'marker' : marker
-#                             })
-    
-#     strut_loading = pin_model.getStrutLoadingHarmonics()
-#     p_model, _ = hanson.getPressureStator(x_cart, ms * B, Fstator=strut_loading)
+ax.legend(ncol=1)
+ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
+ax.set_ylabel("SPL (dB)")
+ax.set_xscale('log')
 
-#     ax.plot(ms, p_to_SPL(p_model)[0, :], color=color, marker=marker, label=f'model ({shape})')
-
-# ax.legend(ncol=1)
-# ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
-# ax.set_ylabel("SPL (dB)")
-# ax.set_xscale('log')
-
-# ax.grid(visible=True, which='major', color='k', linestyle='-')
-# ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
-# ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
-# plt.xlim(0.1, 100)
-# plt.ylim(0, 70)
-# plt.tight_layout()
-# plt.show()
+ax.grid(visible=True, which='major', color='k', linestyle='-')
+ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
+ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
+plt.xlim(0.1, 100)
+plt.ylim(0, 70)
+plt.tight_layout()
+plt.show()
