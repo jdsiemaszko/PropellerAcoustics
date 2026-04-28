@@ -17,6 +17,7 @@ class PotentialInteraction:
                 U0_mps:np.ndarray=None, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
                 numerics = {},
                 ):
+        self.name = numerics.get('name', None)
         self.B = B
         self.Dcylinder = Dcylinder_m
         self.Lcylinder = Lcylinder_m
