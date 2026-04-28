@@ -417,10 +417,6 @@ class HypotrochoidalPIN(ConformalPIN):
         """
         return np.ones_like(zeta) * np.exp(-1j * self.theta0) # account for rotation, otherwise this converges to one
     
-
-
-
-
 class JoukowskiPIN(ConformalPIN):
     def __init__(self,
                  
@@ -466,11 +462,10 @@ class JoukowskiPIN(ConformalPIN):
                             U0_mps=U0_mps, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
                             numerics = numerics,
                             )
-        
-        
+         
     def getZ(self, zeta):
         """
-        transform from the computational domain (cylinder flow) to the physical domain (Nsides-gonal flow)
+        transform from the computational domain (cylinder flow) to the physical domain (Joukowski Airfoil)
         """
 
         zeta = zeta + self.zeta_0 # transform such that zeta is a circle around (0, 0)!
@@ -510,13 +505,5 @@ class JoukowskiPIN(ConformalPIN):
         return the limit dzeta/dz at |z|-> infinity,
         """
         return np.ones_like(zeta) * np.exp(-1j * self.theta0) * 4 / self.Lref * self.Rref # account for rotation and scaling!
-    
 
-    def getSurfacePoints(self):
-
-        # source location overwritten: circle around zeta_0!
-        zeta_s = self.Rd * np.exp(1j * self.theta_beam)
-        z_s = self.getZ(zeta_s) 
-        return z_s, zeta_s
-    
 
