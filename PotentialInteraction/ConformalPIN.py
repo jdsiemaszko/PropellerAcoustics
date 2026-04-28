@@ -50,27 +50,6 @@ class HypotrochoidalPIN(PotentialInteraction):
         z *= np.exp(1j * self.theta0)
         return z
     
-    def getZeta(self, z, MAXITER=int(1e3), epstol=1e-8):
-        """
-        Vectorized implicit solve z = self.getZ(zeta)
-        using polar parametrization: zeta = r * exp(i phi)
-        with bounds on r and phi.
-        """
-
-        zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
-        for iter in range(MAXITER):
-            dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
-
-            zeta += dzeta
-            error = np.abs(self.getZ(zeta) - z) / self.Rd
-
-            if np.all(error) < epstol:
-                break
-
-        return zeta
-
-
-    
     def getDzetaDz(self, zeta):
         """
         get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta
@@ -81,7 +60,6 @@ class HypotrochoidalPIN(PotentialInteraction):
 
         return dzetadz
     
-
     def getSurfacePoints(self):
         # xt = (self.Rd - self.Rr) * np.cos(self.theta_beam + self.theta0) + self.rho_corner * np.cos((self.Rd-self.Rr)/self.Rr * self.theta_beam - self.theta0)
         # yt = (self.Rd - self.Rr) * np.sin(self.theta_beam + self.theta0) - self.rho_corner * np.sin((self.Rd-self.Rr)/self.Rr * self.theta_beam - self.theta0)
@@ -91,6 +69,26 @@ class HypotrochoidalPIN(PotentialInteraction):
         zeta_s = self.Rd * np.exp(1j * self.theta_beam)
         z_s = self.getZ(zeta_s) 
         return z_s, zeta_s
+    
+    def getZeta(self, z, MAXITER=int(1e3), epstol=1e-8):
+        """
+        Vectorized implicit solve z = self.getZ(zeta)
+        using polar parametrization: zeta = r * exp(i phi)
+        with bounds on r and phi.
+        """
+
+        # zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
+        zeta = z
+        for iter in range(MAXITER):
+            dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
+
+            zeta += dzeta
+            error = np.abs(self.getZ(zeta) - z) / self.Rd
+
+            if np.all(error) < epstol:
+                break
+
+        return zeta
     
 
     def getStrutPressure(self):
@@ -337,3 +335,5 @@ class HypotrochoidalPIN(PotentialInteraction):
 
         return fig, ax
     
+# class JoukowskiPIN(HypotrochoidalPIN):
+
