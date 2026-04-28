@@ -77,8 +77,8 @@ class HypotrochoidalPIN(PotentialInteraction):
         with bounds on r and phi.
         """
 
-        # zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
-        zeta = z
+        zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
+        # zeta = z
         for iter in range(MAXITER):
             dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
 
