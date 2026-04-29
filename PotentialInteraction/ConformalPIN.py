@@ -9,6 +9,7 @@ class ConformalPIN(PotentialInteraction):
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
                 radius_m:np.ndarray,
+                t_c:np.ndarray,
                 Fzprime_Npm:np.ndarray,
                 Fphiprime_Npm:np.ndarray,
                 B,
@@ -21,6 +22,7 @@ class ConformalPIN(PotentialInteraction):
         super().__init__(twist_rad, 
                             chord_m, 
                             radius_m,
+                            t_c,
                             Fzprime_Npm,
                             Fphiprime_Npm,
                             B,
@@ -53,8 +55,7 @@ class ConformalPIN(PotentialInteraction):
         may be written explicitly or, for example, by calling self.getDzetaDz at a large distance |z|>>self.Rd
         """
         return np.ones_like(zeta)
-
-    
+   
     def getSurfacePoints(self):
         # xt = (self.Rd - self.Rr) * np.cos(self.theta_beam + self.theta0) + self.rho_corner * np.cos((self.Rd-self.Rr)/self.Rr * self.theta_beam - self.theta0)
         # yt = (self.Rd - self.Rr) * np.sin(self.theta_beam + self.theta0) - self.rho_corner * np.sin((self.Rd-self.Rr)/self.Rr * self.theta_beam - self.theta0)
@@ -72,20 +73,8 @@ class ConformalPIN(PotentialInteraction):
         this should be overwritten in subclasses
         """
 
-        zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
-        # zeta = z
-        for iter in range(MAXITER):
-            dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
-
-            zeta += dzeta
-            error = np.abs(self.getZ(zeta) - z) / self.Rd
-
-            if np.all(error) < epstol:
-                break
-
-        return zeta
+        return z
     
-
     def getStrutPressure(self):
         """"
         surface pressure accounting for conformal mapping
@@ -358,6 +347,8 @@ class HypotrochoidalPIN(ConformalPIN):
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
                 radius_m:np.ndarray,
+                t_c:np.ndarray,
+
                 Fzprime_Npm:np.ndarray,
                 Fphiprime_Npm:np.ndarray,
                 B,
@@ -375,6 +366,7 @@ class HypotrochoidalPIN(ConformalPIN):
         super().__init__(twist_rad, 
                             chord_m, 
                             radius_m,
+                            t_c,
                             Fzprime_Npm,
                             Fphiprime_Npm,
                             B,
@@ -440,6 +432,7 @@ class JoukowskyPIN(ConformalPIN):
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
                 radius_m:np.ndarray,
+                t_c:np.ndarray,
                 Fzprime_Npm:np.ndarray,
                 Fphiprime_Npm:np.ndarray,
                 B,
@@ -465,6 +458,7 @@ class JoukowskyPIN(ConformalPIN):
         super().__init__(twist_rad, 
                             chord_m, 
                             radius_m,
+                            t_c,
                             Fzprime_Npm,
                             Fphiprime_Npm,
                             B,

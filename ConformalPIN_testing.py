@@ -13,10 +13,11 @@ NHARMONICS = 40
 ms = np.arange(1, 16, 1)
 
 pin = HypotrochoidalPIN(
-    Nsides=4, theta0=np.deg2rad(45), rho_corner=0.5,
+    Nsides=100, theta0=np.deg2rad(90), rho_corner=0.01,
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
+    t_c = np.ones_like(r_outer) * 0.12,
     # Uz0_mps=U_flow,
     Fzprime_Npm=Fz,
     Fphiprime_Npm=Fphi,
@@ -35,8 +36,8 @@ fig, ax = pin.plotZ()
 fig, ax = pin.plotMap(fig=fig, ax=ax)
 plt.show()
 
-# pin.plotDownwashInRotorPlane()
-# plt.show()
+pin.plotDownwashInRotorPlane()
+plt.show()
 
 pin.plotStrutLoading3D()
 plt.show()
