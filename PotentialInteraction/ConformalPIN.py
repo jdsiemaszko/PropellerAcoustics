@@ -72,19 +72,7 @@ class ConformalPIN(PotentialInteraction):
         inverse transform from physical to computational. 
         this should be overwritten in subclasses
         """
-
-        zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
-        # zeta = z
-        for iter in range(MAXITER):
-            dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
-
-            zeta += dzeta
-            error = np.abs(self.getZ(zeta) - z) / self.Rd
-
-            if np.all(error) < epstol:
-                break
-
-        return zeta
+        return z
     
 
     def getStrutPressure(self):
