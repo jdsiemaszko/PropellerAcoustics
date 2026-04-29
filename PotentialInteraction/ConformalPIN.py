@@ -145,15 +145,33 @@ class ConformalPIN(PotentialInteraction):
                     zetavbar[None, :, :]) * (-zetasprime[:, None, None] / zetas[:, None, None]) # Nthetab, Nr, Nphi
             dfdzeta += dfdzeta_vortex
 
-            dfdt_dzetavdzv= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (1j / zetavbar[None, :, :] +
-                     1j / (zetav[None, :, :] - zetas[:, None, None]) - 1j / (zetavbar[None, :, :] - zetasprime[:, None, None]))
-             # (Nthetab, Nphi, Nr)
+            # dfdt_dzetavdzv= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (1j / zetavbar[None, :, :] +
+            #          1j / (zetav[None, :, :] - zetas[:, None, None]) - 1j / (zetavbar[None, :, :] - zetasprime[:, None, None]))
+            #  # (Nthetab, Nphi, Nr)
             
+            dfdt_dzetavdzv1= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (
+                 1j / (zetas[:, None, None] - zetav[None, :, :]))
+            
+            dfdt_dzetavdzv2= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (
+                 -1j / (zetasprime[:, None, None] - zetavbar[None, :, :]))
+            
+            dfdt_dzetavdzinfty = gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (
+                 1j / zetavbar[None, :, :])
+
+             # (Nthetab, Nphi, Nr)
+
 
             # add the linear contribution to the pressure, including the dzetadz mapping at zetav.
             # note that at |zeta| -> infinity we have dzeta/dz = 1
-            pressure += self.rho * np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :]) # apply the real over the entire expression!
-        
+            # pressure += self.rho * np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :]) # apply the real over the entire expression!
+            
+            dzetavdzv = self.getDzetaDz(zetav)[None, :, :] # pre-compute
+            pressure += self.rho * np.real(
+                dfdt_dzetavdzinfty * np.conj(dzetavdzv) 
+                 - dfdt_dzetavdzv1 * dzetavdzv
+                 - dfdt_dzetavdzv2 * np.conj(dzetavdzv)
+            )
+
         dfdz = dfdzeta * self.getDzetaDz(zetas)[:, None, None] # apply the mapping
 
         u, v = np.real(dfdz), -np.imag(dfdz)
