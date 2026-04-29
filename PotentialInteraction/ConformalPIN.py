@@ -441,7 +441,7 @@ class JoukowskyPIN(ConformalPIN):
         self.Rref = Dcylinder_m / 2
         self.zeta_0 = zeta_0 # rescale!
         self.Lref = Lref
-        eps_radius = self._numerics.get('eps_radius', 1e-6)
+        eps_radius = self._numerics.get('eps_radius', 1e-3)
         self.Rd = np.abs(zeta_0 - self.Rref) + eps_radius * self.Rref if Rd is None else Rd # add a small parameter 
 
         # effective radius: slightly higher than Dcylinder/2 to cover the point at zeta = -Dcylinder/2

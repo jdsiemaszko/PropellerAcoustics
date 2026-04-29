@@ -23,7 +23,7 @@ NPHI = 360
 NTHETA = 360
 # rescale loading to approximately match loading at this RPM
 Fz *= (RPM/RPM_ref)**2
-Fphi = (RPM/RPM_ref)**2
+Fphi *= (RPM/RPM_ref)**2
 
 pin_triangle = HypotrochoidalPIN(
     Nsides=3, theta0=np.deg2rad(210), rho_corner=0.5,
@@ -122,35 +122,38 @@ plt.show()
 pin_airfoil.plotMap()
 plt.show()
 
-pin_triangle.plotDownwashInRotorPlane()
-plt.show()
+# pin_triangle.plotDownwashInRotorPlane()
+# plt.show()
 
-pin_square.plotDownwashInRotorPlane()
-plt.show()
+# pin_square.plotDownwashInRotorPlane()
+# plt.show()
 
-pin_circle.plotDownwashInRotorPlane()
-plt.show()
+# pin_circle.plotDownwashInRotorPlane()
+# plt.show()
 
-pin_airfoil.plotDownwashInRotorPlane()
-plt.show()
+# pin_airfoil.plotDownwashInRotorPlane()
+# plt.show()
+
+# pin_airfoil.plotStrutLoading3D()
+# plt.show()
 
 # inverse transform OKAY
-fig, ax = pin_airfoil.plotZ()
-LS = np.array([0.02, 0.015, 0.0129, 0.0125]) + 0.25 * 0.05 # shift the spacing by quarter chord
-for L in LS:
-    z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
-    zeta = pin_airfoil.getZeta(z)
-    ax.plot(np.real(z[30, :]), np.imag(z[30, :]), label=f'L={L:.4f}')
-    ax.legend()
-plt.show()
+# fig, ax = pin_airfoil.plotZ()
+# LS = np.array([0.02, 0.015, 0.0129, 0.0125]) + 0.25 * 0.05 # shift the spacing by quarter chord
+# for L in LS:
+#     z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
+#     zeta = pin_airfoil.getZeta(z)
+#     ax.plot(np.real(z[30, :]), np.imag(z[30, :]), label=f'L={L:.4f}')
+#     ax.legend()
+# plt.show()
 
-fig, ax = pin_airfoil.plotZeta()
-for L in LS:
-    z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
-    zeta = pin_airfoil.getZeta(z)
-    ax.plot(np.real(zeta[30, :]), np.imag(zeta[30, :]), label=f'L={L:.4f}')
-    ax.legend()
-plt.show()
+# fig, ax = pin_airfoil.plotZeta()
+# for L in LS:
+#     z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
+#     zeta = pin_airfoil.getZeta(z)
+#     ax.plot(np.real(zeta[30, :]), np.imag(zeta[30, :]), label=f'L={L:.4f}')
+#     ax.legend()
+# plt.show()
 
 
 
@@ -167,21 +170,22 @@ dir  = './Experimental/dataverse_files'
 fig, ax = plt.subplots(figsize=(7, 4))
 
 for shape, color, marker, pin_model in zip(['T', 'S', 'D', 'A'], ['r', 'g', 'b', 'm'], ['^', 's', 'o', '*'], [pin_triangle, pin_square, pin_circle, pin_airfoil]):
-    if shape != 'A':
-        data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile = getGojonData(ind_theta, ind_phi, dir, D, L, shape=shape, B=B, RPM = RPM)
+    # if shape != 'A':
         # continue
-        ax.plot(freq[0] / BPF, spl_from_autopower(data), 
-                # label=f"{shape}{1000*L:.0f}",
-                label = casefile,
-                color=color, alpha=0.75)
-        fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
-                                plot_kwargs={
-                                    'color':color,
-                                    'linestyle':'dashed',
-                                    'alpha':0.75,
-                                    'marker' : marker
-                                })
-        
+    data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile = getGojonData(ind_theta, ind_phi, dir, D, L, shape=shape, B=B, RPM = RPM)
+    # continue
+    ax.plot(freq[0] / BPF, spl_from_autopower(data), 
+            # label=f"{shape}{1000*L:.0f}",
+            label = casefile,
+            color=color, alpha=0.75)
+    fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+                            plot_kwargs={
+                                'color':color,
+                                'linestyle':'dashed',
+                                'alpha':0.75,
+                                'marker' : marker
+                            })
+    # continue
     strut_loading = pin_model.getStrutLoadingHarmonics()
     p_model, _ = hanson.getPressureStator(x_cart, ms * B, Fstator=strut_loading)
 
@@ -199,3 +203,13 @@ plt.xlim(0.1, 100)
 plt.ylim(0, 70)
 plt.tight_layout()
 plt.show()
+
+for shape, color, marker, pin_model in zip(['T', 'S', 'D', 'A'], ['r', 'g', 'b', 'm'], ['^', 's', 'o', '*'], [pin_triangle, pin_square, pin_circle, pin_airfoil]):
+    if shape != 'A':
+        continue
+    blade_loading = pin_model.getBladeLoadingHarmonics()
+    strut_loading = pin_model.getStrutLoadingHarmonics()
+    hanson.plot3DdirectivityTotal(m=2, loadings=blade_loading, loadings_2=strut_loading, R=np.linalg.norm(x_cart, axis=0)[0], chord=pin_model.seg_chord, t_c=0.082)
+    plt.show()
+    # hanson.plot2DdirectivityTotal(m=2, loadings=blade_loading, loadings_2=strut_loading, R=np.linalg.norm(x_cart, axis=0)[0], plane='xz', chord=pin_model.seg_chord, t_c=0.082)
+    # plt.show()

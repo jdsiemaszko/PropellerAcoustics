@@ -51,8 +51,9 @@ class PotentialInteraction:
             self.Ui = U0_mps # (2, Nr) x positive to the right, y positive upwards
         else:
 
-            Uiz = -np.sqrt(self.Fzprime /  4 / np.pi / self.rho / self.seg_radius) # positive upwards
-            Uiphi = -self.Fphiprime / 4 / np.pi / self.rho / self.seg_radius / Uiz # positive to the right, Note: dQ is the side force, not torque!
+            Uiz = -np.sqrt(self.Fzprime * self.B /  4 / np.pi / self.rho / self.seg_radius) # positive upwards, mind that this should include total loading: B * Fzprime
+            Uiphi = self.Fphiprime * self.B / 4 / np.pi / self.rho / self.seg_radius / np.abs(Uiz) # positive to the right, Note: dQ is the side force, not torque!
+            # Uiphi = np.zeros_like(self.seg_radius) # ignore component!
             self.Ui = np.stack([Uiphi, Uiz]) # shape (2, Nr)
 
         # pre-compute common arrays
