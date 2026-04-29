@@ -31,8 +31,7 @@ class ConformalPIN(PotentialInteraction):
                             )
 
         self.Rd = Dcylinder_m/2 # cylinder radius in the comp domain!
-        self.zs, self.zeta_s = self.getSurfacePoints()
-        
+        self.zs, self.zeta_s = self.getSurfacePoints()        
     def getZ(self, zeta):
         """
         transform from the computational domain to the physical domain, this should be overwritten in subclasses

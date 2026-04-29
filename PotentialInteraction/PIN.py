@@ -9,6 +9,7 @@ class PotentialInteraction:
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
                 radius_m:np.ndarray,
+                t_c:np.ndarray,
                 Fzprime_Npm:np.ndarray,
                 Fphiprime_Npm:np.ndarray,
                 B,
@@ -36,6 +37,7 @@ class PotentialInteraction:
         self.seg_twist = (twist_rad[1:] + twist_rad[:-1]) / 2 # Nr
         self.seg_chord = (chord_m[1:] + chord_m[:-1]) / 2
         self.seg_radius = (radius_m[1:] + radius_m[:-1]) / 2
+        self.seg_t_c = (t_c[1:] * chord_m[1:] + t_c[:-1] * chord_m[:-1]) / (chord_m[1:] + chord_m[:-1])
 
         self.dr = np.diff(radius_m) # (Nr)
 
@@ -77,7 +79,7 @@ class PotentialInteraction:
             np.cos(thetab)[:, None, None] *
             deltathetab,
             axis=0
-        ) # (Nphi, Nr), drag, oriented backwards
+        ) # (Nphi, Nr), drag, positive backwards
 
 
         Fz = -self.Dcylinder / 2 * np.sum(
@@ -85,7 +87,7 @@ class PotentialInteraction:
             np.sin(thetab)[:, None, None] * 
             deltathetab,
             axis=0
-        ) # (Nphi, Nr) # lift, oriented upwards
+        ) # (Nphi, Nr) # lift, positive upwards
 
         F_beam = np.zeros((3, self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Note: in the time domain!, size (3, Nt, Nr)
         F_beam[1, :, :] = Fz
@@ -93,7 +95,6 @@ class PotentialInteraction:
     
         return F_beam
     
-
     def getStrutLoadingHarmonics(self):
         """"
         strut loading in N/m along the strut radial stations
@@ -185,7 +186,26 @@ class PotentialInteraction:
 
         return gamma_k
 
-    def getStrutPressure(self):
+    def getRankineParams(self):
+        """
+        get the source spacing b and source strength Lambda of the rankine oval approximating thickness noise
+
+        Note: b could be extended to be a complex number, such that to account for the inflow being at an angle.
+        Formally, the inflow should be normal to the oval axis at all times, currently we assume Omega * r >> Ui over the path
+        """
+
+        # source strength such that the oval extends t/c in the axis normal
+        Lambda = 2 * self.Omega * self.seg_radius * self.seg_t_c * self.seg_chord # Nr
+
+        # source spacing that sets the axial extent of the oval to self.seg_chord
+        b = self.seg_chord / 2 * (
+            np.sqrt(1 + (2 / np.pi * self.seg_t_c)**2)
+            - (2 / np.pi * self.seg_t_c)
+        ) # strictly < c/2!, size Nr
+
+        return Lambda, b
+
+    def getStrutPressure(self, include_thickness_sources=True):
         """
         returns pressure distribution over the strut, as a function of r, phi, and theta (beam polar angle w.r.t rotor plane)
         """
@@ -216,7 +236,10 @@ class PotentialInteraction:
         dfdz += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0[None, None, :]) + np.exp(1j * alpha0[None, None, :]
                     ) * zprime[:, None, None] / z[:, None, None]) 
         
-        for vortex_index in range(-50, 50, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+        # thickness variables
+        Lambda, b = self.getRankineParams()
+
+        for vortex_index in range(-10, 10, 1): # sum an arbitrary amount of vortices, further ones should be negligible
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
             # phased vortices: shift the passage time by vortex_index * T/B
             zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega) + 1j * self.Lcylinder 
@@ -247,6 +270,30 @@ class PotentialInteraction:
             ) # (Nthetab, Nphi, Nr)
             
             pressure += pressure_vortex # add the linear contribution to the pressure
+
+
+            # thickness contribution
+            # source: i made it up 
+            if include_thickness_sources:
+                zsp = zv + b # source location
+                zsn = zv - b # sink location
+                zspbar = np.conj(zsp)
+                zsnbar = np.conj(zsn)
+
+                # dfdz due to a sum of source at zsp and sink at zsn of strength Lambda
+                dfdz_sourcesink = Lambda[None, None, :] / 2 / np.pi * ( 1 / (z[:, None, None] - zsp[None, :, :]) - 1 / (z[:, None, None] - zsn[None, :, :])
+                ) + Lambda[None, None, :] / 2 / np.pi * (1 / (zprime[:, None, None] - zspbar[None, :, :]) - 1 / (zprime[:, None, None] - zsnbar[None, :, :])
+                ) * (-zprime[:, None, None] / z[:, None, None])
+
+                dfdz += dfdz_sourcesink
+
+                pressure_sourcesink = self.Omega * self.seg_radius[None, None, :] * Lambda[None, None, :] / 2 / np.pi * (
+                    1 / zsp[None, :, :] - 1 / zsn[None, :, :] - 1 / (zsp[None, :, :] - z[:, None, None]) + 1 / (zsn[None, :, :] - z[:, None, None])
+                     - 1 / (zspbar[None, :, :] - zprime[:, None, None]) + 1 / (zsnbar[None, :, :] - zprime[:, None, None])
+                )
+                pressure += pressure_sourcesink
+
+
         
         u, v = np.real(dfdz), -np.imag(dfdz)
         U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
@@ -338,7 +385,8 @@ class PotentialInteraction:
         # complex variable
         # Note: here we need the assumption r * pi >> Lcylinder!
         Nphi = self._numerics.get('Nphi', 360)
-        N = 10 # arbitrary, N>2 should be okay
+        N = self._numerics.get('Nperiods', 10) # arbitrary, N>2 should be okay
+
         phi_long = np.linspace(-N * np.pi, N * np.pi, Nphi * N, endpoint=False)
 
         z = 1j * Ls + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi

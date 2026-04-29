@@ -21,6 +21,7 @@ pin = PotentialInteraction(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
+    t_c = np.ones_like(r_outer) * 0.12,
     # Uz0_mps=U_flow,
     Fzprime_Npm=Fz,
     Fphiprime_Npm=Fphi,
@@ -135,7 +136,7 @@ p_beam, _ = hanson.getPressureStator(x_cart, ms * B, Fstator=Fbeam)
 
 
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(ms, p_to_SPL(p_rotor_loading)[0], label=f"BladeLoading", color='r', marker='^')
+ax.plot(ms, p_to_SPL(p_rotor_loading)[0], label=f"Blade Loading", color='r', marker='^')
 ax.plot(ms, p_to_SPL(p_rotor_thickness)[0], label=f"Blade Thickness", color='b', marker='^')
 ax.plot(ms, p_to_SPL(p_rotor_thickness+p_rotor_loading)[0], label=f"Rotor Total", color='y', marker='^')
 ax.plot(ms, p_to_SPL(p_beam)[0], label=f"Beam Loading", color='m', marker='^')
