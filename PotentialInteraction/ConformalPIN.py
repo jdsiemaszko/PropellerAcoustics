@@ -145,14 +145,14 @@ class ConformalPIN(PotentialInteraction):
                     zetavbar[None, :, :]) * (-zetasprime[:, None, None] / zetas[:, None, None]) # Nthetab, Nr, Nphi
             dfdzeta += dfdzeta_vortex
 
-            dfdt_dzetavdzv= self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (1j / zetavbar[None, :, :] +
+            dfdt_dzetavdzv= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (1j / zetavbar[None, :, :] +
                      1j / (zetav[None, :, :] - zetas[:, None, None]) - 1j / (zetavbar[None, :, :] - zetasprime[:, None, None]))
              # (Nthetab, Nphi, Nr)
             
 
             # add the linear contribution to the pressure, including the dzetadz mapping at zetav.
             # note that at |zeta| -> infinity we have dzeta/dz = 1
-            pressure += np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :]) # apply the real over the entire expression!
+            pressure += self.rho * np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :]) # apply the real over the entire expression!
         
         dfdz = dfdzeta * self.getDzetaDz(zetas)[:, None, None] # apply the mapping
 
@@ -205,12 +205,11 @@ class ConformalPIN(PotentialInteraction):
         # dfdzeta = dfdz * dzdzeta
         # and dfdzeta_infinity = conj(Uinfinity_zeta), same for z
         # note that self.Ui is defined in the physical domain
+
+
         Ucomplex_z = self.Ui[0] + 1j * self.Ui[1]
         Ucomplex_z_conj = np.conj(Ucomplex_z)
         Ucomplex_zeta_conj = Ucomplex_z_conj[:, None] * (self.getDzetaDzInfinity(zeta))**(-1)
-
-        # apply to the potential field:
-        # f = conj(Uinfinityzeta) * zeta = conj(Uinfinityz) * z + milne thomson terms
         dfdzeta = Ucomplex_zeta_conj - np.conj(Ucomplex_zeta_conj) * zetaprime / zeta # potential in the computational frame
 
         dfdz = dfdzeta * self.getDzetaDz(zeta)
