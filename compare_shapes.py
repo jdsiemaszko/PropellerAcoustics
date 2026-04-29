@@ -83,9 +83,9 @@ pin_circle = HypotrochoidalPIN(
 )
 
 pin_airfoil = JoukowskyPIN(
-    zeta_0=-0.08 * 0.005 + 0.00 * 0.005 * 1j,
-    theta0=np.deg2rad(-90),
-    Lref = 0.049,
+    zeta_0=-0.08 * 0.005 + 0.00 * 0.005 * 1j, # circle center in the comp domain, rescaled by Dcylinder/2
+    theta0=np.deg2rad(-90), # rotation angle
+    Lref = 0.049, # airfoil chord length
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
@@ -122,38 +122,38 @@ plt.show()
 pin_airfoil.plotMap()
 plt.show()
 
-# pin_triangle.plotDownwashInRotorPlane()
-# plt.show()
+pin_triangle.plotDownwashInRotorPlane()
+plt.show()
 
-# pin_square.plotDownwashInRotorPlane()
-# plt.show()
+pin_square.plotDownwashInRotorPlane()
+plt.show()
 
-# pin_circle.plotDownwashInRotorPlane()
-# plt.show()
+pin_circle.plotDownwashInRotorPlane()
+plt.show()
 
-# pin_airfoil.plotDownwashInRotorPlane()
-# plt.show()
+pin_airfoil.plotDownwashInRotorPlane()
+plt.show()
 
-# pin_airfoil.plotStrutLoading3D()
-# plt.show()
+pin_airfoil.plotStrutLoading3D()
+plt.show()
 
-# inverse transform OKAY
-# fig, ax = pin_airfoil.plotZ()
-# LS = np.array([0.02, 0.015, 0.0129, 0.0125]) + 0.25 * 0.05 # shift the spacing by quarter chord
-# for L in LS:
-#     z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
-#     zeta = pin_airfoil.getZeta(z)
-#     ax.plot(np.real(z[30, :]), np.imag(z[30, :]), label=f'L={L:.4f}')
-#     ax.legend()
-# plt.show()
+##### inverse transform OKAY
+fig, ax = pin_airfoil.plotZ()
+LS = np.array([0.02, 0.015, 0.0129, 0.0125]) + 0.25 * 0.05 # shift the spacing by quarter chord
+for L in LS:
+    z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
+    zeta = pin_airfoil.getZeta(z)
+    ax.plot(np.real(z[30, :]), np.imag(z[30, :]), label=f'L={L:.4f}')
+    ax.legend()
+plt.show()
 
-# fig, ax = pin_airfoil.plotZeta()
-# for L in LS:
-#     z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
-#     zeta = pin_airfoil.getZeta(z)
-#     ax.plot(np.real(zeta[30, :]), np.imag(zeta[30, :]), label=f'L={L:.4f}')
-#     ax.legend()
-# plt.show()
+fig, ax = pin_airfoil.plotZeta()
+for L in LS:
+    z = pin_airfoil.phi[None, :] * pin_airfoil.seg_radius[:, None] + 1j * L
+    zeta = pin_airfoil.getZeta(z)
+    ax.plot(np.real(zeta[30, :]), np.imag(zeta[30, :]), label=f'L={L:.4f}')
+    ax.legend()
+plt.show()
 
 
 
@@ -205,8 +205,8 @@ plt.tight_layout()
 plt.show()
 
 for shape, color, marker, pin_model in zip(['T', 'S', 'D', 'A'], ['r', 'g', 'b', 'm'], ['^', 's', 'o', '*'], [pin_triangle, pin_square, pin_circle, pin_airfoil]):
-    if shape != 'A':
-        continue
+    # if shape != 'A':
+    #     continue
     blade_loading = pin_model.getBladeLoadingHarmonics()
     strut_loading = pin_model.getStrutLoadingHarmonics()
     hanson.plot3DdirectivityTotal(m=2, loadings=blade_loading, loadings_2=strut_loading, R=np.linalg.norm(x_cart, axis=0)[0], chord=pin_model.seg_chord, t_c=0.082)
