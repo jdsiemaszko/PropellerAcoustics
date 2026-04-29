@@ -208,7 +208,7 @@ class HansonModel():
         )
 
         pt_mb *= -m**2 * self.B**2 * multiplier * self.Omega**2 * self.rho * np.exp(1j
-                * m * self.B * self.Omega / c0 * R) / 4 / np.pi / R
+                * m * self.B * self.Omega / c0 * R[:, None]) / 4 / np.pi / R[:, None]
 
         return pt_mb, x
 
@@ -355,10 +355,12 @@ class HansonModel():
             if loadings_2 is None:
                 raise ValueError("For mode='total', both loading and loadings_2 (rotor and stator loadings respectively) must be provided")
             pmB_rotor, _ = self.getPressureRotor(x_cart, np.array([m]).reshape(1,), Fblade=loadings, multiplier=self.B) # of shape (Nx=Ntheta*Nphi, 1)
+            pmB_stator, _ = self.getPressureStator(x_cart, np.array([m * self.B]).reshape(1,), Fstator=loadings_2, multiplier=self.nbeam) # of shape (Nx=Ntheta*Nphi, 1)
+            pmB = pmB_rotor + pmB_stator
+
             if (chord is not None and t_c is not None):
                 pmB_rotor_thickness, _ = self.getThicknessNoiseRotor(x_cart, np.array([m]), chord, t_c)
-            pmB_stator, _ = self.getPressureStator(x_cart, np.array([m * self.B]).reshape(1,), Fstator=loadings_2, multiplier=self.nbeam) # of shape (Nx=Ntheta*Nphi, 1)
-            pmB = pmB_rotor + pmB_stator + pmB_rotor_thickness
+                pmB += pmB_rotor_thickness
         elif mode=='thickness':
             if (chord is not None and t_c is not None):
                 pmB, _ = self.getThicknessNoiseRotor(x=x_cart, m=np.array([m]), chord=chord, thickness_to_chord=t_c)
@@ -381,17 +383,17 @@ class HansonModel():
         return fig, ax
 
     def plot3DdirectivityRotor(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.0,
-                        Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
+                        Nphi=36, Ntheta=18, blending=0.1, title=None, fig=None, ax=None):
         # wrapper for ploting rotor only
         return self.plot3Ddirectivity(m, loadings, valmax, valmin, R, Nphi, Ntheta, blending, title, fig, ax, mode='rotor')
     
     def plot3DdirectivityStator(self, m:float, loadings:np.ndarray, valmax=None, valmin=None, R=1.0,
-                        Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None):
+                        Nphi=36, Ntheta=18, blending=0.1, title=None, fig=None, ax=None):
         # wrapper for ploting stator only
         return self.plot3Ddirectivity(m, loadings, valmax, valmin, R, Nphi, Ntheta, blending, title, fig, ax, mode='stator')
     
     def plot3DdirectivityTotal(self, m:float, loadings:np.ndarray, loadings_2:np.ndarray, valmax=None, valmin=None, R=1.0,
-                        Nphi=18, Ntheta=36, blending=0.1, title=None, fig=None, ax=None, chord=None, t_c=None):
+                        Nphi=36, Ntheta=18, blending=0.1, title=None, fig=None, ax=None, chord=None, t_c=None):
         # wrapper for ploting total directivity
         return self.plot3Ddirectivity(m, loadings=loadings, valmax=valmax, valmin=valmin, R=R,
                                        Nphi=Nphi, Ntheta=Ntheta, blending=blending, title=title,

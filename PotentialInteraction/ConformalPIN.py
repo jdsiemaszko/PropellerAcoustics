@@ -4,8 +4,8 @@ from scipy.optimize import root, least_squares, fsolve, minimize
 import matplotlib.pyplot as plt
 from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated
 
-class HypotrochoidalPIN(PotentialInteraction):
-    def __init__(self, Nsides:int, theta0:float, rho_corner:float,
+class ConformalPIN(PotentialInteraction):
+    def __init__(self,
                 twist_rad:np.ndarray, 
                 chord_m:np.ndarray, 
                 radius_m:np.ndarray,
@@ -15,7 +15,7 @@ class HypotrochoidalPIN(PotentialInteraction):
                 Dcylinder_m, Lcylinder_m, Omega_rads,
                 rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1,
                 U0_mps:np.ndarray=None, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
-                numerics = {},):
+                numerics = {}):
         
         # run the __init__ of the superclass
         super().__init__(twist_rad, 
@@ -29,36 +29,32 @@ class HypotrochoidalPIN(PotentialInteraction):
                             U0_mps=U0_mps, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
                             numerics = numerics,
                             )
-        
 
-        self.Nsides = Nsides
-        self.theta0 = theta0
-
-        self.Rd = Dcylinder_m/2
-        self.Rr = self.Rd / self.Nsides
-        self.rho_corner = rho_corner * self.Rr # define relative to maximum allowed rho!
+        self.Rd = Dcylinder_m/2 # cylinder radius in the comp domain!
         self.zs, self.zeta_s = self.getSurfacePoints()
         
     def getZ(self, zeta):
         """
-        transform from the computational domain (cylinder flow) to the physical domain (Nsides-gonal flow)
+        transform from the computational domain to the physical domain, this should be overwritten in subclasses
         """
-        # z = self.Rd * ((1-1/self.Nsides) * zeta + self.rho_corner / self.Rd *
-        #                 zeta **(-self.Nsides+1)) * np.exp(1j * self.theta0)
-
-        z = zeta + self.rho_corner / (1-1/self.Nsides) * (zeta/self.Rd) ** (-self.Nsides + 1)
-        z *= np.exp(1j * self.theta0)
-        return z
+        
+        return zeta
     
     def getDzetaDz(self, zeta):
         """
-        get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta
+        get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta,
+        this should be overwritten in subclasses
         """
 
-        # dzetadz = (np.exp(1j * self.theta0) * self.Rd * ((1-1/self.Nsides)-self.rho_corner/self.Rd * (self.Nsides-1) * zeta**(-self.Nsides)))**(-1) 
-        dzetadz = (np.exp(1j * self.theta0) * (1 - self.rho_corner * self.Nsides / self.Rd  * (zeta/self.Rd)**(-self.Nsides)))**(-1) 
+        return np.ones_like(zeta)
 
-        return dzetadz
+    def getDzetaDzInfinity(self, zeta):
+        """
+        return the limit dzeta/dz at |z|-> infinity,
+        may be written explicitly or, for example, by calling self.getDzetaDz at a large distance |z|>>self.Rd
+        """
+        return np.ones_like(zeta)
+
     
     def getSurfacePoints(self):
         # xt = (self.Rd - self.Rr) * np.cos(self.theta_beam + self.theta0) + self.rho_corner * np.cos((self.Rd-self.Rr)/self.Rr * self.theta_beam - self.theta0)
@@ -66,15 +62,15 @@ class HypotrochoidalPIN(PotentialInteraction):
 
         # return xt + 1j * yt
 
+        # assumption about surface location: should be overwritten if different!
         zeta_s = self.Rd * np.exp(1j * self.theta_beam)
         z_s = self.getZ(zeta_s) 
         return z_s, zeta_s
     
-    def getZeta(self, z, MAXITER=int(1e3), epstol=1e-8):
+    def getZeta(self, z):
         """
-        Vectorized implicit solve z = self.getZ(zeta)
-        using polar parametrization: zeta = r * exp(i phi)
-        with bounds on r and phi.
+        inverse transform from physical to computational. 
+        this should be overwritten in subclasses
         """
 
         zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
@@ -104,7 +100,7 @@ class HypotrochoidalPIN(PotentialInteraction):
         thetab = self.theta_beam
         deltathetab = np.diff(thetab)[0]
 
-        zetas = self.Rd * np.exp(1j * thetab) # positions along the cylinder surface, complex, size (Nthetab)
+        zetas = self.zeta_s
         zetasprime = self.Rd**2 / zetas # circle conjugate
 
         # inflow part
@@ -118,9 +114,20 @@ class HypotrochoidalPIN(PotentialInteraction):
         pressure = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
         dfdzeta = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
         
+
+        Ucomplex_z = self.Ui[0] + 1j * self.Ui[1]
+        Ucomplex_z_conj = np.conj(Ucomplex_z)
+        Ucomplex_zeta_conj = Ucomplex_z_conj[None, None, :]  * (self.getDzetaDzInfinity(zetas)[:, None, None])**(-1)
+
+        # apply to the potential field:
+        # f = conj(Uinfinityzeta) * zeta = conj(Uinfinityz) * z + milne thomson terms
+
         # add the mean flow term
-        dfdzeta += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0_zeta[None, None, :]) + np.exp(1j * alpha0_zeta[None, None, :]
-                    ) * zetasprime[:, None, None] / zetas[:, None, None]) 
+        dfdzeta = np.zeros((self.zeta_s.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128)
+        dfdzeta += Ucomplex_zeta_conj - np.conj(Ucomplex_zeta_conj) * zetasprime[:, None, None] / zetas[:, None, None] # potential in the computational frame
+
+        # dfdzeta += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0_zeta[None, None, :]) + np.exp(1j * alpha0_zeta[None, None, :]
+        #             ) * zetasprime[:, None, None] / zetas[:, None, None]) 
         
         for vortex_index in range(-12, 12, 1): # sum an arbitrary amount of vortices, further ones should be negligible
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
@@ -185,14 +192,14 @@ class HypotrochoidalPIN(PotentialInteraction):
         Ds = self.Dcylinder
         Ls = self.Lcylinder
         Nphi = self._numerics.get('Nphi', 360)
-        N = 10 # arbitrary, N>2 should be okay
+        N = self._numerics.get('Nperiods', 10) # arbitrary, N>2 should be okay
         phi_long = np.linspace(-N * np.pi, N * np.pi, Nphi * N, endpoint=False)
 
         z = 1j * Ls + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi
 
         zeta = self.getZeta(z) # map to computational domain
 
-        # CIRCLE conjugate
+        # CIRCLE conjugate, need circle at zero!
         zetaprime = self.Rd**2 / zeta
 
         # COMPLEX conjugate
@@ -202,7 +209,21 @@ class HypotrochoidalPIN(PotentialInteraction):
         # f = 1j * Uimag * (z * np.exp(-1j * alpha0) - Ds**2 / 4 / z * np.exp(1j * alpha0))
 
         # derivative of potential: df/dz = u - 1j * v, explicit because why wouldn't we
-        dfdzeta = 1j * Uimag[:, None] * (np.exp(-1j * alpha0_zeta[:, None]) + np.exp(1j * alpha0_zeta[:, None]) * zetaprime / zeta) # Nr, Nphi
+        # dfdzeta = 1j * Uimag[:, None] * (np.exp(-1j * alpha0_zeta[:, None]) + np.exp(1j * alpha0_zeta[:, None]) * zetaprime / zeta) # Nr, Nphi
+
+        # establish Uinfinity in the zeta domain (need to be careful with this especially when the transform messes with the norm and direction,
+        #  i.e. when zeta != z at |z|-> infinity)
+        # the relation is:
+        # dfdzeta = dfdz * dzdzeta
+        # and dfdzeta_infinity = conj(Uinfinity_zeta), same for z
+        # note that self.Ui is defined in the physical domain
+        Ucomplex_z = self.Ui[0] + 1j * self.Ui[1]
+        Ucomplex_z_conj = np.conj(Ucomplex_z)
+        Ucomplex_zeta_conj = Ucomplex_z_conj[:, None] * (self.getDzetaDzInfinity(zeta))**(-1)
+
+        # apply to the potential field:
+        # f = conj(Uinfinityzeta) * zeta = conj(Uinfinityz) * z + milne thomson terms
+        dfdzeta = Ucomplex_zeta_conj - np.conj(Ucomplex_zeta_conj) * zetaprime / zeta # potential in the computational frame
 
         dfdz = dfdzeta * self.getDzetaDz(zeta)
 
@@ -235,7 +256,7 @@ class HypotrochoidalPIN(PotentialInteraction):
         # compute forces by integrating over thetab,
         # mapping the surface position!
 
-        dzsdtheta = self.getDzetaDz(self.zeta_s)**(-1) * 1j * self.zeta_s
+        dzsdtheta = self.getDzetaDz(self.zeta_s)**(-1) * 1j * self.zeta_s # assuming zeta = Rd * e^(i*theta)
 
         Fphi = np.sum(
             pressure *
@@ -278,7 +299,7 @@ class HypotrochoidalPIN(PotentialInteraction):
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel("$Re(z_s)$")
         ax.set_ylabel("$Im(z_s)$")
-        # ax.set_title("Physical Domain, N={}".format(self.Nsides))
+        ax.set_title("Physical Domain")
         ax.legend()
         ax.grid(True)
 
@@ -300,13 +321,11 @@ class HypotrochoidalPIN(PotentialInteraction):
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel("$Re(\zeta_s)$")
         ax.set_ylabel("$Im(\zeta_s)$")
-        ax.set_title("Computational Domain, N={}".format(self.Nsides))
+        ax.set_title("Computational Domain")
         ax.legend()
         ax.grid(True)
 
         return fig, ax
-
-    
 
     def plotMap(self, fig=None, ax=None):
         radii = np.linspace(self.Rd, self.Rd * 3, 50)
@@ -321,7 +340,7 @@ class HypotrochoidalPIN(PotentialInteraction):
 
             # Plot the mapped points
             if index == 0:
-                ax.plot(np.real(zs), np.imag(zs), label="Beam Surface", color='blue', marker='x')
+                ax.plot(np.real(self.zs), np.imag(self.zs), label="Beam Surface" if self.name is None else self.name, color='blue', marker='x')
             else:
                 ax.plot(np.real(zs), np.imag(zs), color='k', linestyle='dashed')
 
@@ -329,11 +348,178 @@ class HypotrochoidalPIN(PotentialInteraction):
         ax.set_aspect('equal', adjustable='box')
         ax.set_xlabel("$Re(z_s)$")
         ax.set_ylabel("$Im(z_s)$")
-        ax.set_title("Strut Cross Section, N={}".format(self.Nsides))
+        # ax.set_title("Strut Cross Section, N={}".format(self.Nsides))
         ax.legend()
         ax.grid(True)
 
         return fig, ax
     
-# class JoukowskiPIN(HypotrochoidalPIN):
+class HypotrochoidalPIN(ConformalPIN):
+    def __init__(self, Nsides:int, theta0:float, rho_corner:float,
+                twist_rad:np.ndarray, 
+                chord_m:np.ndarray, 
+                radius_m:np.ndarray,
+                Fzprime_Npm:np.ndarray,
+                Fphiprime_Npm:np.ndarray,
+                B,
+                Dcylinder_m, Lcylinder_m, Omega_rads,
+                rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1,
+                U0_mps:np.ndarray=None, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
+                numerics = {},):
+        
+        self.Rd = Dcylinder_m/2
+        self.Nsides = Nsides
+        self.Rr = self.Rd / self.Nsides
+        self.rho_corner = rho_corner * self.Rr # define relative to maximum allowed rho!
+        self.theta0 = theta0
+        # run the __init__ of the superclass ConformalPIN
+        super().__init__(twist_rad, 
+                            chord_m, 
+                            radius_m,
+                            Fzprime_Npm,
+                            Fphiprime_Npm,
+                            B,
+                            Dcylinder_m, Lcylinder_m, Omega_rads,
+                            rho_kgm3=rho_kgm3, c_mps = c_mps, kmax = kmax, nb = nb,
+                            U0_mps=U0_mps, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
+                            numerics = numerics,
+                            )
+        
+    def getZ(self, zeta):
+        """
+        transform from the computational domain (cylinder flow) to the physical domain (Nsides-gonal flow)
+        """
+        # z = self.Rd * ((1-1/self.Nsides) * zeta + self.rho_corner / self.Rd *
+        #                 zeta **(-self.Nsides+1)) * np.exp(1j * self.theta0)
+
+        z = zeta + self.rho_corner / (1-1/self.Nsides) * (zeta/self.Rd) ** (-self.Nsides + 1)
+        z *= np.exp(1j * self.theta0)
+        return z
+    
+    def getDzetaDz(self, zeta):
+        """
+        get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta
+        """
+
+        # dzetadz = (np.exp(1j * self.theta0) * self.Rd * ((1-1/self.Nsides)-self.rho_corner/self.Rd * (self.Nsides-1) * zeta**(-self.Nsides)))**(-1) 
+        dzetadz = (np.exp(1j * self.theta0) * (1 - self.rho_corner * self.Nsides / self.Rd  * (zeta/self.Rd)**(-self.Nsides)))**(-1) 
+
+        return dzetadz
+    
+    def getZeta(self, z, MAXITER=int(1e3), epstol=1e-8):
+        """
+        Vectorized implicit solve z = self.getZ(zeta)
+        using polar parametrization: zeta = r * exp(i phi)
+        with bounds on r and phi.
+        """
+
+        zeta = 2.0 * self.Rd * np.exp(1j * np.angle(z)) # initial guess
+        for iter in range(MAXITER):
+            dzeta = -(self.getZ(zeta) - z) * self.getDzetaDz(zeta) # Newton!
+
+            zeta += dzeta
+            error = np.abs(self.getZ(zeta) - z) / self.Rd
+
+            if np.all(error) < epstol:
+                break
+
+        return zeta
+    
+    def getDzetaDzInfinity(self, zeta):
+        """
+        return the limit dzeta/dz at |z|-> infinity,
+        """
+        return np.ones_like(zeta) * np.exp(-1j * self.theta0) # account for rotation, otherwise this converges to one
+    
+class JoukowskyPIN(ConformalPIN):
+    def __init__(self,
+                 
+                zeta_0:np.complex128, # circle center, in complex coordinates!
+                                        # Re(zeta_0) should be <0
+                theta0, # rotation angle
+                Lref,  # reference length of the airfoil
+                twist_rad:np.ndarray, 
+                chord_m:np.ndarray, 
+                radius_m:np.ndarray,
+                Fzprime_Npm:np.ndarray,
+                Fphiprime_Npm:np.ndarray,
+                B,
+                Dcylinder_m, Lcylinder_m, Omega_rads,
+                rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1,
+                U0_mps:np.ndarray=None, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
+                numerics = {},
+                Rd = None, # overwrite parameter for Rd, if set, allows for airfoils with no cusp at the trailing edge
+                ):
+        self._numerics = numerics
+        self.Rref = Dcylinder_m / 2
+        self.zeta_0 = zeta_0 # rescale!
+        self.Lref = Lref
+        eps_radius = self._numerics.get('eps_radius', 1e-3)
+        self.Rd = np.abs(zeta_0 - self.Rref) + eps_radius * self.Rref if Rd is None else Rd # add a small parameter 
+
+        # effective radius: slightly higher than Dcylinder/2 to cover the point at zeta = -Dcylinder/2
+
+
+        self.theta0 = theta0
+
+        # run the __init__ of the superclass ConformalPIN
+        super().__init__(twist_rad, 
+                            chord_m, 
+                            radius_m,
+                            Fzprime_Npm,
+                            Fphiprime_Npm,
+                            B,
+                            # Dcylinder_m
+                            self.Rd * 2 # avoid problems with overwriting the value of Rd, overwrite Dcylinder to the effective value!
+                            , Lcylinder_m, # note: L is defined in the GLOBAL frame, not relative to the cylinder in the comp domain!
+                             
+                              Omega_rads,
+                            rho_kgm3=rho_kgm3, c_mps = c_mps, kmax = kmax, nb = nb,
+                            U0_mps=U0_mps, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
+                            numerics = numerics,
+                            )
+         
+    def getZ(self, zeta):
+        """
+        transform from the computational domain (cylinder flow) to the physical domain (Joukowski Airfoil)
+        """
+
+        zeta = zeta + self.zeta_0 # transform such that zeta is a circle around (0, 0)!
+
+        z = zeta / self.Rref + self.Rref / zeta
+        z *= np.exp(1j * self.theta0) # rotate by theta0 counterclockwise
+        z *= self.Lref / 4
+        return z
+    
+    def getDzetaDz(self, zeta):
+        """
+        get the IMPLICIT derivative dzeta/dz w.r.t. the computational coordinate zeta
+        """
+
+        zeta = zeta + self.zeta_0 # transform such that zeta is a circle around (0, 0)!
+
+        dzetadz = (np.exp(1j * self.theta0) * self.Lref / 4 * (1/self.Rref - self.Rref / zeta / zeta))**(-1) 
+
+        return dzetadz
+    
+    def getZeta(self, z):
+        
+        z_transformed = z * 4 / self.Lref * np.exp(-1j * self.theta0)
+
+        zeta1 = (z_transformed + np.sqrt(z_transformed**2 - 4)) / 2 * self.Rref - self.zeta_0
+
+        zeta2 = (z_transformed - np.sqrt(z_transformed**2 - 4)) / 2 * self.Rref - self.zeta_0 
+
+        # pick value with the higher modulus, corresponding to the outer solution
+        mask = np.abs(zeta1) > np.abs(zeta2)
+        zeta = np.where(mask, zeta1, zeta2)
+
+        return zeta
+    
+    def getDzetaDzInfinity(self, zeta):
+        """
+        return the limit dzeta/dz at |z|-> infinity,
+        """
+        return np.ones_like(zeta) * np.exp(-1j * self.theta0) * 4 / self.Lref * self.Rref # account for rotation and scaling!
+
 
