@@ -32,8 +32,12 @@ import numpy as np
 # ----------------------------------------------------------
 
 NBEAMS = 1
-m = np.array([5]) # pick a harmonic with significant beam noise 
-SUFFIX = '_STEADY_DDR'
+ms = np.array([5]) # pick a harmonic with significant beam noise 
+# SUFFIX = '_STEADY_DDR'
+
+SUFFIX = '_D360_HR'
+m_surface = np.arange(1, 11, 1) # depending on the datafile chosen
+
 
 if NBEAMS == 1:
     MODE = 'half'
@@ -99,6 +103,7 @@ PIN = PotentialInteraction(
     twist_rad=twist,
     chord_m=chord,
     radius_m=r_outer,
+    t_c = 0.12 * np.ones_like(r_outer),
     # Uz0_mps=U_flow,
     # U0_mps = U_flow_momentum,
     Fzprime_Npm=Fz,
@@ -192,8 +197,6 @@ c_mps= c0, # speed of sound [m/s]
 nb=NBEAMS # number of beams 
 )
 
-
-
 if __name__ == "__main__":
     # _____________ PLOTTING & RESULTS _______________
 
@@ -227,20 +230,34 @@ if __name__ == "__main__":
 
     x_cart = np.array([X, Y, Z])
 
+    # -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
+    # save gradients in the far-field (run once per observer and m)
+    for index, sm in enumerate(sourceArray.children):
 
-    ############## save results to a file as the computation takes some time
-    # p_scattered = sourceArray.getScatteredPressure(x_cart, m)
-    # np.save(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy', p_scattered)
-    # p_direct_blade = sourceArray.getDirectPressure(x_cart, m)
-    # np.save(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy', p_direct_blade)
+        gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
+        print(f'pre-computing far-field gradients {index+1}')
 
-    p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
-    p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
+        gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+        np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy', gradG)
 
 
-    beam_loading = beam_l.getBeamLoadingHarmonics() 
-    p_direct_beam, _ = han.getPressureStator(x_cart, m*B, beam_loading) # mind the indexing change for m
-    p_direct_blade_hanson, _ = han.getPressureRotor(x_cart, m, BLH) 
+    # extract and rearrange
+    gradG_arr = np.zeros((sourceArray.seg_radius.shape[0], 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+    ind_m = np.where(m_surface == ms[0])[0][0]
+    for index, sm in enumerate(sourceArray.children):
+        gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy')[:, ind_m, :, :]
+
+
+    p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
+    p_direct_blade = sourceArray.getDirectPressure(x_cart, ms)
+
+    # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
+    # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
+
+
+    beam_loading = PIN.getStrutLoadingHarmonics() 
+    p_direct_beam, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # mind the indexing change for m
+    p_direct_blade_hanson, _ = han.getPressureRotor(x_cart, ms, BLH) 
 
     # p_direct_beam *= 1 # -1 to match the phase - why?
 
@@ -250,26 +267,26 @@ if __name__ == "__main__":
 
     levels = np.linspace(VMIN, VMAX, 20, endpoint=False)
     fig, ax1 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade, title='blade direct noise (source-mode)', fig=fig, ax=ax1, cmap='jet', levels=levels, xlabel=None,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade[:, 0], title='blade direct noise (source-mode)', fig=fig, ax=ax1, cmap='jet', levels=levels, xlabel=None,
     )
     fig, ax2 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_scattered, title='blade scattered noise', fig=fig, ax=ax2, cmap='jet', ylabel=None, levels=levels, xlabel=None,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_scattered[:, 0], title='blade scattered noise', fig=fig, ax=ax2, cmap='jet', ylabel=None, levels=levels, xlabel=None,
     )
     fig, ax3 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_beam, title='beam loading noise', fig=fig, ax=ax3, cmap='jet',  levels=levels,xlabel=None, 
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_beam[:, 0], title='beam loading noise', fig=fig, ax=ax3, cmap='jet',  levels=levels,xlabel=None, 
     )
 
     fig, ax4 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade_hanson,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade_hanson[:, 0],
         title='blade direct noise (Hanson)', fig=fig, ax=ax4, cmap='jet',  levels=levels, ylabel=None,  xlabel=None, 
     )
 
     fig, ax5 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade + p_scattered,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), (p_direct_blade + p_scattered)[:, 0],
         title='direct blade + scattered blade', fig=fig, ax=ax5, cmap='jet',  levels=levels, 
     )
     fig, ax6 = plot_directivity_contour(
-        np.rad2deg(theta_m), np.rad2deg(phi_m), p_direct_blade + p_direct_beam,
+        np.rad2deg(theta_m), np.rad2deg(phi_m), (p_direct_blade + p_direct_beam)[:, 0],
         title='direct blade + direct beam', fig=fig, ax=ax6, cmap='jet',  levels=levels, ylabel=None,
 
     )
@@ -289,30 +306,30 @@ if __name__ == "__main__":
 
 
     fig, ax1 = plot_3D_directivity(
-        p_direct_blade, theta_m, phi_m, title='blade direct noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+        p_direct_blade[:, 0], theta_m, phi_m, title='blade direct noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
     )
     fig, ax2 = plot_3D_directivity(
-        p_scattered, theta_m, phi_m, title='blade scattered noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+        p_scattered[:, 0], theta_m, phi_m, title='blade scattered noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
     )
     fig, ax3 = plot_3D_directivity(
-        p_direct_beam, theta_m, phi_m, title='beam loading noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+        p_direct_beam[:, 0], theta_m, phi_m, title='beam loading noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
     )
     # fig, ax4 = plot_3D_directivity(
     #     p_direct_beam + p_direct_blade + p_scattered, theta_m, phi_m,
     #       title='total loading noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
     # )
     fig, ax4 = plot_3D_directivity(
-        p_direct_blade_hanson, theta_m, phi_m,
+        p_direct_blade_hanson[:, 0], theta_m, phi_m,
         title='blade direct noise (Hanson)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
     )
 
     fig, ax5 = plot_3D_directivity(
-        p_direct_blade + p_scattered, theta_m, phi_m,
+        (p_direct_blade + p_scattered)[:, 0], theta_m, phi_m,
         title='direct blade + scattered blade', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
     )
 
     fig, ax6 = plot_3D_directivity(
-        p_direct_blade + p_direct_beam, theta_m, phi_m,
+        (p_direct_blade + p_direct_beam)[:, 0], theta_m, phi_m,
         title='direct blade + direct beam', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
     )
     plt.show()
@@ -329,30 +346,30 @@ if __name__ == "__main__":
 
 
     fig, ax1 = plot_3D_phase_directivity(
-        p_direct_blade, theta_m, phi_m, title='blade direct noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+        p_direct_blade[:, 0], theta_m, phi_m, title='blade direct noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
     )
     fig, ax2 = plot_3D_phase_directivity(
-        p_scattered, theta_m, phi_m, title='blade scattered noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+        p_scattered[:, 0], theta_m, phi_m, title='blade scattered noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
     )
     fig, ax3 = plot_3D_phase_directivity(
-        p_direct_beam, theta_m, phi_m, title='beam loading noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+        p_direct_beam[:, 0], theta_m, phi_m, title='beam loading noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
     )
     # fig, ax4 = plot_3D_directivity(
     #     p_direct_beam + p_direct_blade + p_scattered, theta_m, phi_m,
     #       title='total loading noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
     # )
     fig, ax4 = plot_3D_phase_directivity(
-        p_direct_blade_hanson, theta_m, phi_m,
+        p_direct_blade_hanson[:, 0], theta_m, phi_m,
         title='blade direct noise (Hanson)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
     )
 
     fig, ax5 = plot_3D_phase_directivity(
-        p_direct_blade + p_scattered, theta_m, phi_m,
+        (p_direct_blade + p_scattered)[:, 0], theta_m, phi_m,
         title='direct blade + scattered blade', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
     )
 
     fig, ax6 = plot_3D_phase_directivity(
-        p_direct_blade + p_direct_beam, theta_m, phi_m,
+        (p_direct_blade + p_direct_beam)[:, 0], theta_m, phi_m,
         title='direct blade + direct beam', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
     )
     plt.show()

@@ -721,43 +721,6 @@ class SourceModeArray():
         return fig, ax, pmB, z_centers, th_centers
 
 
-# sample class instance
-from PotentialInteraction.beam_to_blade import NACA0012_T10_PIN
-BLH = NACA0012_T10_PIN.getBladeLoadingHarmonics()
-NRADIALSEGMENTS = 20
-NHARMONICS = 40
-gf = TailoredGreen(dim=3) # free-field version!
-axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
-origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
-NACA0012_T10_SOURCEMODE_FF = SourceModeArray(
-                        BLH=BLH, # isolate the steady component 
-                        B = 2,
-                        Omega=8000 / 60 * 2 * np.pi, gamma = np.deg2rad(10) * np.ones(NRADIALSEGMENTS + 1),
-                        axis=axis_prop, origin=origin_prop,
-                        radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
-                        green=gf,
-                        numerics={'Ndipoles' : 36*2},
-                        c = 340.0,
-                        rho0=1.2,
-                        dt = 0.0809 * 0.025 * np.ones(NRADIALSEGMENTS),
-                        chord = 0.025 * np.ones(NRADIALSEGMENTS),
-                        )
-from TailoredGreen.HalfCylinderGreen import CG_NACA0012_T10
-NACA0012_T10_SOURCEMODE_HALFCYLINDER = SourceModeArray(
-                        BLH=BLH, # isolate the steady component 
-                        B = 2,
-                        Omega=8000 / 60 * 2 * np.pi, gamma = np.deg2rad(10) * np.ones(NRADIALSEGMENTS + 1),
-                        axis=axis_prop, origin=origin_prop,
-                        radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
-                        green=CG_NACA0012_T10,
-                        numerics={'Ndipoles' : 36*2},
-                        c = 340.0,
-                        rho0=1.2,
-                        dt = 0.0809 * 0.025 * np.ones(NRADIALSEGMENTS),
-                        chord = 0.025 * np.ones(NRADIALSEGMENTS),
-                        )
-
-
 
         
 if __name__ == "__main__":

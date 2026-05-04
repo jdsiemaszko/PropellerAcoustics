@@ -195,21 +195,25 @@ class PotentialInteraction:
         """
 
         # source strength such that the oval extends t/c in the axis normal
-        Lambda = 2 * self.Omega * self.seg_radius * self.seg_t_c * self.seg_chord # Nr
+        Lambda = self.Omega * self.seg_radius * self.seg_t_c * self.seg_chord # Nr
 
         # source spacing that sets the axial extent of the oval to self.seg_chord
         b = self.seg_chord / 2 * (
-            np.sqrt(1 + (2 / np.pi * self.seg_t_c)**2)
-            - (2 / np.pi * self.seg_t_c)
+            np.sqrt(1 + (1 / np.pi * self.seg_t_c)**2)
+            - (1 / np.pi * self.seg_t_c)
         ) # strictly < c/2!, size Nr
 
         return Lambda, b
 
-    def getStrutPressure(self, include_thickness_sources=True):
+    def getStrutPressure(self,):
         """
         returns pressure distribution over the strut, as a function of r, phi, and theta (beam polar angle w.r.t rotor plane)
         """
 
+        include_thickness_sources=self._numerics.get('include_thickness_sources', False)
+        include_vortex_sources=self._numerics.get('include_vortex_sources', True)
+
+        
         gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
 
 
@@ -245,31 +249,33 @@ class PotentialInteraction:
             zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega) + 1j * self.Lcylinder 
             zvbar = np.conjugate(zv) # complex conjugate
 
-            # add the linear contribution to dfdz
-            phi = self.phi
-            shift = vortex_index * vortex_period * self.Omega
-            shifted_phi = (phi - shift) % (2 * np.pi)
+            if include_vortex_sources:
 
-            # sort once
-            sort_idx = np.argsort(shifted_phi)
-            phi_sorted = shifted_phi[sort_idx]
+                # add the linear contribution to dfdz
+                phi = self.phi
+                shift = vortex_index * vortex_period * self.Omega
+                shifted_phi = (phi - shift) % (2 * np.pi)
 
-            gamma_shifted = np.apply_along_axis(
-                lambda g: np.interp(phi, phi_sorted, g[sort_idx], period=2*np.pi),
-                axis=0,
-                arr=gamma
-            )
-            
-            dfdz_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (z[:, None, None] -
-                    zv[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
-                    zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
-            dfdz += dfdz_vortex
+                # sort once
+                sort_idx = np.argsort(shifted_phi)
+                phi_sorted = shifted_phi[sort_idx]
 
-            pressure_vortex = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
-                1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
-            ) # (Nthetab, Nphi, Nr)
-            
-            pressure += pressure_vortex # add the linear contribution to the pressure
+                gamma_shifted = np.apply_along_axis(
+                    lambda g: np.interp(phi, phi_sorted, g[sort_idx], period=2*np.pi),
+                    axis=0,
+                    arr=gamma
+                )
+                
+                dfdz_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (z[:, None, None] -
+                        zv[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
+                        zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
+                dfdz += dfdz_vortex
+
+                pressure_vortex = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
+                    1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
+                ) # (Nthetab, Nphi, Nr)
+                
+                pressure += pressure_vortex # add the linear contribution to the pressure
 
 
             # thickness contribution
