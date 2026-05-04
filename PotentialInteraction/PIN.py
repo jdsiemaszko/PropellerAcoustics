@@ -1,8 +1,11 @@
 import numpy as np
 import numpy as np
 from scipy.special import jv
+from scipy.interpolate import interp1d
 from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated
 import matplotlib.pyplot as plt
+import warnings
+
 
 class PotentialInteraction:
     def __init__(self,
@@ -109,7 +112,6 @@ class PotentialInteraction:
         # k_local = np.arange(1, k_local_max+1, 1)
 
         # T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
-        #TODO: fix - this in incorrect as F_beam is not linear with number of vortices!
         # Need to apply the linear addition earlier, at the potential computation
         # T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi / self.Omega, kind='cubic', t_new=T_periodic)
 
@@ -195,13 +197,15 @@ class PotentialInteraction:
         """
 
         # source strength such that the oval extends t/c in the axis normal
-        Lambda = self.Omega * self.seg_radius * self.seg_t_c * self.seg_chord # Nr
+        Ur = np.sqrt((self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2) # Nr
+        Lambda = Ur * self.seg_t_c * self.seg_chord # Nr
 
         # source spacing that sets the axial extent of the oval to self.seg_chord
-        b = self.seg_chord / 2 * (
+        b = 0j + self.seg_chord / 2 * (
             np.sqrt(1 + (1 / np.pi * self.seg_t_c)**2)
             - (1 / np.pi * self.seg_t_c)
         ) # strictly < c/2!, size Nr
+        b *= np.exp(1j * (np.angle(self.Ui[0] + 1j * self.Ui[1]) + np.pi/2)) # source: i made it up
 
         return Lambda, b
 
@@ -551,3 +555,135 @@ class PotentialInteraction:
         plt.tight_layout()
         return fig, axes
 
+    def plotStrutLoading2D(self, r_query, fig=None, ax=None):
+        """
+        Plot strut loading vs azimuth at a given radial station (r/r_tip),
+        using scipy interpolation in the radial direction.
+
+        r_query - non-dimensional radius (r/rt)
+        """
+
+        F_beam = self.getStrutLoading()  # (3, Nphi, Nr)
+        phi = self.phi                   # (Nphi,)
+        r_rt = self.seg_radius / self.r1 # (Nr,)
+
+        component_labels = ['$F_r$ (radial)', '$F_z$ (axial)', '$F_\\phi$ (tangential)']
+
+        # --- Bounds check ---
+        r_min, r_max = np.min(r_rt), np.max(r_rt)
+        if not (r_min <= r_query <= r_max):
+            warnings.warn(
+                f"Requested r/r_tip={r_query:.3f} outside [{r_min:.3f}, {r_max:.3f}] → extrapolating",
+                RuntimeWarning
+            )
+
+        # --- Interpolator (vectorized over phi) ---
+        # axis=2 → interpolate along radial direction
+        interp_fun = interp1d(
+            r_rt,
+            F_beam,
+            axis=2,
+            kind='linear',
+            bounds_error=False,
+            fill_value='extrapolate'
+        )
+
+        # Result: (3, Nphi)
+        F_interp = interp_fun(r_query)
+
+        # --- Plotting ---
+        if fig is None or ax is None:
+            fig, axes = plt.subplots(3, 1, figsize=(7, 8), sharex=True)
+        else:
+            axes = ax
+
+        for i, (axi, label) in enumerate(zip(axes, component_labels)):
+            axi.plot(phi, np.real(F_interp[i]), label='Real', color='k', linestyle='dashed')
+            # axi.plot(phi, np.imag(F_interp[i]), '--', label='Imag')
+
+            axi.set_ylabel('F [N/m]')
+            axi.set_title(label)
+            axi.grid(True)
+
+            # if i == 0:
+                # axi.legend()
+
+        axes[-1].set_xlabel(r'$\phi = t\Omega$')
+
+        fig.suptitle(f'Strut loading at r/r_tip = {r_query:.3f}', fontsize=13)
+        plt.tight_layout()
+
+        return fig, axes
+    
+    def plotStrutLoadingHarmonics2D(self, r_query, fig=None, ax=None):
+        """
+        Plot strut loading vs wavenumber at a given radial station (r/r_tip),
+        using scipy interpolation in the radial direction.
+
+        Parameters
+        ----------
+        r_query : float
+            Non-dimensional radius (r/r_tip)
+        """
+
+        F_beam = self.getStrutLoadingHarmonics()   # (3, Nk, Nr)
+        k = self.k                        # (Nk,)
+        r_rt = self.seg_radius / self.r1  # (Nr,)
+
+        component_labels = [
+            '$F_r^k$ (radial)',
+            '$F_z^k$ (axial)',
+            '$F_\\phi^k$ (tangential)'
+        ]
+
+        # --- Ensure monotonic radius for interpolation ---
+        if not np.all(np.diff(r_rt) > 0):
+            idx = np.argsort(r_rt)
+            r_rt = r_rt[idx]
+            F_beam = F_beam[:, :, idx]
+
+        # --- Bounds check ---
+        r_min, r_max = np.min(r_rt), np.max(r_rt)
+        if not (r_min <= r_query <= r_max):
+            warnings.warn(
+                f"Requested r/r_tip={r_query:.3f} outside [{r_min:.3f}, {r_max:.3f}] → extrapolating",
+                RuntimeWarning
+            )
+
+        # --- Interpolation along radial direction ---
+        interp_fun = interp1d(
+            r_rt,
+            F_beam,
+            axis=2,
+            kind='linear',
+            bounds_error=False,
+            fill_value='extrapolate'
+        )
+
+        # Result: (3, Nk)
+        F_interp = interp_fun(r_query)
+
+        # --- Plotting ---
+        if fig is None or ax is None:
+            fig, axes = plt.subplots(3, 1, figsize=(7, 8), sharex=True)
+        else:
+            axes = ax
+
+        for i, (axi, label) in enumerate(zip(axes, component_labels)):
+            axi.plot(k, np.abs(F_interp[i]), label='|F|', color='k', marker='x')
+            axi.plot(k, np.real(F_interp[i]), '--', label='Real', color='r')
+            axi.plot(k, np.imag(F_interp[i]), ':', label='Imag', color='b')
+
+            axi.set_ylabel('F [N/m]')
+            axi.set_title(label)
+            axi.grid(True)
+
+            if i == 0:
+                axi.legend()
+
+        axes[-1].set_xlabel('Wavenumber $k$')
+
+        fig.suptitle(f'Strut loading harmonics at r/r_tip = {r_query:.3f}', fontsize=13)
+        plt.tight_layout()
+
+        return fig, axes

@@ -232,20 +232,20 @@ if __name__ == "__main__":
 
     # -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
     # save gradients in the far-field (run once per observer and m)
-    for index, sm in enumerate(sourceArray.children):
+    # for index, sm in enumerate(sourceArray.children):
 
-        gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
-        print(f'pre-computing far-field gradients {index+1}')
+    #     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
+    #     print(f'pre-computing far-field gradients {index+1}')
 
-        gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
-        np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy', gradG)
+    #     gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+    #     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy', gradG)
 
 
     # extract and rearrange
     gradG_arr = np.zeros((sourceArray.seg_radius.shape[0], 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
     ind_m = np.where(m_surface == ms[0])[0][0]
     for index, sm in enumerate(sourceArray.children):
-        gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy')[:, ind_m, :, :]
+        gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
 
 
     p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)

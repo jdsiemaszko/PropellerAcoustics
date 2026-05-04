@@ -17,17 +17,23 @@ from scattering_vs_PIN import *
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from Constants.data_assim import getGojonData
+from Constants.data_assim import getGojonData, getHarmonicsFromData
 
 SUFFIX = '_D360_HR'
-ms = np.arange(1, 11, 1) # harmonics to extract
+m_surface = np.arange(1, 11, 1) # harmonics to extract
+
+ms = np.array([3])
 
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
 data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=2, RPM=8000)
 
-peq_data = np.sqrt(data / 2) # "equivalent" mode amplitude from the data
+data_modal, ms_data = getHarmonicsFromData(data, freq.T, BPF)
+data = data_modal[np.where(ms[0] == ms_data)]
+
+peq_data = np.sqrt(np.array(data) / 2) # "equivalent" mode amplitude from the data
+
 theta_m_data, phi_m_data = np.meshgrid(theta_data, phi_data, indexing='ij')
 theta_arr_data = theta_m_data.ravel()
 phi_arr_data = phi_m_data.ravel()          
@@ -68,7 +74,7 @@ x_cart = np.array([X, Y, Z])
 gradG_arr = np.zeros((sourceArray.seg_radius.shape[0], 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 ind_m = np.where(m_surface == ms[0])[0][0]
 for index, sm in enumerate(sourceArray.children):
-    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy')[:, ind_m, :, :]
+    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
 
 
 p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
@@ -116,21 +122,29 @@ beam_loading = PIN.getStrutLoadingHarmonics()
 
 p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
 
+
+PIN._numerics['include_vortex_sources'] = True
+PIN._numerics['include_thickness_sources'] = True
+beam_loading = PIN.getStrutLoadingHarmonics()
+
+p_beam_total , _ = han.getPressureStator(x_cart, ms*B, beam_loading)
+
 p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)
 p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
 
 # scattering total
-p_total_scattering = p_direct_thickness + p_scattered_thickness + p_direct_loading + p_scattered_loading
+p_total_scattering = p_direct_thickness + p_direct_loading + p_scattered_loading + p_scattered_thickness
 
 # pin total
-p_total_pin = p_blade_loading + p_blade_thickness + p_beam_loading + p_beam_thickness
+p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total 
+# + p_beam_loading + p_beam_thickness
 
 # 3D SPL diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(311, projection="3d")
-ax2 = fig.add_subplot(312, projection="3d")
-ax3 = fig.add_subplot(313, projection="3d")
+ax1 = fig.add_subplot(131, projection="3d")
+ax2 = fig.add_subplot(132, projection="3d")
+ax3 = fig.add_subplot(133, projection="3d")
 
 VMIN, VMAX = 10, 65
 fig, ax1 = plot_3D_directivity(
@@ -140,18 +154,17 @@ fig, ax2 = plot_3D_directivity(
     p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_directivity(
-    peq_data[:, 0], theta_m_data, phi_m_data, title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(-phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
-fig.suptitle(f"Directivities of $\hat{{p}}_{ms[0] * B:.0f}$")
+fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 plt.show()
 
 
 # 3D phase diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(221, projection="3d")
-ax2 = fig.add_subplot(222, projection="3d")
-ax3 = fig.add_subplot(223, projection="3d")
-ax4 = fig.add_subplot(224, projection="3d")
+ax1 = fig.add_subplot(131, projection="3d")
+ax2 = fig.add_subplot(132, projection="3d")
+ax3 = fig.add_subplot(133, projection="3d")
 
 
 fig, ax1 = plot_3D_phase_directivity(
@@ -161,7 +174,7 @@ fig, ax2 = plot_3D_phase_directivity(
     p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_phase_directivity(
-    peq_data[:, 0], theta_m_data, phi_m_data, title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(-phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
-fig.suptitle(f"Directivities of $\hat{{p}}_{ms[0] * B:.0f}$")
+fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 plt.show()
