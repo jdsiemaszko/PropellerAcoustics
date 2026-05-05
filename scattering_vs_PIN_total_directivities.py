@@ -23,7 +23,7 @@ SUFFIX = '_D360_HR'
 m_surface = np.arange(1, 11, 1) # harmonics to extract
 sourceArray.numerics['CompactnessCorrection'] = True
 
-ms = np.array([2])
+ms = np.array([5])
 
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
