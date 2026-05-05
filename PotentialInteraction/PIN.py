@@ -2,7 +2,7 @@ import numpy as np
 import numpy as np
 from scipy.special import jv
 from scipy.interpolate import interp1d
-from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated
+from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated, plot_directivity_contour, p_to_SPL
 import matplotlib.pyplot as plt
 import warnings
 
@@ -106,60 +106,24 @@ class PotentialInteraction:
         
         F_beam = self.getStrutLoading() # shape (3, Nt, Nr)
 
-        # go to the frequency domain
-        # points_per_period = self._numerics.get('points_per_period', 20)
-        # k_local_max = np.ceil(self.kmax / self.B) # only resolve up to ceil(kmax/B) multiples of B*Omega
-        # k_local = np.arange(1, k_local_max+1, 1)
+        # period_vortex = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
+        # period_global = 2 * np.pi / self.Omega # rotation period, DIFFERENT FROM blade passage period!
+        # N_periods = int(period_global / period_vortex)
 
-        # T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
-        # Need to apply the linear addition earlier, at the potential computation
-        # T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi / self.Omega, kind='cubic', t_new=T_periodic)
-
-        # Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
-        # dt = np.diff(T_periodic)[0]
-
-        # # shape (3, Nk, Nr)
-        # F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
-        #          k_local[None, :, None, None] * 2 * np.pi / period * 
-        #          T_periodic[None, None, :, None]) * dt, axis=2)
-
-        # corrected
-        period_vortex = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
+        # phi_extended = np.linspace(self.phi[0], self.phi[0] + N_periods * np.pi * 2, self.phi.shape[0] * N_periods, endpoint=False) # extended phi array covering multiple periods, shape (Np_extended,)
+        # F_beam_extended = np.tile(F_beam, (1, N_periods, 1)) # extend the time series to multiple periods, shape (3, Nt*N_periods, Nr)
+        # dt = np.diff(phi_extended)[0] / self.Omega # timestep corresponding to phi array
+        # F_beam_k_global = 1/period_global/N_periods * np.sum(F_beam_extended[:, None, :, :] * np.exp(+1j *
+        #         self.k[None, :, None, None] * 2 * np.pi / period_global * 
+        #          (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
 
         period_global = 2 * np.pi / self.Omega # rotation period, DIFFERENT FROM blade passage period!
-
-        N_periods = int(period_global / period_vortex)
-
-        # TODO: fix! some bs here
-        phi_extended = np.linspace(self.phi[0], self.phi[0] + N_periods * np.pi * 2, self.phi.shape[0] * N_periods, endpoint=False) # extended phi array covering multiple periods, shape (Np_extended,)
-        F_beam_extended = np.tile(F_beam, (1, N_periods, 1)) # extend the time series to multiple periods, shape (3, Nt*N_periods, Nr)
-        dt = np.diff(phi_extended)[0] / self.Omega # timestep corresponding to phi array
-        F_beam_k_global = 1/period_global/N_periods * np.sum(F_beam_extended[:, None, :, :] * np.exp(+1j *
+        phi = self.phi
+        dt = np.diff(self.phi)[0] / self.Omega # timestep corresponding to phi array
+        F_beam_k_global = 1/period_global * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
                 self.k[None, :, None, None] * 2 * np.pi / period_global * 
-                 (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
+                 (phi/self.Omega)[None, None, :, None]) * dt, axis=2)
         
-        # correct the contributions k!=mB (should be small anyway)
-        # for i, k_val in enumerate(self.k):
-        #     if k_val % self.B != 0:
-        #         F_beam_k_global[:, i, :] = 0.0 # zero out contributions that are not multiples of B, should be inconsequential
-        # F_beam_k_global[:, 0, :] = 0.0 # zero-out mean loading on the beam, should be inconsequential
-
-        # Note: indez k corresponds to frequency k*B*Omega => need to map onto global k array with multiples of k*Omega!
-        # this is DIFFERENT from the propeller computation!
-
-        # # fill the array with zeros where k!= multiple of nb
-        # k_global = self.k
-        # F_beam_k_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
-
-        # # find where self.k==k_global
-        # # fill these entries with value of Fblade
-        # # leave the rest at zero
-        # # find where self.k == k_global and fill
-        # for i, k_val in enumerate(k_local):
-        #     idx = np.where(k_global == k_val*self.B)[0] # should be EXACTLY one entry!
-        #     if idx.size > 0:
-        #          F_beam_k_global[:, idx[0], :] =  F_beam_k[:, i, :]
-
         return F_beam_k_global
     
     def getGammaInPhi(self):
@@ -687,3 +651,60 @@ class PotentialInteraction:
         plt.tight_layout()
 
         return fig, axes
+
+    def getStrutPressureHarmonics(self):
+
+        pressure = self.getStrutPressure() # Nthetab, Nphi, Nr
+
+        # period_vortex = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
+
+        period_global = 2 * np.pi / self.Omega # rotation period, DIFFERENT FROM blade passage period!
+
+        # N_periods = int(period_global / period_vortex)
+        # phi_extended = np.linspace(self.phi[0], self.phi[0] + N_periods * np.pi * 2, self.phi.shape[0] * N_periods, endpoint=False) # extended phi array covering multiple periods, shape (Np_extended,)
+        # pressure_extended = np.tile(pressure, (1, N_periods, 1)) # extend the time series to multiple periods, shape (3, Nt*N_periods, Nr)
+        # dt = np.diff(phi_extended)[0] / self.Omega # timestep corresponding to phi array
+        # pressure_global = 1/period_global/N_periods * np.sum(pressure_extended[:, None, :, :] * np.exp(+1j *
+        #         self.k[None, :, None, None] * 2 * np.pi / period_global * 
+        #          (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
+
+        phi = self.phi
+        dt = (self.phi[1] - self.phi[0]) / self.Omega
+        pressure_k_global = 1/period_global * np.sum(pressure[:, None, :, :] * np.exp(+1j *
+        self.k[None, :, None, None] * 2 * np.pi / period_global * 
+        (phi/self.Omega)[None, None, :, None]) * dt, axis=2) # shape Nthetab, Nk, Nr
+
+        return pressure_k_global
+    
+    def plotSurfacePressureContour(self, m:int, fig=None, ax=None):
+        p = self.getStrutPressureHarmonics() # p_k of shape (Ntheta, Nk, Nr)
+
+        thetab = self.theta_beam
+        radius = self.seg_radius
+
+        index = np.where(self.k == m)[0][0] # index of the desired mode 
+        # if does not exist, will throw an error, which is fine
+        pk = p[:, index, :]
+
+        # # --- shift theta from [0, 2π) → [-π, π) ---
+        # th_shifted = (thetab + np.pi) % (2*np.pi) - np.pi
+
+        # # --- sort theta so it increases from -π to π ---
+        # sort_idx = np.argsort(th_shifted)
+
+        # th_sorted = th_shifted[sort_idx]
+        th_sorted = thetab
+
+        # pk = pk.reshape(len(thetab), len(radius))
+        # pk = pk[sort_idx,]
+        # pk = pk.flatten()
+
+        TH, PHI = np.meshgrid(th_sorted, radius, indexing='ij')
+
+        fig, ax = plot_directivity_contour(Theta=np.rad2deg(TH), Phi=PHI, magnitudes=pk, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title=f'Surface Pressure $p_{{{m}}}$ (dB)')
+        
+        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x')
+        
+        print(f'maximum surface SPL: {np.max(p_to_SPL(pk))} dB')
+        return fig, ax
+

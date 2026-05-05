@@ -39,7 +39,7 @@ pin = PotentialInteraction(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 720, 'Nthetab': 36*2, 'include_vortex_sources':True, 'include_thickness_sources':True}
+    numerics={'Nphi': 720, 'Nthetab': 36*2, 'include_vortex_sources':True, 'include_thickness_sources':False}
 )
 
 hanson = HansonModel(
@@ -53,6 +53,11 @@ hanson = HansonModel(
 
 # pin.plotDownwashInRotorPlane()
 # plt.show()
+
+for m in [5]:
+    pin.plotSurfacePressureContour(m = m * B)
+plt.show()
+
 
 pin.plotStrutLoading2D(0.8)
 plt.show()
@@ -76,8 +81,6 @@ Fbeam_loading = pin.getStrutLoadingHarmonics()
 pin._numerics['include_vortex_sources'] = False
 pin._numerics['include_thickness_sources'] = True
 Fbeam_thickness = pin.getStrutLoadingHarmonics()
-
-
 
 
 ind_theta = 6       # -60 to 60 in 10
