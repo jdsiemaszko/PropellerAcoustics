@@ -160,7 +160,51 @@ class SourceMode():
         loadings *= self.dalpha / 2. / np.pi # normalize
 
 
+        if self.numerics.get('CompactnessCorrection', False):
+            loadings = self._getCompactnessCorrectionLoading(loadings, m)
+
         return loadings
+    
+    def _getCompactnessCorrectionLoading(self, loading, m):
+        splus = self.s
+        sminus = -self.s[::-1]
+        s = np.concatenate((sminus[:-1], splus)) # twosided, as in the function above, shape 2Ns-1
+
+        N = self.numerics.get('Nchordstations', 1000)
+        chord_stations = np.linspace(-self.chord/2+1e-12, self.chord/2, N)
+
+        theta = np.linspace(0, np.pi, N)  # no singularity
+        u = -np.cos(theta)
+        weight = 2 * np.cos(theta / 2)**2  # comes from transformation
+
+        # such that np.trapezoid(weight, theta) = pi !
+
+        phase = np.exp(
+            1j * (m[None, None, :] * self.B - s[None, :, None])
+            * (self.chord / 2 * u[:, None, None]) / self.radius
+        )
+
+        factor = 1 / np.pi * np.trapezoid(
+            weight[:, None, None] * phase,
+            theta,
+            axis=0
+        ) # shape 2*Ns-1, Nm
+
+        # factor = self.chord / 2 / np.pi * np.trapezoid(
+        #     np.sqrt((1- 2 * chord_stations[:, None, None] / self.chord) / (1 + 2 * chord_stations[:, None, None] / self.chord)) * 
+        #     np.exp(-1j * (m[None, None, :]  * self.B - s[None, :, None]) * chord_stations[:, None, None] / self.radius),
+        #     chord_stations,
+        #     axis=0
+        # ) # shape 2*Ns-1, Nm
+
+        # argument = (m[None, :] * self.B - s[:, None]) * self.chord / 2 / self.radius
+        # mask = np.abs(argument) > 1e-12
+
+        # factor_test = np.ones_like(argument)
+        # factor_test[mask] = np.sin(argument[mask]) / argument[mask]
+
+        # return loading * factor_test[:, :, None, None]
+        return loading * factor[:, :, None, None]
     
     def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, BLH=None):
 
@@ -206,15 +250,31 @@ class SourceMode():
 
         sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord * np.exp(1j
                 * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+        
+        if self.numerics.get('CompactnessCorrection', False):
+            sources = self._getCompactnessCorrectionThickness(sources, m)
+
         return sources
 
+    def _getCompactnessCorrectionThickness(self, sources, m):
+
+        chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
+        t_c = self.dt / self.chord
+        if isinstance(t_c, float):
+            t_c = np.ones_like(chord_stations) * t_c # if t/c is given as a constant, assume it represents the mean thickness
+        # TODO: figure out the sign!
+        phase = np.exp(1j * m[None, :] * self.B * chord_stations[:, None] / self.radius)
+        # apply the integral
+        t_c_effective = 1 / self.chord * np.trapezoid(t_c[:, None] * phase, chord_stations, axis=0) # shape Nm
+            
+
+        return sources * (t_c_effective / self.dt * self.chord)[:, None] # Nm, Ny
 
     def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float, rho0:float):
         # G is of shape (Nm, Nx, Ny)
         monopoles = self.getThicknessSources(m, Omega, rho0=rho0) # shape (Nm, Ny) units of Pa * m = N / m
         pmB = np.einsum('m y, m x y -> x m', monopoles, G) # shape Nx, Nm # units of Pa
         return pmB * self.B
-
 
     def getThicknessPressureDirect(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2):
         """
@@ -686,12 +746,17 @@ class SourceModeArray():
         if not hasattr(self.green, 'getBoundaryEvaluationPoints'):
             raise NotImplementedError('The green function must have the method getBoundaryEvaluationPoints to plot surface pressure, current instance does not match this requirement')
 
-        eval_points = self.green.getBoundaryEvaluationPoints()
+        # eval_points = self.green.getBoundaryEvaluationPoints()
+        eval_points = self.green.getBoundaryCollocPoints()
 
         z_edges = self.green.panel_z_edges
         z_centers = (z_edges[:-1] + z_edges[1:]) / 2
         th_edges = self.green.panel_th_edges
         th_centers = (th_edges[:-1] + th_edges[1:]) / 2
+
+
+
+
         if extent_z is not None:
             # Select axial indices inside desired range
             indices_z = np.where(
@@ -715,19 +780,20 @@ class SourceModeArray():
 
             # Keep only selected z centers
             z_centers = z_centers[indices_z]
+
         # pmB = self._getSurfacePressure(eval_points, m, gradG_surface=gradG_surface, BLH=BLH) # shape (Npoints, Nm)
 
         # pmB = self.getPressure(eval_points, m, gradG=gradG_surface, BLH=None) # use the main function, works the same!, output of shape Neval points, 1
 
-        pmB = self.getDirectPressure(eval_points, m, BLH=BLH)
-        pmB += self.getScatteredPressure(eval_points, m, gradG_surface=gradG_surface)
+        pmB = self.getScatteredPressure(eval_points, m, gradG_surface=gradG_surface)
+        pmB += self.getDirectPressure(eval_points, m, BLH=BLH)
 
 
         TH, PHI = np.meshgrid(th_centers, z_centers, indexing='ij')
 
         fig, ax = plot_directivity_contour(Theta=np.rad2deg(TH), Phi=PHI, magnitudes=pmB, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title=f'Surface Pressure $p_{{{m*self.B}}}$ (dB)')
         
-        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x')
+        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
         
         print(f'maximum surface SPL: {np.max(p_to_SPL(pmB))} dB')
         return fig, ax

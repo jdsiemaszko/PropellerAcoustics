@@ -703,7 +703,7 @@ class PotentialInteraction:
 
         fig, ax = plot_directivity_contour(Theta=np.rad2deg(TH), Phi=PHI, magnitudes=pk, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title=f'Surface Pressure $p_{{{m}}}$ (dB)')
         
-        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x')
+        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
         
         print(f'maximum surface SPL: {np.max(p_to_SPL(pk))} dB')
         return fig, ax

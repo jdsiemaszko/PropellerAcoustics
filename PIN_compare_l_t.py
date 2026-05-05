@@ -54,7 +54,7 @@ hanson = HansonModel(
 # pin.plotDownwashInRotorPlane()
 # plt.show()
 
-for m in [5]:
+for m in [1]:
     pin.plotSurfacePressureContour(m = m * B)
 plt.show()
 

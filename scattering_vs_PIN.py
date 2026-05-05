@@ -125,6 +125,7 @@ D_prop = 0.2
 D = 20 / 1000
 L = 20 / 1000
 corigin = np.array([0.0, 0.0, -L])
+cradial = np.array([0.0, 1.0, 0.0])
 NBLADES = B
 
 if NBEAMS == 2:
@@ -135,6 +136,7 @@ if NBEAMS == 2:
 
 elif NBEAMS == 1:
     cg =  HalfCylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
+                            radial=cradial,
                 numerics= {
                     'nmax': 32,
                     'Nq_prop': 64,

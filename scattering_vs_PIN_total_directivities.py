@@ -21,8 +21,9 @@ from Constants.data_assim import getGojonData, getHarmonicsFromData
 
 SUFFIX = '_D360_HR'
 m_surface = np.arange(1, 11, 1) # harmonics to extract
+sourceArray.numerics['CompactnessCorrection'] = True
 
-ms = np.array([3])
+ms = np.array([2])
 
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -137,18 +138,22 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 p_total_scattering = p_direct_thickness + p_direct_loading + p_scattered_loading + p_scattered_thickness
 
 # pin total
-p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total 
+p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
+p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
+
+# + p_beam_total 
 # + p_beam_loading + p_beam_thickness
 
 # 3D SPL diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(131, projection="3d")
-ax2 = fig.add_subplot(132, projection="3d")
-ax3 = fig.add_subplot(133, projection="3d")
+ax1 = fig.add_subplot(221, projection="3d")
+ax2 = fig.add_subplot(222, projection="3d")
+ax3 = fig.add_subplot(223, projection="3d")
+ax4 = fig.add_subplot(224, projection="3d")
 
 VMIN, VMAX = 10, 65
 fig, ax1 = plot_3D_directivity(
-    p_total_pin[:, 0], theta_m, phi_m, title='PIN Model', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+    p_total_pin_loading[:, 0], theta_m, phi_m, title='PIN Model (vortex only)', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
 )
 fig, ax2 = plot_3D_directivity(
     p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
@@ -156,25 +161,32 @@ fig, ax2 = plot_3D_directivity(
 fig, ax3 = plot_3D_directivity(
     peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(-phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
+fig, ax4 = plot_3D_directivity(
+    p_total_pin[:, 0], theta_m, phi_m, title='PIN Model (incl. blade thickness)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+)
 fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 plt.show()
 
 
 # 3D phase diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(131, projection="3d")
-ax2 = fig.add_subplot(132, projection="3d")
-ax3 = fig.add_subplot(133, projection="3d")
+ax1 = fig.add_subplot(221, projection="3d")
+ax2 = fig.add_subplot(222, projection="3d")
+ax3 = fig.add_subplot(223, projection="3d")
+ax4 = fig.add_subplot(224, projection="3d")
 
-
+VMIN, VMAX = 10, 65
 fig, ax1 = plot_3D_phase_directivity(
-    p_total_pin[:, 0], theta_m, phi_m, title='PIN Model', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+    p_total_pin_loading[:, 0], theta_m, phi_m, title='PIN Model (vortex only)', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
 )
 fig, ax2 = plot_3D_phase_directivity(
     p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
-fig, ax3 = plot_3D_phase_directivity(
+fig, ax3 =  plot_3D_phase_directivity(
     peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(-phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+)
+fig, ax4 =  plot_3D_phase_directivity(
+    p_total_pin[:, 0], theta_m, phi_m, title='PIN Model (incl. blade thickness)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
 )
 fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 plt.show()
