@@ -18,6 +18,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from Constants.data_assim import getGojonData
+
+
 SUFFIX = '_D360_HR'
 # SUFFIX = '_HIGHRES'
 m_surface = np.arange(1, 11, 1) # depending on the datafile chosen

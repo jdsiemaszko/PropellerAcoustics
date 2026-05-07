@@ -35,7 +35,7 @@ NBEAMS = 1
 ms = np.array([5]) # pick a harmonic with significant beam noise 
 # SUFFIX = '_STEADY_DDR'
 
-SUFFIX = '_D360_HR'
+# SUFFIX = '_D360_HR'
 
 # NDIPOLES = 90
 # NDIPOLES = 180
@@ -170,7 +170,7 @@ elif NBEAMS == 1:
                     # 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
 
                     
-                    # D90_LR:
+                    ##### D90_LR:
                     # 'nmax': 8,
                     # 'Nq_prop': 16,
                     # 'Nq_evan': 8,
