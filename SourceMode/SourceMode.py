@@ -47,7 +47,7 @@ class SourceMode():
         elif isinstance(dt, np.ndarray):
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, dt.shape[0]) # assume equidistant thickness stations over the chord length
             self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
-            self.t_c_distribution = dt
+            self.t_c_distribution = dt / self.chord
 
         self.numerics=numerics
         self.Ndipoles = numerics.get('Ndipoles', 36)

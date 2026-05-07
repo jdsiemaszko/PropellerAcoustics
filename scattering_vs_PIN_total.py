@@ -22,8 +22,8 @@ import matplotlib.colors as colors
 SUFFIX = '_D360_HR'
 # SUFFIX = '_HIGHRES'
 
-# sourceArray.numerics['CompactnessCorrection'] = True
-sourceArray.numerics['CompactnessCorrection'] = False
+sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
 
 
 ind_theta = 6      # -60 to 60 in 10
