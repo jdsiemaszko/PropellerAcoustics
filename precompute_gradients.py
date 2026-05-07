@@ -7,7 +7,7 @@ from Constants.helpers import read_force_file
 import time
 
 # ------------------- Inputs -----------------------------
-SUFFIX = '_D180_MR'
+SUFFIX = '_D90_LR'
 # SUFFIX = '_D360_HR'
 
 MODE='half'
@@ -36,7 +36,7 @@ chord = 0.025 * np.ones_like(r_outer)
 t_c = 0.0809 * np.ones_like(r_outer) # NACA0012
 
 Nr = np.shape(r_outer)[0]-1
-Ndipoles = 180         # 360 should be accurate up to m ~ 18?
+Ndipoles = 90         # 360 should be accurate up to m ~ 18?
 Nk = 40 # number of resolved loading harmonics, max frequency is Nk * Omega
 
 # Cylinder Green module
@@ -48,19 +48,33 @@ corigin = np.array([0.0, 0.0, -L])
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
 cg =  HalfCylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
                 numerics= {
-                    # D180_MR:
 
-                    'nmax': 16,
-                    'Nq_prop': 32,
-                    'Nq_evan': 16,
+                    # D90_LR:
+                    'nmax': 8,
+                    'Nq_prop': 16,
+                    'Nq_evan': 8,
                     'eps_radius' : 1e-24, # must be lower than eps_eval!
-                    'Nazim' : 9, # discretization of the boundary in the azimuth
-                    'Nax': 32, # in the axial direction
+                    'Nazim' : 5, # discretization of the boundary in the azimuth
+                    'Nax': 16, # in the axial direction
                     'RMAX': 20, # max radius!
                     'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
                     'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
                     'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
                     # Note: the function is currently NOT checking if the panels are compact!
+
+                    
+                    # # D180_MR:
+                    # 'nmax': 16,
+                    # 'Nq_prop': 32,
+                    # 'Nq_evan': 16,
+                    # 'eps_radius' : 1e-24, # must be lower than eps_eval!
+                    # 'Nazim' : 9, # discretization of the boundary in the azimuth
+                    # 'Nax': 32, # in the axial direction
+                    # 'RMAX': 20, # max radius!
+                    # 'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+                    # 'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+                    # 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
+                    # # Note: the function is currently NOT checking if the panels are compact!
 
 
                     # D360_HR:

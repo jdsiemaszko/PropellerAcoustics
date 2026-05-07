@@ -36,6 +36,10 @@ ms = np.array([5]) # pick a harmonic with significant beam noise
 # SUFFIX = '_STEADY_DDR'
 
 SUFFIX = '_D360_HR'
+
+# NDIPOLES = 90
+# NDIPOLES = 180
+NDIPOLES = 360
 m_surface = np.arange(1, 11, 1) # depending on the datafile chosen
 
 
@@ -138,6 +142,8 @@ elif NBEAMS == 1:
     cg =  HalfCylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
                             radial=cradial,
                 numerics= {
+
+                    # _D360_HR
                     'nmax': 32,
                     'Nq_prop': 64,
                     'Nq_evan': 32,
@@ -145,18 +151,37 @@ elif NBEAMS == 1:
                     'Nazim' : 18, # discretization of the boundary in the azimuth
                     'Nax': 64, # in the axial direction
                     'RMAX': 20, # max radius!
+                    'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+                    'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+                    'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
+
+                
+
+                    # D180_MR:
                     # 'nmax': 16,
                     # 'Nq_prop': 32,
                     # 'Nq_evan': 16,
                     # 'eps_radius' : 1e-24, # must be lower than eps_eval!
                     # 'Nazim' : 9, # discretization of the boundary in the azimuth
                     # 'Nax': 32, # in the axial direction
-                    # 'RMAX': 15, # max radius!
+                    # 'RMAX': 20, # max radius!
+                    # 'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+                    # 'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+                    # 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
 
-                    'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
-                    'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
-                    'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
-                    # Note: the function is currently NOT checking if the panels are compact!
+                    
+                    # D90_LR:
+                    # 'nmax': 8,
+                    # 'Nq_prop': 16,
+                    # 'Nq_evan': 8,
+                    # 'eps_radius' : 1e-24, # must be lower than eps_eval!
+                    # 'Nazim' : 5, # discretization of the boundary in the azimuth
+                    # 'Nax': 16, # in the axial direction
+                    # 'RMAX': 20, # max radius!
+                    # 'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+                    # 'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+                    # 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
+                    # # Note: the function is currently NOT checking if the panels are compact!
                     })
 
 gf = TailoredGreen(dim=3) # free-field version!

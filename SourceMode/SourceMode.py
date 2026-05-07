@@ -39,6 +39,8 @@ class SourceMode():
         self.dt = dt # thickness of the element, used to compute thickness noise
         self.chord = chord # chord used in thickness noise (Glegg)
         self.numerics=numerics
+        self.Ndipoles = numerics.get('Ndipoles', 36)
+
         if radial is None:
             # choose an arbitrary radial direction perpendicular to the axis
             if np.allclose(self.axis, np.array([1,0,0])):
@@ -481,7 +483,7 @@ class SourceModeArray():
         if self.BLH.shape[2] !=  self.Nr:
             raise ValueError('BLH array size does not match the number of radial stations, see docstring')
 
-
+        self.Ndipoles = numerics.get('Ndipoles', 36)
         self.axis = axis
         self.origin = origin
         self.numerics=numerics

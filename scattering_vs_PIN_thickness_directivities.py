@@ -23,7 +23,7 @@ SUFFIX = '_D360_HR'
 m_surface = np.arange(1, 11, 1) # depending on the datafile chosen
 
 
-ms = np.array([2]) # plot harmonic m of BPF
+ms = np.array([5]) # plot harmonic m of BPF
 
 # datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -56,13 +56,13 @@ x_cart = np.array([X, Y, Z])
 
 # save gradients in the far-field (run once per observer and m)
 
-for index, sm in enumerate(sourceArray.children):
+# for index, sm in enumerate(sourceArray.children):
 
-    G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
-    print(f'pre-computing far-field G {index+1}')
+#     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
+#     print(f'pre-computing far-field G {index+1}')
 
-    G = sm.getScatteringGreen(x_cart, m_surface * B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
-    np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}.npy', G)
+#     G = sm.getScatteringGreen(x_cart, m_surface * B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
+#     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}.npy', G)
 
 Nr = sourceArray.seg_radius.shape[0]
 

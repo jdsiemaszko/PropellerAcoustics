@@ -20,10 +20,14 @@ import matplotlib.colors as colors
 from Constants.data_assim import getGojonData, getHarmonicsFromData
 
 SUFFIX = '_D360_HR'
+# SUFFIX = '_D180_MR'
+# SUFFIX = '_D90_LR'
 m_surface = np.arange(1, 11, 1) # harmonics to extract
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
+
+NDIPOLES = sourceArray.Ndipoles
 
 ms = np.array([5])
 
@@ -62,22 +66,22 @@ Z = R_arr * np.cos(theta_arr)
 
 x_cart = np.array([X, Y, Z])
 
-# -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
-# save gradients in the far-field (run once per observer and m)
+##### -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
+##### save gradients in the far-field (run once per observer and m)
 # for index, sm in enumerate(sourceArray.children):
 
 #     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
 #     print(f'pre-computing far-field gradients {index+1}')
 
 #     gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
-#     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy', gradG)
+#     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}{SUFFIX}.npy', gradG)
 
 
 # extract and rearrange
 gradG_arr = np.zeros((sourceArray.seg_radius.shape[0], 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 ind_m = np.where(m_surface == ms[0])[0][0]
 for index, sm in enumerate(sourceArray.children):
-    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
+    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}{SUFFIX}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
 
 
 p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
@@ -95,16 +99,16 @@ p_blade_loading, _ = han.getPressureRotor(x_cart, ms, BLH)
 
 
 
-# -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
+#### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
-# save gradients in the far-field (run once per observer and m)
+#### save gradients in the far-field (run once per observer and m)
 
 # for index, sm in enumerate(sourceArray.children):
 #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
 #     print(f'pre-computing far-field G {index+1}')
 
 #     G = sm.getScatteringGreen(x_cart, m_surface * B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
-#     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}.npy', G)
+#     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}{SUFFIX}.npy', G)
 
 Nr = sourceArray.seg_radius.shape[0]
 
@@ -113,7 +117,7 @@ Nr = sourceArray.seg_radius.shape[0]
 G_arr = np.zeros((Nr, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128) # pick only the ones we neeed
 ind_m = np.where(m_surface == ms[0])[0][0]
 for index, sm in enumerate(sourceArray.children):
-    G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}.npy')[ind_m, :, :] # extract only the m we need for plotting!
+    G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
 
 p_blade_thickness, _ = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner)) # NACA0012
 
