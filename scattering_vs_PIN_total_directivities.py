@@ -22,6 +22,8 @@ from Constants.data_assim import getGojonData, getHarmonicsFromData
 SUFFIX = '_D360_HR'
 m_surface = np.arange(1, 11, 1) # harmonics to extract
 sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
+
 
 ms = np.array([5])
 
@@ -159,7 +161,7 @@ fig, ax2 = plot_3D_directivity(
     p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(-phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
 fig, ax4 = plot_3D_directivity(
     p_total_pin[:, 0], theta_m, phi_m, title='PIN Model (incl. blade thickness)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
@@ -183,7 +185,7 @@ fig, ax2 = plot_3D_phase_directivity(
     p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 =  plot_3D_phase_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(-phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
 fig, ax4 =  plot_3D_phase_directivity(
     p_total_pin[:, 0], theta_m, phi_m, title='PIN Model (incl. blade thickness)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,

@@ -28,7 +28,7 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
             phi_exp = np.array(g["phi_L20_deg"])[0] # azimuth
             data = np.array(ap[f"Autopower_arfoil20_Pa2"])
 
-
+    theta_exp = -theta_exp # wrong arrangement in the dataset!
     theta = 90 - theta_exp
     phi = 180 - phi_exp
     print(f'Theta_exp = {theta_exp} deg, Phi_exp = {phi_exp} deg')

@@ -169,7 +169,7 @@ class PotentialInteraction:
             np.sqrt(1 + (1 / np.pi * self.seg_t_c)**2)
             - (1 / np.pi * self.seg_t_c)
         ) # strictly < c/2!, size Nr
-        b *= np.exp(1j * (np.angle(self.Ui[0] + 1j * self.Ui[1]) + np.pi/2)) # source: i made it up
+        b *= np.exp(1j * (np.angle((self.Omega * self.seg_radius - self.Ui[0]) - 1j * self.Ui[1]))) # source: i made it up: b such that relative inflow is parallel to the oval axis
 
         return Lambda, b
 

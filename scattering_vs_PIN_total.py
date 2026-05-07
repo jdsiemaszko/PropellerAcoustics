@@ -17,45 +17,25 @@ from scattering_vs_PIN import *
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+from Constants.data_assim import getGojonData
 
 SUFFIX = '_D360_HR'
 # SUFFIX = '_HIGHRES'
 
-# sourceArray.numerics['CompactnessCorrection'] = True
-sourceArray.numerics['CompactnessCorrection'] = False
+sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
 
 
-ind_theta = 7       # -60 to 60 in 10
-ind_phi = 0          # 0 to 350 in 10
+ind_theta = 6      # -60 to 60 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
-casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
+# casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
-def load_h5(filename):
-    return h5py.File(filename, "r")
-with load_h5(f"{datadir}/{casefile}_autopower.h5") as f:
-    g = f[casefile]
-    freq = np.array(g["frequency_Hz"])
-    ap = g["Autopower"]
-
-    phi_exp = np.array(g["phi_deg"])[0][ind_phi] # azimuth
-    theta_exp = np.array(g["theta_deg"])[0][ind_theta] # polar
-    radius = g["radius_m"][0][0] # float
-
-    BPF = B * RPM / 60
-    data = ap[f"Autopower_RPM_{RPM}_Pa2"][:, ind_theta, ind_phi] # (freq, polar, azimuth), (aziuth=0 = > beam axis, azimuth=9 => 90 deg)
-
-theta = 90 - theta_exp
-phi = 180 - phi_exp
-
-# theta = -theta
-# phi = -phi
-print(f'Theta_exp = {theta_exp} deg, Phi_exp = {phi_exp} deg')
-print(f'Theta = {theta} deg, Phi = {phi} deg')
-x_cart = np.array([
-    radius * np.cos(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
-    radius * np.sin(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
-    radius * np.cos(np.deg2rad(theta)),
-]).reshape((3, 1))
+data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=2, RPM=8000)
+data = data[:, ind_theta, ind_phi]
+x_cart = x_cart_data[:, ind_theta, ind_phi].reshape((3, 1))
+theta = theta_data[ind_theta]
+phi = phi_data[ind_phi]
 
 Nr = len(r_inner)
 ms = np.arange(1, 11, 1) # harmonics to extract

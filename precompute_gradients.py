@@ -4,9 +4,12 @@ save the results to external files with unique identifier for reuse
 """
 import numpy as np
 from Constants.helpers import read_force_file
+import time
 
 # ------------------- Inputs -----------------------------
-SUFFIX = '_D360_HR'
+SUFFIX = '_D180_MR'
+# SUFFIX = '_D360_HR'
+
 MODE='half'
 
 print(f'using suffix {SUFFIX}, existing files will be overwritten.')
@@ -33,7 +36,7 @@ chord = 0.025 * np.ones_like(r_outer)
 t_c = 0.0809 * np.ones_like(r_outer) # NACA0012
 
 Nr = np.shape(r_outer)[0]-1
-Ndipoles = 360         # 360 should be accurate up to m ~ 18?
+Ndipoles = 180         # 360 should be accurate up to m ~ 18?
 Nk = 40 # number of resolved loading harmonics, max frequency is Nk * Omega
 
 # Cylinder Green module
@@ -45,17 +48,33 @@ corigin = np.array([0.0, 0.0, -L])
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
 cg =  HalfCylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
                 numerics= {
-                    'nmax': 32,
-                    'Nq_prop': 64,
-                    'Nq_evan': 32,
+                    # D180_MR:
+
+                    'nmax': 16,
+                    'Nq_prop': 32,
+                    'Nq_evan': 16,
                     'eps_radius' : 1e-24, # must be lower than eps_eval!
-                    'Nazim' : 18, # discretization of the boundary in the azimuth
-                    'Nax': 64, # in the axial direction
+                    'Nazim' : 9, # discretization of the boundary in the azimuth
+                    'Nax': 32, # in the axial direction
                     'RMAX': 20, # max radius!
                     'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
                     'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
                     'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
                     # Note: the function is currently NOT checking if the panels are compact!
+
+
+                    # D360_HR:
+                    # 'nmax': 32,
+                    # 'Nq_prop': 64,
+                    # 'Nq_evan': 32,
+                    # 'eps_radius' : 1e-24, # must be lower than eps_eval!
+                    # 'Nazim' : 18, # discretization of the boundary in the azimuth
+                    # 'Nax': 64, # in the axial direction
+                    # 'RMAX': 20, # max radius!
+                    # 'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
+                    # 'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
+                    # 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
+                    # # Note: the function is currently NOT checking if the panels are compact!
                     })
 
 # Source Mode assembly
@@ -73,21 +92,55 @@ sourceArray = SourceModeArray(
                         chord = chord,
                         )
 
+
+
 # ------------------- Green's function ---------------------------
+
+start_total = time.time()
 
 # save green on the surface (run once per m)
 for index, sm in enumerate(sourceArray.children):
+    start_loop = time.time()
+
     print(f'pre-computing surface Greens functions: {index+1} of {Nr}')
     source_positions = sm.dipole_positions
-    G_surface = sm.green.getGreenAtSurface(source_positions, ms*NBLADES * Omega / c0) # shape (Nm, Nz, Ny)
+
+    start_compute = time.time()
+    G_surface = sm.green.getGreenAtSurface(source_positions, ms*NBLADES * Omega / c0)  # shape (Nm, Nz, Ny)
+    end_compute = time.time()
+
     np.save(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
+
+    end_loop = time.time()
+
+    print(f'  -> compute time: {end_compute - start_compute:.3f} s')
+    print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
+
+end_total = time.time()
+print(f'Total time (Green): {end_total - start_total:.3f} s')
+
 
 # ------------------- Green's function gradient ---------------------------
 
+start_total = time.time()
 
 # save gradients on the surface (run once per m)
 for index, sm in enumerate(sourceArray.children):
+    start_loop = time.time()
+
     print(f'pre-computing surface Greens functions: {index+1} of {Nr}')
     source_positions = sm.dipole_positions
-    gradG_surface = sm.green.getGreenGradAtSurface(source_positions, ms*NBLADES * Omega / c0) # shape (3, Nm, Nz, Ny)
+
+    start_compute = time.time()
+    gradG_surface = sm.green.getGreenGradAtSurface(source_positions, ms*NBLADES * Omega / c0)  # shape (3, Nm, Nz, Ny)
+    end_compute = time.time()
+
     np.save(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy', gradG_surface)
+
+    end_loop = time.time()
+
+    print(f'  -> compute time: {end_compute - start_compute:.3f} s')
+    print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
+
+end_total = time.time()
+print(f'Total time (Gradient): {end_total - start_total:.3f} s')
