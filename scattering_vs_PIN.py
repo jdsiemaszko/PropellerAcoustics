@@ -197,6 +197,11 @@ BLH_US[:, 1:, :] = BLH[:, 1:, :]
 BLH_S = np.zeros_like(BLH)
 BLH_S[:, 0, :] = BLH[:, 0, :]
 
+from Constants.data_assim import getGojonData, read_selig_airfoil, compute_camber_thickness
+
+name, x, y = read_selig_airfoil('./Data/current/airfoils/NACA0012.dat')
+xc, camber, thickness = compute_camber_thickness(x, y)
+t_c_uniform = np.interp(np.linspace(0., 1., 1000), xc, thickness)
 sourceArray = SourceModeArray(
                         # BLH=np.zeros((3, Nk, Nr)),
                         BLH = BLH, 
@@ -207,7 +212,8 @@ sourceArray = SourceModeArray(
                         green = cg,
                         numerics={'Ndipoles' : NDIPOLES},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        # dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 

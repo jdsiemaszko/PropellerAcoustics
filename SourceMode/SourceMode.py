@@ -36,8 +36,19 @@ class SourceMode():
         self.origin = origin
         self.radius = radius
         self.dr = dr # radial segment length of the element, used to compute thickness noise
-        self.dt = dt # thickness of the element, used to compute thickness noise
+        # self.dt = dt # thickness of the element, used to compute thickness noise
+
         self.chord = chord # chord used in thickness noise (Glegg)
+
+        if isinstance(dt, float):
+            self.dt = dt
+            self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
+            self.t_c_distribution = np.ones_like(self.chord_stations) * self.dt / self.chord
+        elif isinstance(dt, np.ndarray):
+            self.chord_stations = np.linspace(-self.chord/2, self.chord/2, dt.shape[0]) # assume equidistant thickness stations over the chord length
+            self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
+            self.t_c_distribution = dt
+
         self.numerics=numerics
         self.Ndipoles = numerics.get('Ndipoles', 36)
 
@@ -173,7 +184,7 @@ class SourceMode():
         s = np.concatenate((sminus[:-1], splus)) # twosided, as in the function above, shape 2Ns-1
 
         N = self.numerics.get('Nchordstations', 1000)
-        chord_stations = np.linspace(-self.chord/2+1e-12, self.chord/2, N)
+        # chord_stations = np.linspace(-self.chord/2+1e-12, self.chord/2, N)
 
         theta = np.linspace(0, np.pi, N)  # no singularity
         u = -np.cos(theta)
@@ -260,16 +271,13 @@ class SourceMode():
 
     def _getCompactnessCorrectionThickness(self, sources, m):
 
-        chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
-        t_c = self.dt / self.chord
-        if isinstance(t_c, float):
-            t_c = np.ones_like(chord_stations) * t_c # if t/c is given as a constant, assume it represents the mean thickness
+        chord_stations = self.chord_stations
+
         # TODO: figure out the sign!
         phase = np.exp(1j * m[None, :] * self.B * chord_stations[:, None] / self.radius)
         # apply the integral
-        t_c_effective = 1 / self.chord * np.trapezoid(t_c[:, None] * phase, chord_stations, axis=0) # shape Nm
+        t_c_effective = 1 / self.chord * np.trapezoid(self.t_c_distribution[:, None] * phase, chord_stations, axis=0) # shape Nm
             
-
         return sources * (t_c_effective / self.dt * self.chord)[:, None] # Nm, Ny
 
     def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float, rho0:float):
@@ -427,7 +435,6 @@ class SourceMode():
                 linewidth=1.5
             )
 
-
     def plotSurfacePressure(self, m:float, Omega, c=340, valmin=None, valmax=None, fig=None, ax=None):
         if not hasattr(self.green, 'getBoundaryEvaluationPoints'):
             raise NotImplementedError('The green function must have the method getBoundaryEvaluationPoints to plot surface pressure, current instance does not match this requirement')
@@ -474,7 +481,7 @@ class SourceModeArray():
         self.seg_twist = (gamma[1:] + gamma[:-1]) / 2
         self.seg_radius = (radius[1:] + radius[:-1]) / 2
         self.dr = np.diff(radius) # (Nr)
-        self.dt = dt
+        self.dt = dt # array of size Nr or Nr, Nc, passed to children for each ind_r
         self.chord = chord # Nr
         self.Nr = len(self.seg_radius) # number of radial segments
         self.Nk = self.BLH.shape[1] 

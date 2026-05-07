@@ -17,7 +17,7 @@ from scattering_vs_PIN import *
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from Constants.data_assim import getGojonData
+
 
 SUFFIX = '_D360_HR'
 # SUFFIX = '_HIGHRES'

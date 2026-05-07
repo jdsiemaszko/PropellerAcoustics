@@ -131,11 +131,14 @@ ax.plot(ms, SPL_beam, label=f"Beam Loading due to Blade Thickness", color='r', m
 #                              'alpha':0.75
 #                          })
 
-ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM, corrected)", color='b', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise, corrected", color='r', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_direct_thickness_unc, label=f"Thickness Noise (SM, uncorrected)", color='b', marker='s', linestyle='dotted')
-ax.plot(ms, SPL_scattered_thickness_unc, label=f"Scattered Thickness Noise (uncorrected)", color='r', marker='s', linestyle='dotted')
-
+# ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM, corrected)", color='b', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise, corrected", color='r', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_direct_thickness_unc, label=f"Thickness Noise (SM, uncorrected)", color='b', marker='s', linestyle='dotted')
+# ax.plot(ms, SPL_scattered_thickness_unc, label=f"Scattered Thickness Noise (uncorrected)", color='r', marker='s', linestyle='dotted')
+# ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM, corrected)", color='b', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise, corrected", color='r', marker='s', linestyle='dashed')
+ax.plot(ms, SPL_direct_thickness_unc, label=f"Thickness Noise (SM)", color='b', marker='s', linestyle='dotted')
+ax.plot(ms, SPL_scattered_thickness_unc, label=f"Scattered Thickness Noise", color='r', marker='s', linestyle='dotted')
 ax.legend(ncol=2)
 ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
 ax.set_ylabel("SPL (dB)")

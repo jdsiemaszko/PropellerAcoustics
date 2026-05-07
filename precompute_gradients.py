@@ -7,13 +7,15 @@ from Constants.helpers import read_force_file
 import time
 
 # ------------------- Inputs -----------------------------
-SUFFIX = '_D10L20_D180'
+SUFFIX = '_D20L20W10_D180'
+# SUFFIX = '_D10L20_D180'
 # SUFFIX = '_D360_HR'
 Ndipoles = 180         # 360 should be accurate up to m ~ 18?
 Nk = 40 # number of resolved loading harmonics, max frequency is Nk * Omega
 D_prop = 0.2
-D = 10 / 1000
+D = 20 / 1000
 L = 20 / 1000
+W = 10 / 1000
 Omega = 8000 / 60 * 2 * np.pi
 NBLADES = 2
 c0 = 340.
@@ -46,7 +48,7 @@ Nr = np.shape(r_outer)[0]-1
 # Cylinder Green module
 caxis = np.array([1.0, 0.0, 0.0])
 
-corigin = np.array([0.0, 0.0, -L])
+corigin = np.array([0.0, -W, -L])
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen, SF_FullCylinderGreen
 cg =  HalfCylinderGreen(radius=D/2, axis=caxis, origin=corigin, dim=3, 
                 numerics= {

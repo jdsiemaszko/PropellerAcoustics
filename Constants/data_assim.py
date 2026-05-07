@@ -85,3 +85,77 @@ def getHarmonicsFromData(data, frequency, BPF, range=0.02):
     data_modal = np.array(data_modal)  # shape (Nharmonics, Ntheta, Nphi)
 
     return data_modal, ms
+
+
+def read_selig_airfoil(filename):
+    """
+    Reads an airfoil in Selig format.
+    
+    Returns:
+        name (str): airfoil name (first line)
+        x (ndarray): x coordinates
+        y (ndarray): y coordinates
+    """
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    # First line is the airfoil name
+    name = lines[0].strip()
+
+    coords = []
+    for line in lines[1:]:
+        line = line.strip()
+        if not line:
+            continue  # skip empty lines
+        
+        parts = line.split()
+        if len(parts) >= 2:
+            try:
+                x, y = float(parts[0]), float(parts[1])
+                coords.append((x, y))
+            except ValueError:
+                pass  # skip malformed lines
+
+    coords = np.array(coords)
+    x = coords[:, 0]
+    y = coords[:, 1]
+
+    return name, x, y
+
+
+def split_surfaces(x, y):
+    i_le = np.argmin(x)
+    xu, yu = x[:i_le+1], y[:i_le+1]   # upper surface
+    xl, yl = x[i_le:], y[i_le:]       # lower surface
+    return xu, yu, xl, yl
+
+
+def compute_camber_thickness(x, y, n_points=200):
+    """
+    Compute camber line and thickness distribution.
+
+    Returns:
+        xc      : common x stations (0 → 1)
+        camber  : camber line
+        thickness : thickness distribution
+    """
+    xu, yu, xl, yl = split_surfaces(x, y)
+
+    # Ensure monotonic increasing x for interpolation
+    xu, yu = xu[::-1], yu[::-1]  # flip upper: LE → TE
+    # lower already LE → TE typically
+
+    # Common chordwise stations (cosine spacing optional)
+    beta = np.linspace(0, np.pi, n_points)
+    xc = 0.5 * (1 - np.cos(beta))  # cosine spacing (better near LE)
+
+    # Interpolate
+    yu_interp = np.interp(xc, xu, yu)
+    yl_interp = np.interp(xc, xl, yl)
+
+    # Compute camber & thickness
+    camber = 0.5 * (yu_interp + yl_interp)
+    thickness = yu_interp - yl_interp
+
+    return xc, camber, thickness
+
