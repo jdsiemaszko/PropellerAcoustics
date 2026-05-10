@@ -331,22 +331,27 @@ class ConformalPIN(PotentialInteraction):
 
         return fig, ax
 
-    def plotMap(self, fig=None, ax=None):
-        radii = np.linspace(self.Rd, self.Rd * 3, 50)
+    def plotMap(self, fig=None, ax=None,center=0+0j, radii = None):
+        radii = np.linspace(self.Rd, self.Rd * 3, 50) if radii is None else radii
 
         # Create figure/axes if not provided
         if fig is None or ax is None:
             fig, ax = plt.subplots()
 
         for index, radius in enumerate(radii):
-            zs = self.getZ(radius * np.exp(1j * self.theta_beam))
+            zetas = center + radius * np.exp(1j * self.theta_beam)
+            zs = self.getZ(zetas)
             zs = np.append(zs, zs[0]) # close the circle
 
-            # Plot the mapped points
-            if index == 0:
-                ax.plot(np.real(self.zs), np.imag(self.zs), label="Beam Surface" if self.name is None else self.name, color='blue', marker='x')
-            else:
-                ax.plot(np.real(zs), np.imag(zs), color='k', linestyle='dashed')
+            zs = zs[np.where(np.abs(zetas)>self.Rd)] # only show outside of the beam
+            ax.plot(np.real(zs), np.imag(zs), color='k', linestyle='dashed')
+
+        #plot beam surface:
+
+        zs = self.zs
+        zs = np.append(zs, zs[0]) # close the circle
+        ax.plot(np.real(zs), np.imag(zs), label="Beam Surface" if self.name is None else self.name, color='blue', marker='x')
+
 
         # Formatting
         ax.set_aspect('equal', adjustable='box')

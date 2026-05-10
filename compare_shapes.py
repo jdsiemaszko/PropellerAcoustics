@@ -30,6 +30,8 @@ pin_triangle = HypotrochoidalPIN(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
+    t_c = 0.12 * np.ones_like(r_outer),
+
     # Uz0_mps=U_flow,
     Fzprime_Npm=Fz,
     Fphiprime_Npm=Fphi,
@@ -49,6 +51,8 @@ pin_square = HypotrochoidalPIN(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
+    t_c = 0.12 * np.ones_like(r_outer),
+
     # Uz0_mps=U_flow,
     Fzprime_Npm=Fz,
     Fphiprime_Npm=Fphi,
@@ -68,6 +72,8 @@ pin_circle = HypotrochoidalPIN(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
+    t_c = 0.12 * np.ones_like(r_outer),
+
     # Uz0_mps=U_flow,
     Fzprime_Npm=Fz,
     Fphiprime_Npm=Fphi,
@@ -89,6 +95,7 @@ pin_airfoil = JoukowskyPIN(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
+    t_c = 0.12 * np.ones_like(r_outer),
     # Uz0_mps=U_flow,
     Fzprime_Npm=Fz,
     Fphiprime_Npm=Fphi,
@@ -112,12 +119,17 @@ hanson = HansonModel(
     Omega_rads= RPM / 60 * 2 * np.pi
 )
 
+fig, ax = pin_airfoil.plotMap(center = 0.012 + 0.00j, radii = np.linspace(0.02/100, 0.02 * 10, 200))
+plt.show()
 
 fig, ax = pin_triangle.plotZ()
 fig, ax = pin_square.plotZ(fig, ax)
 fig, ax = pin_circle.plotZ(fig, ax)
 fig, ax = pin_airfoil.plotZ(fig, ax)
 plt.show()
+
+
+
 
 pin_airfoil.plotMap()
 plt.show()
@@ -204,12 +216,14 @@ plt.ylim(0, 70)
 plt.tight_layout()
 plt.show()
 
+MS = [1, 2, 3, 4, 5]
 for shape, color, marker, pin_model in zip(['T', 'S', 'D', 'A'], ['r', 'g', 'b', 'm'], ['^', 's', 'o', '*'], [pin_triangle, pin_square, pin_circle, pin_airfoil]):
     # if shape != 'A':
     #     continue
     blade_loading = pin_model.getBladeLoadingHarmonics()
     strut_loading = pin_model.getStrutLoadingHarmonics()
-    hanson.plot3DdirectivityTotal(m=2, loadings=blade_loading, loadings_2=strut_loading, R=np.linalg.norm(x_cart, axis=0)[0], chord=pin_model.seg_chord, t_c=0.082)
-    plt.show()
-    # hanson.plot2DdirectivityTotal(m=2, loadings=blade_loading, loadings_2=strut_loading, R=np.linalg.norm(x_cart, axis=0)[0], plane='xz', chord=pin_model.seg_chord, t_c=0.082)
+    for m in MS:
+        hanson.plot3DdirectivityTotal(m=m, loadings=blade_loading, loadings_2=strut_loading, R=np.linalg.norm(x_cart, axis=0)[0], chord=pin_model.seg_chord, t_c=0.082)
+        plt.show()
+    # hanson.plot2DdirectivityTotal(m=m, loadings=blade_loading, loadings_2=strut_loading, R=np.linalg.norm(x_cart, axis=0)[0], plane='xz', chord=pin_model.seg_chord, t_c=0.082)
     # plt.show()
