@@ -38,9 +38,9 @@ plt.close()
 # plt.show()
 # plt.close()
 
-# cg_3D.plot3Ddirectivity(k=np.array([10.0]), y=np.array([[0], [1.0], [0.]]), R=5.0, Nphi=36, Ntheta=18,
-#                    valmin=10, valmax=65)
-# plt.show()
+cg_3D.plot3Ddirectivity(k=np.array([10.0]), y=np.array([[0], [0.55], [0.]]), R=5.0, Nphi=36, Ntheta=18,
+                   valmin=10, valmax=65)
+plt.show()
 
 fig, ax = cg_2D.plotGreenOnPlane(k=np.array([10.0]), y=np.array([[0], [1.0]]), rmin = 0.51, rmax= 1.5, Nr=30, Ntheta=36*2, alpha=0.1)
 plt.show()

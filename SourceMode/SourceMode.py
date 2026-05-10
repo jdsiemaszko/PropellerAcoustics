@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from TailoredGreen.TailoredGreen import TailoredGreen
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from Constants.helpers import p_to_SPL, plot_3D_directivity
+from Constants.helpers import p_to_SPL, plot_3D_directivity, plot_directivity_contour
 
 def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, normal:np.ndarray):
     # get the radial,radial, and axial unit vectors given an azimuth, the axis vector, origin point, and zero-azimuth direction
@@ -36,9 +36,22 @@ class SourceMode():
         self.origin = origin
         self.radius = radius
         self.dr = dr # radial segment length of the element, used to compute thickness noise
-        self.dt = dt # thickness of the element, used to compute thickness noise
+        # self.dt = dt # thickness of the element, used to compute thickness noise
+
         self.chord = chord # chord used in thickness noise (Glegg)
+
+        if isinstance(dt, float):
+            self.dt = dt
+            self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
+            self.t_c_distribution = np.ones_like(self.chord_stations) * self.dt / self.chord
+        elif isinstance(dt, np.ndarray):
+            self.chord_stations = np.linspace(-self.chord/2, self.chord/2, dt.shape[0]) # assume equidistant thickness stations over the chord length
+            self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
+            self.t_c_distribution = dt / self.chord
+
         self.numerics=numerics
+        self.Ndipoles = numerics.get('Ndipoles', 36)
+
         if radial is None:
             # choose an arbitrary radial direction perpendicular to the axis
             if np.allclose(self.axis, np.array([1,0,0])):
@@ -160,7 +173,51 @@ class SourceMode():
         loadings *= self.dalpha / 2. / np.pi # normalize
 
 
+        if self.numerics.get('CompactnessCorrection', False):
+            loadings = self._getCompactnessCorrectionLoading(loadings, m)
+
         return loadings
+    
+    def _getCompactnessCorrectionLoading(self, loading, m):
+        splus = self.s
+        sminus = -self.s[::-1]
+        s = np.concatenate((sminus[:-1], splus)) # twosided, as in the function above, shape 2Ns-1
+
+        N = self.numerics.get('Nchordstations', 1000)
+        # chord_stations = np.linspace(-self.chord/2+1e-12, self.chord/2, N)
+
+        theta = np.linspace(0, np.pi, N)  # no singularity
+        u = -np.cos(theta)
+        weight = 2 * np.cos(theta / 2)**2  # comes from transformation
+
+        # such that np.trapezoid(weight, theta) = pi !
+
+        phase = np.exp(
+            1j * (m[None, None, :] * self.B - s[None, :, None])
+            * (self.chord / 2 * u[:, None, None]) / self.radius
+        )
+
+        factor = 1 / np.pi * np.trapezoid(
+            weight[:, None, None] * phase,
+            theta,
+            axis=0
+        ) # shape 2*Ns-1, Nm
+
+        # factor = self.chord / 2 / np.pi * np.trapezoid(
+        #     np.sqrt((1- 2 * chord_stations[:, None, None] / self.chord) / (1 + 2 * chord_stations[:, None, None] / self.chord)) * 
+        #     np.exp(-1j * (m[None, None, :]  * self.B - s[None, :, None]) * chord_stations[:, None, None] / self.radius),
+        #     chord_stations,
+        #     axis=0
+        # ) # shape 2*Ns-1, Nm
+
+        # argument = (m[None, :] * self.B - s[:, None]) * self.chord / 2 / self.radius
+        # mask = np.abs(argument) > 1e-12
+
+        # factor_test = np.ones_like(argument)
+        # factor_test[mask] = np.sin(argument[mask]) / argument[mask]
+
+        # return loading * factor_test[:, :, None, None]
+        return loading * factor[:, :, None, None]
     
     def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, BLH=None):
 
@@ -171,13 +228,13 @@ class SourceMode():
 
         return self._getPressureFromGrad(x, m, gradG, BLH=BLH)
     
-    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, surface_gradG=None, BLH=None):
+    def getScatteredPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, gradG_surface=None, BLH=None):
 
         green = self.green
 
         # EXPENSIVE STEP - avoid by passing gradient directly if pre-computed
         if gradG is None:
-            gradG = green.getScatteringGreenGradient(x, self.dipole_positions, m * Omega * self.B / c, green_grad_at_surface = surface_gradG) # shape (3, Nm, Nx, Ny)
+            gradG = green.getScatteringGreenGradient(x, self.dipole_positions, m * Omega * self.B / c, green_grad_at_surface = gradG_surface) # shape (3, Nm, Nx, Ny)
 
         return self._getPressureFromGrad(x, m, gradG, BLH=BLH)
 
@@ -206,15 +263,28 @@ class SourceMode():
 
         sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord * np.exp(1j
                 * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+        
+        if self.numerics.get('CompactnessCorrection', False):
+            sources = self._getCompactnessCorrectionThickness(sources, m)
+
         return sources
 
+    def _getCompactnessCorrectionThickness(self, sources, m):
+
+        chord_stations = self.chord_stations
+
+        # TODO: figure out the sign!
+        phase = np.exp(1j * m[None, :] * self.B * chord_stations[:, None] / self.radius)
+        # apply the integral
+        t_c_effective = 1 / self.chord * np.trapezoid(self.t_c_distribution[:, None] * phase, chord_stations, axis=0) # shape Nm
+            
+        return sources * (t_c_effective / self.dt * self.chord)[:, None] # Nm, Ny
 
     def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float, rho0:float):
         # G is of shape (Nm, Nx, Ny)
         monopoles = self.getThicknessSources(m, Omega, rho0=rho0) # shape (Nm, Ny) units of Pa * m = N / m
         pmB = np.einsum('m y, m x y -> x m', monopoles, G) # shape Nx, Nm # units of Pa
         return pmB * self.B
-
 
     def getThicknessPressureDirect(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., rho0=1.2):
         """
@@ -365,7 +435,6 @@ class SourceMode():
                 linewidth=1.5
             )
 
-
     def plotSurfacePressure(self, m:float, Omega, c=340, valmin=None, valmax=None, fig=None, ax=None):
         if not hasattr(self.green, 'getBoundaryEvaluationPoints'):
             raise NotImplementedError('The green function must have the method getBoundaryEvaluationPoints to plot surface pressure, current instance does not match this requirement')
@@ -412,7 +481,7 @@ class SourceModeArray():
         self.seg_twist = (gamma[1:] + gamma[:-1]) / 2
         self.seg_radius = (radius[1:] + radius[:-1]) / 2
         self.dr = np.diff(radius) # (Nr)
-        self.dt = dt
+        self.dt = dt # array of size Nr or Nr, Nc, passed to children for each ind_r
         self.chord = chord # Nr
         self.Nr = len(self.seg_radius) # number of radial segments
         self.Nk = self.BLH.shape[1] 
@@ -421,7 +490,7 @@ class SourceModeArray():
         if self.BLH.shape[2] !=  self.Nr:
             raise ValueError('BLH array size does not match the number of radial stations, see docstring')
 
-
+        self.Ndipoles = numerics.get('Ndipoles', 36)
         self.axis = axis
         self.origin = origin
         self.numerics=numerics
@@ -470,7 +539,7 @@ class SourceModeArray():
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
-    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray, gradG=None, BLH=None):
+    def getScatteredPressure(self, x:np.ndarray, m:np.ndarray, gradG=None, BLH=None, gradG_surface=None):
         """
         gradG - optional argument to pass pre-computed gradient of the scattering green's function (recommended if dealing with same source-observer pairs)
         of shape (Nr, 3, Nm, Nx, Ny) - one gradG object per source mode, each of shape (3, Nm, Nx, Ny)
@@ -481,16 +550,16 @@ class SourceModeArray():
             gradG = [None] * self.Nr # 
         if BLH is None:
             BLH = [None] * self.Nr # 
+        if gradG_surface is None:
+            gradG_surface = [None] * self.Nr # 
 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index])
+            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index], gradG_surface=gradG_surface[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
-    
-
     
     def getDirectPressure(self, x:np.ndarray, m:np.ndarray, BLH=None):
         if not isinstance(m, np.ndarray):
@@ -516,7 +585,6 @@ class SourceModeArray():
             pmB += child.getThicknessPressureDirect(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
         return pmB
     
-
     def getThicknessPressureScattered(self, x:np.ndarray, m:np.ndarray, G=None):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
@@ -542,25 +610,21 @@ class SourceModeArray():
             pmB += child.getThicknessPressure(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
         return pmB
 
-    
-    def _getSurfacePressureEstFullCylinder(self, x:np.ndarray, m:np.ndarray):
-        if not isinstance(m, np.ndarray):
-            m = np.array([m])
+    # def _getSurfacePressure(self, x:np.ndarray, m:np.ndarray, gradG_surface=None, BLH=None):
+    #     if not isinstance(m, np.ndarray):
+    #         m = np.array([m])
 
-        # pre-compute green for efficiency
-        all_dipole_positions = np.concatenate([child.dipole_positions for child in self.children], axis=1) # shape (3, Nr * Ndipoles)
-        gradG = self.green.full_cylinder_green.getGradientGreenAnalytical(x, all_dipole_positions, m * self.Omega * self.B / self.SoS) # shape (3, Nm, Nx, Ny)
+    #     if gradG_surface is None:
+    #         gradG_surface = [None] * self.Nr 
+    #     if BLH is None:
+    #         BLH = [None] * self.Nr 
 
-
-        print('computing pressure')
-        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
-        for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            # compute the guess: use cylinder green's function
-            # compute the pressure from each ring
-            pmB += child._getPressureFromGrad(x, m, gradG[:, :, :, index*child.numerics['Ndipoles']:(index+1)*child.numerics['Ndipoles']])
-            # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
-        return pmB 
+    #     print('computing pressure')
+    #     pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+    #     for index, child in enumerate(self.children):
+    #         print(f'computing contribution of source mode {index+1} of {self.Nr}')
+    #         pmB += child._getPressureFromGrad(x, m, gradG = gradG_surface[index], BLH=BLH[index])
+    #     return pmB 
     
     def plotSelf(self, fig=None, ax=None, plot_normals='last'):
         
@@ -597,7 +661,6 @@ class SourceModeArray():
         ax.set_box_aspect([1, 1, 1])
 
         return fig, ax
-    
     
     def plotRing(self, fig, ax):
         self.children[-1].plotRing(fig, ax)
@@ -682,23 +745,32 @@ class SourceModeArray():
         )
         return fig, ax
     
-    def plotSurfacePressureFullCylinder(self, m:float, valmin=None, valmax=None, fig=None, ax=None, extend_z=None):
+    def plotSurfacePressure(self, m:float, valmin=None, valmax=None, fig=None, ax=None, extent_z=None, gradG_surface=None, BLH=None):
+        """
+        gradG_surface should be of shape Nr, 3, 1, NevalPoints, Ndipoles
+
+        plotting harmonic m * B of Omega
+        """
+        
         if not hasattr(self.green, 'getBoundaryEvaluationPoints'):
             raise NotImplementedError('The green function must have the method getBoundaryEvaluationPoints to plot surface pressure, current instance does not match this requirement')
 
-        eval_points = self.green.getBoundaryEvaluationPoints()
+        # eval_points = self.green.getBoundaryEvaluationPoints()
+        eval_points = self.green.getBoundaryCollocPoints()
 
         z_edges = self.green.panel_z_edges
         z_centers = (z_edges[:-1] + z_edges[1:]) / 2
         th_edges = self.green.panel_th_edges
         th_centers = (th_edges[:-1] + th_edges[1:]) / 2
-        if extend_z is not None:
+
+
+
+
+        if extent_z is not None:
             # Select axial indices inside desired range
             indices_z = np.where(
-                (z_centers > extend_z[0]) & (z_centers < extend_z[1])
+                (z_centers > extent_z[0]) & (z_centers < extent_z[1])
             )[0]
-
-
 
             Nazim = len(th_centers)
             Nax = len(z_centers)
@@ -712,50 +784,28 @@ class SourceModeArray():
             # Extract filtered evaluation points
             eval_points = eval_points[:, indices]
 
+            # extract filtred gradG
+            # gradG_surface = gradG_surface[:, :, :, indices, :] # along the x axis
+
             # Keep only selected z centers
             z_centers = z_centers[indices_z]
-        pmB = self._getSurfacePressureEstFullCylinder(eval_points, m) # shape (Npoints, Nm)
 
-        SPL_mb = p_to_SPL(pmB)
-        self.green._plotSurfaceSolution(SPL_mb, z_centers, th_centers, fig=fig, ax=ax, levels=20, cmap='viridis', title=None, extent_z=extend_z, )
-        return fig, ax, pmB, z_centers, th_centers
+        # pmB = self._getSurfacePressure(eval_points, m, gradG_surface=gradG_surface, BLH=BLH) # shape (Npoints, Nm)
+
+        # pmB = self.getPressure(eval_points, m, gradG=gradG_surface, BLH=None) # use the main function, works the same!, output of shape Neval points, 1
+
+        pmB = self.getScatteredPressure(eval_points, m, gradG_surface=gradG_surface)
+        pmB += self.getDirectPressure(eval_points, m, BLH=BLH)
 
 
-# sample class instance
-from PotentialInteraction.beam_to_blade import NACA0012_T10_PIN
-BLH = NACA0012_T10_PIN.getBladeLoadingHarmonics()
-NRADIALSEGMENTS = 20
-NHARMONICS = 40
-gf = TailoredGreen(dim=3) # free-field version!
-axis_prop = np.array([0.0, 0.0, 1.0]) # z-direction propeller...
-origin_prop = np.array([0.0, 0.0, 0.0]) # ... at z=0
-NACA0012_T10_SOURCEMODE_FF = SourceModeArray(
-                        BLH=BLH, # isolate the steady component 
-                        B = 2,
-                        Omega=8000 / 60 * 2 * np.pi, gamma = np.deg2rad(10) * np.ones(NRADIALSEGMENTS + 1),
-                        axis=axis_prop, origin=origin_prop,
-                        radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
-                        green=gf,
-                        numerics={'Ndipoles' : 36*2},
-                        c = 340.0,
-                        rho0=1.2,
-                        dt = 0.0809 * 0.025 * np.ones(NRADIALSEGMENTS),
-                        chord = 0.025 * np.ones(NRADIALSEGMENTS),
-                        )
-from TailoredGreen.HalfCylinderGreen import CG_NACA0012_T10
-NACA0012_T10_SOURCEMODE_HALFCYLINDER = SourceModeArray(
-                        BLH=BLH, # isolate the steady component 
-                        B = 2,
-                        Omega=8000 / 60 * 2 * np.pi, gamma = np.deg2rad(10) * np.ones(NRADIALSEGMENTS + 1),
-                        axis=axis_prop, origin=origin_prop,
-                        radius=np.linspace(0.016, 0.1, NRADIALSEGMENTS + 1),
-                        green=CG_NACA0012_T10,
-                        numerics={'Ndipoles' : 36*2},
-                        c = 340.0,
-                        rho0=1.2,
-                        dt = 0.0809 * 0.025 * np.ones(NRADIALSEGMENTS),
-                        chord = 0.025 * np.ones(NRADIALSEGMENTS),
-                        )
+        TH, PHI = np.meshgrid(th_centers, z_centers, indexing='ij')
+
+        fig, ax = plot_directivity_contour(Theta=np.rad2deg(TH), Phi=PHI, magnitudes=pmB, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title=f'Surface Pressure $p_{{{m*self.B}}}$ (dB)')
+        
+        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
+        
+        print(f'maximum surface SPL: {np.max(p_to_SPL(pmB))} dB')
+        return fig, ax
 
 
 

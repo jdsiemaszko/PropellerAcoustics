@@ -162,10 +162,11 @@ class ConformalPIN(PotentialInteraction):
 
             # add the linear contribution to the pressure, including the dzetadz mapping at zetav.
             # note that at |zeta| -> infinity we have dzeta/dz = 1
-            # pressure += self.rho * np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :]) # apply the real over the entire expression!
+            # pressure += self.rho * np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :])
             
             dzetavdzv = self.getDzetaDz(zetav)[None, :, :] # pre-compute
-            pressure += self.rho * np.real(
+            # corrected version, mind to conjugate dzetavdzv....
+            pressure += self.rho * np.real( 
                 dfdt_dzetavdzinfty * np.conj(dzetavdzv) 
                  - dfdt_dzetavdzv1 * dzetavdzv
                  - dfdt_dzetavdzv2 * np.conj(dzetavdzv)

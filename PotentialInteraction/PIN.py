@@ -1,8 +1,11 @@
 import numpy as np
 import numpy as np
 from scipy.special import jv
-from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated
+from scipy.interpolate import interp1d
+from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated, plot_directivity_contour, p_to_SPL
 import matplotlib.pyplot as plt
+import warnings
+
 
 class PotentialInteraction:
     def __init__(self,
@@ -103,61 +106,24 @@ class PotentialInteraction:
         
         F_beam = self.getStrutLoading() # shape (3, Nt, Nr)
 
-        # go to the frequency domain
-        # points_per_period = self._numerics.get('points_per_period', 20)
-        # k_local_max = np.ceil(self.kmax / self.B) # only resolve up to ceil(kmax/B) multiples of B*Omega
-        # k_local = np.arange(1, k_local_max+1, 1)
+        # period_vortex = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
+        # period_global = 2 * np.pi / self.Omega # rotation period, DIFFERENT FROM blade passage period!
+        # N_periods = int(period_global / period_vortex)
 
-        # T_periodic = np.linspace(-period/2, period/2, points_per_period * int(np.max(k_local)), endpoint=False) # Np
-        #TODO: fix - this in incorrect as F_beam is not linear with number of vortices!
-        # Need to apply the linear addition earlier, at the potential computation
-        # T_periodic, F_beam = periodic_sum_interpolated(F_beam, period=period, time=self.phi / self.Omega, kind='cubic', t_new=T_periodic)
-
-        # Np = T_periodic.shape[0] # should be equal to points_per_period * max(k_local)!
-        # dt = np.diff(T_periodic)[0]
-
-        # # shape (3, Nk, Nr)
-        # F_beam_k = 1/period * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
-        #          k_local[None, :, None, None] * 2 * np.pi / period * 
-        #          T_periodic[None, None, :, None]) * dt, axis=2)
-
-        # corrected
-        period_vortex = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
+        # phi_extended = np.linspace(self.phi[0], self.phi[0] + N_periods * np.pi * 2, self.phi.shape[0] * N_periods, endpoint=False) # extended phi array covering multiple periods, shape (Np_extended,)
+        # F_beam_extended = np.tile(F_beam, (1, N_periods, 1)) # extend the time series to multiple periods, shape (3, Nt*N_periods, Nr)
+        # dt = np.diff(phi_extended)[0] / self.Omega # timestep corresponding to phi array
+        # F_beam_k_global = 1/period_global/N_periods * np.sum(F_beam_extended[:, None, :, :] * np.exp(+1j *
+        #         self.k[None, :, None, None] * 2 * np.pi / period_global * 
+        #          (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
 
         period_global = 2 * np.pi / self.Omega # rotation period, DIFFERENT FROM blade passage period!
-
-        N_periods = int(period_global / period_vortex)
-
-        # TODO: fix! some bs here
-        phi_extended = np.linspace(self.phi[0], self.phi[0] + N_periods * np.pi * 2, self.phi.shape[0] * N_periods, endpoint=False) # extended phi array covering multiple periods, shape (Np_extended,)
-        F_beam_extended = np.tile(F_beam, (1, N_periods, 1)) # extend the time series to multiple periods, shape (3, Nt*N_periods, Nr)
-        dt = np.diff(phi_extended)[0] / self.Omega # timestep corresponding to phi array
-        F_beam_k_global = 1/period_global/N_periods * np.sum(F_beam_extended[:, None, :, :] * np.exp(+1j *
+        phi = self.phi
+        dt = np.diff(self.phi)[0] / self.Omega # timestep corresponding to phi array
+        F_beam_k_global = 1/period_global * np.sum(F_beam[:, None, :, :] * np.exp(+1j *
                 self.k[None, :, None, None] * 2 * np.pi / period_global * 
-                 (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
+                 (phi/self.Omega)[None, None, :, None]) * dt, axis=2)
         
-        # correct the contributions k!=mB (should be small anyway)
-        # for i, k_val in enumerate(self.k):
-        #     if k_val % self.B != 0:
-        #         F_beam_k_global[:, i, :] = 0.0 # zero out contributions that are not multiples of B, should be inconsequential
-        # F_beam_k_global[:, 0, :] = 0.0 # zero-out mean loading on the beam, should be inconsequential
-
-        # Note: indez k corresponds to frequency k*B*Omega => need to map onto global k array with multiples of k*Omega!
-        # this is DIFFERENT from the propeller computation!
-
-        # # fill the array with zeros where k!= multiple of nb
-        # k_global = self.k
-        # F_beam_k_global = np.zeros((3, len(k_global), self.Nr), dtype=np.complex128)
-
-        # # find where self.k==k_global
-        # # fill these entries with value of Fblade
-        # # leave the rest at zero
-        # # find where self.k == k_global and fill
-        # for i, k_val in enumerate(k_local):
-        #     idx = np.where(k_global == k_val*self.B)[0] # should be EXACTLY one entry!
-        #     if idx.size > 0:
-        #          F_beam_k_global[:, idx[0], :] =  F_beam_k[:, i, :]
-
         return F_beam_k_global
     
     def getGammaInPhi(self):
@@ -195,21 +161,27 @@ class PotentialInteraction:
         """
 
         # source strength such that the oval extends t/c in the axis normal
-        Lambda = 2 * self.Omega * self.seg_radius * self.seg_t_c * self.seg_chord # Nr
+        Ur = np.sqrt((self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2) # Nr
+        Lambda = Ur * self.seg_t_c * self.seg_chord # Nr
 
         # source spacing that sets the axial extent of the oval to self.seg_chord
-        b = self.seg_chord / 2 * (
-            np.sqrt(1 + (2 / np.pi * self.seg_t_c)**2)
-            - (2 / np.pi * self.seg_t_c)
+        b = 0j + self.seg_chord / 2 * (
+            np.sqrt(1 + (1 / np.pi * self.seg_t_c)**2)
+            - (1 / np.pi * self.seg_t_c)
         ) # strictly < c/2!, size Nr
+        b *= np.exp(1j * (np.angle((self.Omega * self.seg_radius - self.Ui[0]) - 1j * self.Ui[1]))) # source: i made it up: b such that relative inflow is parallel to the oval axis
 
         return Lambda, b
 
-    def getStrutPressure(self, include_thickness_sources=True):
+    def getStrutPressure(self,):
         """
         returns pressure distribution over the strut, as a function of r, phi, and theta (beam polar angle w.r.t rotor plane)
         """
 
+        include_thickness_sources=self._numerics.get('include_thickness_sources', False)
+        include_vortex_sources=self._numerics.get('include_vortex_sources', True)
+
+        
         gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
 
 
@@ -245,31 +217,33 @@ class PotentialInteraction:
             zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega) + 1j * self.Lcylinder 
             zvbar = np.conjugate(zv) # complex conjugate
 
-            # add the linear contribution to dfdz
-            phi = self.phi
-            shift = vortex_index * vortex_period * self.Omega
-            shifted_phi = (phi - shift) % (2 * np.pi)
+            if include_vortex_sources:
 
-            # sort once
-            sort_idx = np.argsort(shifted_phi)
-            phi_sorted = shifted_phi[sort_idx]
+                # add the linear contribution to dfdz
+                phi = self.phi
+                shift = vortex_index * vortex_period * self.Omega
+                shifted_phi = (phi - shift) % (2 * np.pi)
 
-            gamma_shifted = np.apply_along_axis(
-                lambda g: np.interp(phi, phi_sorted, g[sort_idx], period=2*np.pi),
-                axis=0,
-                arr=gamma
-            )
-            
-            dfdz_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (z[:, None, None] -
-                    zv[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
-                    zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
-            dfdz += dfdz_vortex
+                # sort once
+                sort_idx = np.argsort(shifted_phi)
+                phi_sorted = shifted_phi[sort_idx]
 
-            pressure_vortex = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
-                1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
-            ) # (Nthetab, Nphi, Nr)
-            
-            pressure += pressure_vortex # add the linear contribution to the pressure
+                gamma_shifted = np.apply_along_axis(
+                    lambda g: np.interp(phi, phi_sorted, g[sort_idx], period=2*np.pi),
+                    axis=0,
+                    arr=gamma
+                )
+                
+                dfdz_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (z[:, None, None] -
+                        zv[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
+                        zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
+                dfdz += dfdz_vortex
+
+                pressure_vortex = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
+                    1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
+                ) # (Nthetab, Nphi, Nr)
+                
+                pressure += pressure_vortex # add the linear contribution to the pressure
 
 
             # thickness contribution
@@ -544,4 +518,193 @@ class PotentialInteraction:
         fig.suptitle('Strut beam loading — polar surface', fontsize=13, y=1.01)
         plt.tight_layout()
         return fig, axes
+
+    def plotStrutLoading2D(self, r_query, fig=None, ax=None):
+        """
+        Plot strut loading vs azimuth at a given radial station (r/r_tip),
+        using scipy interpolation in the radial direction.
+
+        r_query - non-dimensional radius (r/rt)
+        """
+
+        F_beam = self.getStrutLoading()  # (3, Nphi, Nr)
+        phi = self.phi                   # (Nphi,)
+        r_rt = self.seg_radius / self.r1 # (Nr,)
+
+        component_labels = ['$F_r$ (radial)', '$F_z$ (axial)', '$F_\\phi$ (tangential)']
+
+        # --- Bounds check ---
+        r_min, r_max = np.min(r_rt), np.max(r_rt)
+        if not (r_min <= r_query <= r_max):
+            warnings.warn(
+                f"Requested r/r_tip={r_query:.3f} outside [{r_min:.3f}, {r_max:.3f}] → extrapolating",
+                RuntimeWarning
+            )
+
+        # --- Interpolator (vectorized over phi) ---
+        # axis=2 → interpolate along radial direction
+        interp_fun = interp1d(
+            r_rt,
+            F_beam,
+            axis=2,
+            kind='linear',
+            bounds_error=False,
+            fill_value='extrapolate'
+        )
+
+        # Result: (3, Nphi)
+        F_interp = interp_fun(r_query)
+
+        # --- Plotting ---
+        if fig is None or ax is None:
+            fig, axes = plt.subplots(3, 1, figsize=(7, 8), sharex=True)
+        else:
+            axes = ax
+
+        for i, (axi, label) in enumerate(zip(axes, component_labels)):
+            axi.plot(phi, np.real(F_interp[i]), label='Real', color='k', linestyle='dashed')
+            # axi.plot(phi, np.imag(F_interp[i]), '--', label='Imag')
+
+            axi.set_ylabel('F [N/m]')
+            axi.set_title(label)
+            axi.grid(True)
+
+            # if i == 0:
+                # axi.legend()
+
+        axes[-1].set_xlabel(r'$\phi = t\Omega$')
+
+        fig.suptitle(f'Strut loading at r/r_tip = {r_query:.3f}', fontsize=13)
+        plt.tight_layout()
+
+        return fig, axes
+    
+    def plotStrutLoadingHarmonics2D(self, r_query, fig=None, ax=None):
+        """
+        Plot strut loading vs wavenumber at a given radial station (r/r_tip),
+        using scipy interpolation in the radial direction.
+
+        Parameters
+        ----------
+        r_query : float
+            Non-dimensional radius (r/r_tip)
+        """
+
+        F_beam = self.getStrutLoadingHarmonics()   # (3, Nk, Nr)
+        k = self.k                        # (Nk,)
+        r_rt = self.seg_radius / self.r1  # (Nr,)
+
+        component_labels = [
+            '$F_r^k$ (radial)',
+            '$F_z^k$ (axial)',
+            '$F_\\phi^k$ (tangential)'
+        ]
+
+        # --- Ensure monotonic radius for interpolation ---
+        if not np.all(np.diff(r_rt) > 0):
+            idx = np.argsort(r_rt)
+            r_rt = r_rt[idx]
+            F_beam = F_beam[:, :, idx]
+
+        # --- Bounds check ---
+        r_min, r_max = np.min(r_rt), np.max(r_rt)
+        if not (r_min <= r_query <= r_max):
+            warnings.warn(
+                f"Requested r/r_tip={r_query:.3f} outside [{r_min:.3f}, {r_max:.3f}] → extrapolating",
+                RuntimeWarning
+            )
+
+        # --- Interpolation along radial direction ---
+        interp_fun = interp1d(
+            r_rt,
+            F_beam,
+            axis=2,
+            kind='linear',
+            bounds_error=False,
+            fill_value='extrapolate'
+        )
+
+        # Result: (3, Nk)
+        F_interp = interp_fun(r_query)
+
+        # --- Plotting ---
+        if fig is None or ax is None:
+            fig, axes = plt.subplots(3, 1, figsize=(7, 8), sharex=True)
+        else:
+            axes = ax
+
+        for i, (axi, label) in enumerate(zip(axes, component_labels)):
+            axi.plot(k, np.abs(F_interp[i]), label='|F|', color='k', marker='x')
+            axi.plot(k, np.real(F_interp[i]), '--', label='Real', color='r')
+            axi.plot(k, np.imag(F_interp[i]), ':', label='Imag', color='b')
+
+            axi.set_ylabel('F [N/m]')
+            axi.set_title(label)
+            axi.grid(True)
+
+            if i == 0:
+                axi.legend()
+
+        axes[-1].set_xlabel('Wavenumber $k$')
+
+        fig.suptitle(f'Strut loading harmonics at r/r_tip = {r_query:.3f}', fontsize=13)
+        plt.tight_layout()
+
+        return fig, axes
+
+    def getStrutPressureHarmonics(self):
+
+        pressure = self.getStrutPressure() # Nthetab, Nphi, Nr
+
+        # period_vortex = 2 * np.pi / self.B / self.Omega # period with which a blade passes over the beam: i.e. T/B !
+
+        period_global = 2 * np.pi / self.Omega # rotation period, DIFFERENT FROM blade passage period!
+
+        # N_periods = int(period_global / period_vortex)
+        # phi_extended = np.linspace(self.phi[0], self.phi[0] + N_periods * np.pi * 2, self.phi.shape[0] * N_periods, endpoint=False) # extended phi array covering multiple periods, shape (Np_extended,)
+        # pressure_extended = np.tile(pressure, (1, N_periods, 1)) # extend the time series to multiple periods, shape (3, Nt*N_periods, Nr)
+        # dt = np.diff(phi_extended)[0] / self.Omega # timestep corresponding to phi array
+        # pressure_global = 1/period_global/N_periods * np.sum(pressure_extended[:, None, :, :] * np.exp(+1j *
+        #         self.k[None, :, None, None] * 2 * np.pi / period_global * 
+        #          (phi_extended/self.Omega)[None, None, :, None]) * dt, axis=2)
+
+        phi = self.phi
+        dt = (self.phi[1] - self.phi[0]) / self.Omega
+        pressure_k_global = 1/period_global * np.sum(pressure[:, None, :, :] * np.exp(+1j *
+        self.k[None, :, None, None] * 2 * np.pi / period_global * 
+        (phi/self.Omega)[None, None, :, None]) * dt, axis=2) # shape Nthetab, Nk, Nr
+
+        return pressure_k_global
+    
+    def plotSurfacePressureContour(self, m:int, fig=None, ax=None):
+        p = self.getStrutPressureHarmonics() # p_k of shape (Ntheta, Nk, Nr)
+
+        thetab = self.theta_beam
+        radius = self.seg_radius
+
+        index = np.where(self.k == m)[0][0] # index of the desired mode 
+        # if does not exist, will throw an error, which is fine
+        pk = p[:, index, :]
+
+        # # --- shift theta from [0, 2π) → [-π, π) ---
+        # th_shifted = (thetab + np.pi) % (2*np.pi) - np.pi
+
+        # # --- sort theta so it increases from -π to π ---
+        # sort_idx = np.argsort(th_shifted)
+
+        # th_sorted = th_shifted[sort_idx]
+        th_sorted = thetab
+
+        # pk = pk.reshape(len(thetab), len(radius))
+        # pk = pk[sort_idx,]
+        # pk = pk.flatten()
+
+        TH, PHI = np.meshgrid(th_sorted, radius, indexing='ij')
+
+        fig, ax = plot_directivity_contour(Theta=np.rad2deg(TH), Phi=PHI, magnitudes=pk, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title=f'Surface Pressure $p_{{{m}}}$ (dB)')
+        
+        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
+        
+        print(f'maximum surface SPL: {np.max(p_to_SPL(pk))} dB')
+        return fig, ax
 

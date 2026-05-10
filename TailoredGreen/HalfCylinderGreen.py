@@ -41,7 +41,7 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
             dim=dim
         ) # also store the free-field solution!
 
-        self.panel_positions, self.panel_normals, self.panel_areas, self.panel_z_edges, self.panel_th_edges = self.getBoundaryDiscretization()
+        self.panel_positions, self.panel_normals, self.panel_areas, self.panel_z_edges, self.panel_th_edges, self.z_tangentials, self.th_tangentials = self.getBoundaryDiscretization()
 
         self.panel_z_centers = (self.panel_z_edges[1:]+self.panel_z_edges[:-1])/2
         self.panel_th_centers = (self.panel_th_edges[1:]+self.panel_th_edges[:-1])/2
@@ -52,17 +52,51 @@ class SurfacePotentialGreen(TailoredGreen): # Note: subclass the main object, no
         # leave arbitrary in the parent class
         pos = np.array([[0], [0], [0]]) # shape (3, N)
         normals = np.array([[0], [0], [1]]) # shape (3, N), should be OUTWARD pointing normal!
+        z_tangential = np.array([[1], [0], [0]])
+        th_tangential = np.array([[0], [1], [0]])
         areas = np.array([1]) # shape (N,)
         z_edges = np.array([0, 1]) # shape (Nax+1,)
         th_edges = np.array([0, np.pi]) # shape (Nazim+1,)
-        return pos, normals, areas, z_edges, th_edges
+        return pos, normals, areas, z_edges, th_edges, z_tangential, th_tangential
     
+    def getBoundaryPoints(self):
+        return self.panel_positions
+
     def getBoundaryEvaluationPoints(self):
+        """
+        safe set of points eps_eval away from the boundary in the normal direction
+        """
         eps_eval = self._numerics.get('eps_eval', 1e-3)
         panel_centers = self.panel_positions
         normals = self.panel_normals
         eval_centers = panel_centers + eps_eval * self.radius * normals # shape (3, N)!
         return eval_centers
+    
+    def getBoundaryCollocPoints(self, N_colocs_per_point = 1):
+        """
+        safe set of boundary points, such that colloc points != self.panel_positions and collocs are still on the boundary
+        colloc points are rotated by a fraction of dtheta w.r.t the original theta discretization, colloc points fall in between the boundary source points.
+        """
+
+        eps_eval = self._numerics.get('eps_eval', 1e-3)
+
+        panel_centers = self.panel_positions
+        dtheta = np.diff(self.panel_th_edges)[0] if self.panel_th_edges.shape[0] > 1 else 2 * np.pi # theta jump between adjacent boundary points
+        th_tans = self.th_tangentials
+        z_tans = self.z_tangentials
+        normals = self.panel_normals
+
+        loc_tangent = np.cos(dtheta / 2 ) * th_tans - np.sin(dtheta / 2 ) * normals 
+        loc_normal = np.sin(dtheta / 2 ) * th_tans + np.cos(dtheta / 2 ) * normals 
+
+        colloc_centers = panel_centers + self.radius * dtheta / 2 * np.cos(dtheta / 2 ) * loc_tangent + eps_eval * loc_normal
+
+        # colloc_centers = np.zeros((3, self.panel_areas.shape[1] * N_colocs_per_point))
+        # for i in range(N_colocs_per_point):
+        #     colloc_centers[:, ] panel_centers + np.cos(dtheta * (i+1) / (N_colocs_per_point+1) ) * th_tans - np.sin(dtheta * (i+1) / (N_colocs_per_point+1)) * normals
+
+        return colloc_centers
+
 
     def _getScatteringGreen(self, x, y, k, green_at_surface):
         
@@ -308,13 +342,17 @@ class HalfCylinderGreen(SurfacePotentialGreen):
         Npan = Nazim * Nax
         pos = np.zeros((3, Npan))
         normals = np.zeros((3, Npan))
+        th_tangents = np.zeros((3, Npan))
+        z_tangents = np.zeros((3, Npan))
         areas = np.zeros(Npan)
 
         k = 0
         for zc, dzi in zip(z_centers, dz):
             for thc, dthi in zip(th_centers, dth):
 
-                radial = np.cos(thc) * self.radial + np.sin(thc) * self.normal
+                radial = np.cos(thc) * self.radial + np.sin(thc) * self.normal # radial direction (=surface normal)
+                th_tangent = -np.sin(thc) * self.radial + np.cos(thc) * self.normal # theta tangential direction
+                z_tangent = self.axis # z tangent direction: cylinder axis
 
                 pos[:, k] = (
                     self.origin
@@ -323,11 +361,13 @@ class HalfCylinderGreen(SurfacePotentialGreen):
                 )
 
                 normals[:, k] = radial
+                th_tangents[:, k] = th_tangent
+                z_tangents[:, k] = z_tangent
                 areas[k] = self.radius * dthi * dzi
 
                 k += 1
 
-        return pos, normals, areas, z_edges, th_edges
+        return pos, normals, areas, z_edges, th_edges, z_tangents, th_tangents
     
     def getScatteringGreen(self, x, y, k, green_at_surface=None):
         # use cylinder green as the predictor!
@@ -433,6 +473,8 @@ class SF_FullCylinderGreen(HalfCylinderGreen):
         Npan = Nazim * Nax
         pos = np.zeros((3, Npan))
         normals = np.zeros((3, Npan))
+        th_tangents = np.zeros((3, Npan))
+        z_tangents = np.zeros((3, Npan))
         areas = np.zeros(Npan)
 
         k = 0
@@ -440,6 +482,8 @@ class SF_FullCylinderGreen(HalfCylinderGreen):
             for thc, dthi in zip(th_centers, dth):
 
                 radial = np.cos(thc) * self.radial + np.sin(thc) * self.normal
+                th_tangent = -np.sin(thc) * self.radial + np.cos(thc) * self.normal # theta tangential direction
+                z_tangent = self.axis # z tangent direction: cylinder axis
 
                 pos[:, k] = (
                     self.origin
@@ -448,11 +492,13 @@ class SF_FullCylinderGreen(HalfCylinderGreen):
                 )
 
                 normals[:, k] = radial
+                th_tangents[:, k] = th_tangent
+                z_tangents[:, k] = z_tangent
                 areas[k] = self.radius * dthi * dzi
 
                 k += 1
 
-        return pos, normals, areas, z_edges, th_edges
+        return pos, normals, areas, z_edges, th_edges, z_tangents, th_tangents
     
 # class instance
 caxis = np.array([1.0, 0.0, 0.0])
@@ -476,14 +522,15 @@ numerics_HR = {
 'Nq_prop': 64,
 'Nq_evan': 32,
 'eps_radius' : 1e-24, # must be lower than eps_eval!
-'Nazim' : 18*2, # discretization of the boundary in the azimuth
-'Nax': 64*2, # in the axial direction
+'Nazim' : 18, # discretization of the boundary in the azimuth
+'Nax': 64, # in the axial direction
 'RMAX': 20, # max radius!
 'mode': 'uniform', # uniform or geometric, defines the spacing of the surface panels!
 'geom_factor': 1.025, # geometric stretching factor, only used if mode is 'geometric'
 'eps_eval' : 1e-8 # evaluation distance from the actual surface, as a fraction of cylinder radius!
 # Note: the function is currently NOT checking if the panels are compact!
 }
+
 CG_NACA0012_T10 =  HalfCylinderGreen(radius=0.02/2, axis=caxis, origin=corigin, dim=3, 
                         # numerics=numerics,
                         numerics=numerics_HR

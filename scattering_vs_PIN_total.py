@@ -18,40 +18,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+
 SUFFIX = '_D360_HR'
 # SUFFIX = '_HIGHRES'
 
-ind_theta = 0       # -60 to 60 in 10
+sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
+
+
+ind_theta = 6      # -60 to 60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
-casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
+# casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
-def load_h5(filename):
-    return h5py.File(filename, "r")
-with load_h5(f"{datadir}/{casefile}_autopower.h5") as f:
-    g = f[casefile]
-    freq = np.array(g["frequency_Hz"])
-    ap = g["Autopower"]
-
-    phi_exp = np.array(g["phi_deg"])[0][ind_phi] # azimuth
-    theta_exp = np.array(g["theta_deg"])[0][ind_theta] # polar
-    radius = g["radius_m"][0][0] # float
-
-    BPF = B * RPM / 60
-    data = ap[f"Autopower_RPM_{RPM}_Pa2"][:, ind_theta, ind_phi] # (freq, polar, azimuth), (aziuth=0 = > beam axis, azimuth=9 => 90 deg)
-
-theta = 90 - theta_exp
-phi = 180 - phi_exp
-
-# theta = -theta
-# phi = -phi
-print(f'Theta_exp = {theta_exp} deg, Phi_exp = {phi_exp} deg')
-print(f'Theta = {theta} deg, Phi = {phi} deg')
-x_cart = np.array([
-    radius * np.cos(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
-    radius * np.sin(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
-    radius * np.cos(np.deg2rad(theta)),
-]).reshape((3, 1))
+data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=2, RPM=8000)
+data = data[:, ind_theta, ind_phi]
+x_cart = x_cart_data[:, ind_theta, ind_phi].reshape((3, 1))
+theta = theta_data[ind_theta]
+phi = phi_data[ind_phi]
 
 Nr = len(r_inner)
 ms = np.arange(1, 11, 1) # harmonics to extract
@@ -76,13 +60,29 @@ pLmB_model_rotor = han.getPressureRotor(x_cart, ms,
                                        )[0][0]
 
 ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner))[0][0] # NACA0012
-BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
-pmB_model_beam = han.getPressureStator(x_cart, ms*B, BL)[0][0]
+# BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
+
+
+
+PIN._numerics['include_vortex_sources'] = True
+PIN._numerics['include_thickness_sources'] = False
+BL = PIN.getStrutLoadingHarmonics()
+pmB_model_beam_loading = han.getPressureStator(x_cart, ms*B, BL)[0][0]
+
+PIN._numerics['include_vortex_sources'] = False
+PIN._numerics['include_thickness_sources'] = True
+BL = PIN.getStrutLoadingHarmonics()
+pmB_model_beam_thickness = han.getPressureStator(x_cart, ms*B, BL)[0][0]
+
+PIN._numerics['include_vortex_sources'] = True
+PIN._numerics['include_thickness_sources'] = True
+BL = PIN.getStrutLoadingHarmonics()
+pmB_model_beam_total = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
 
 pmB_model_rotor_total = pLmB_model_rotor + ptmB_model_rotor
 pmB_model_rotor_loading = pLmB_model_rotor
-pmB_model_total = pLmB_model_rotor + ptmB_model_rotor + pmB_model_beam # assuming coherent
+pmB_model_total = pLmB_model_rotor + ptmB_model_rotor + pmB_model_beam_total # assuming coherent
 # pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
 
 
@@ -148,7 +148,9 @@ SPL_rotor_loading = p_to_SPL(pmB_model_rotor_loading)
 
 SPL_rotor_total = p_to_SPL(pmB_model_rotor_total)
 SPL_rotor_thickness = p_to_SPL(ptmB_model_rotor)
-SPL_beam = p_to_SPL(pmB_model_beam)
+SPL_beam_loading = p_to_SPL(pmB_model_beam_loading)
+SPL_beam_thickness = p_to_SPL(pmB_model_beam_thickness)
+
 SPL_total_PIN = p_to_SPL(pmB_model_total)
 
 # SPLS TOTAL SCATTERING
@@ -174,8 +176,9 @@ fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(ms, SPL_rotor_loading, label=f"Loading Noise (Hanson)", color='r', marker='^')
 ax.plot(ms, SPL_rotor_thickness, label=f"Thickness Noise (Hanson)", color='b', marker='^')
 ax.plot(ms, SPL_rotor_total, label=f"Rotor Total (Hanson)", color='y', marker='^')
-ax.plot(ms, SPL_beam, label=f"Beam Loading (PIN)", color='m', marker='^')
-ax.plot(ms, SPL_total_PIN, label=f"Hanson+PIN", color='k', marker='^')
+ax.plot(ms, SPL_beam_loading, label=f"Beam Loading due to Blade Loading", color='m', marker='^')
+ax.plot(ms, SPL_beam_thickness, label=f"Beam Loading due to Blade Thickness", color='c', marker='^')
+ax.plot(ms, SPL_total_PIN, label=f"Total (PIN)", color='k', marker='^')
 ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental, total", color='k', alpha=0.75)
 fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
                          plot_kwargs={
@@ -188,11 +191,11 @@ ax.plot(ms, SPL_direct, label=f"Loading Noise (SM)", color='r', marker='s', line
 ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM)", color='b', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_SM_rotor_total, label=f"Rotor Total (SM)", color='y', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_total_scattering, label=f"Direct+Scattering", color='k', marker='s', linestyle='dashed')
-
 ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise", color='c', marker='s', linestyle='dashed')
+ax.plot(ms, SPL_total_scattering, label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
 
-ax.plot(ms, SPL_total_scattering_minus_scattered_thickness, label=f"Direct+Scattering (Minus Thickness)", color='g', marker='s', linestyle='dashed')
+
+# ax.plot(ms, SPL_total_scattering_minus_scattered_thickness, label=f"Direct+Scattering (Minus Thickness)", color='g', marker='s', linestyle='dashed')
 
 
 ax.legend(ncol=2)

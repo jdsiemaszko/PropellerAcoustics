@@ -111,7 +111,7 @@ class TailoredGreen():
             k = np.array([k])
         return np.zeros((self.dim, k.shape[0], x.shape[1], y.shape[1]))
     
-    def getGradientGreenAnalytical(self, x, y, k):
+    def getGradientGreenAnalytical(self, x, y, k, ):
 
         """
         gradient with respect to source coordinates y
