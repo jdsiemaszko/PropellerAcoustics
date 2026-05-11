@@ -37,7 +37,7 @@ sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Ndipoles
 ms = np.array([2]) # harmonic to plot
-phi_plot = 40 # phi to plot, in degrees
+phi_plot = 90 # phi_experimental to plot, in degrees
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
@@ -58,7 +58,7 @@ datadir = './Experimental/dataverse_files'
 data = np.load('./Experimental/dataverse_files/D20L20_8000RPM.npz')
 
 freqs = data['freqs']
-phase = data['phase']   # shape: (n_freq, n_theta, n_phi)
+phase = -data['phase']   # shape: (n_freq, n_theta, n_phi), mind we need to conjugate!
 Pxx = data['Pxx']  # shape: (n_freq, n_theta, n_phi)
 phi = 180 - data['phi'] # shape Nphi, mind switch from exp to numerical frame
 theta = 90 - data['theta'] # shape Ntheta

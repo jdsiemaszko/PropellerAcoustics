@@ -875,6 +875,9 @@ def read_force_file(filepath):
 
     return r, Fx, Fz
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 def plot_complex_curve(
     t,
     magnitude,
@@ -888,28 +891,10 @@ def plot_complex_curve(
     plot_kwargs={},
     blending=0.1,
     rad_ticks=None,
+    n_arrows=12,   # <-- NEW
 ):
     """
     Plot a complex-valued curve in polar form: r = magnitude(t), theta = phase(t).
-
-    Parameters
-    ----------
-    t : array-like
-        Parameter values.
-    magnitude : array-like
-        Magnitude of complex signal.
-    phase : array-like
-        Phase (radians).
-    fig, ax : matplotlib objects, optional
-        If not provided, new polar figure is created.
-    valmin, valmax : float, optional
-        Radial limits (magnitude range).
-    phase_ticks : array-like, optional
-        Custom angular ticks (in radians).
-    t_ticks : array-like, optional
-        Specific t indices/values to annotate along curve.
-    **plot_kwargs :
-        Styling passed to ax.plot (color, linewidth, linestyle, etc.)
     """
 
     # --- Figure / axis setup ---
@@ -917,67 +902,74 @@ def plot_complex_curve(
         fig = fig or plt.figure()
         ax = fig.add_subplot(111, projection="polar")
 
-    # --- Convert to arrays ---
     t = np.asarray(t)
     r = np.asarray(magnitude)
     theta = np.asarray(phase)
 
-
-    rmin = np.min(r)
-    rmax = np.max(r)
-    # --- Magnitude limits ---
-    if valmin is not None or valmax is not None:
-        # rmin = np.min(r) if valmin is None else valmin
-        # rmax = np.max(r) if valmax is None else valmax
-        r = (magnitude - valmin) / (valmax - valmin) * (1 - blending) + blending
-        rmin = np.min(r)
-        rmax = np.max(r)
-        # ax.set_rlim(rmin, rmax)
+    # --- Normalization / scaling ---
+    if valmin is not None and valmax is not None:
+        r = (r - valmin) / (valmax - valmin)
+        r = r * (1 - blending) + blending
 
     # --- Main curve ---
     line, = ax.plot(theta, r, **plot_kwargs)
 
-    # --- Radial ticks (NEW / OVERWRITE) ---
+    # --- Radial ticks ---
     if rad_ticks is not None:
         ax.set_yticks(rad_ticks)
         ax.set_yticklabels([f"{rt:.2f}" for rt in rad_ticks])
+
     elif valmin is not None and valmax is not None:
         ticks = np.linspace(valmin, valmax, 5)
-
         r_ticks = (ticks - valmin) / (valmax - valmin) * (1 - blending) + blending
-        
-        mag = (r_ticks - blending) * (valmax - valmin) / (1 - blending) + valmin
         ax.set_yticks(r_ticks)
-        ax.set_yticklabels([f"{m:.2f}dB" for m in mag])
+        ax.set_yticklabels([f"{m:.2f}dB" for m in ticks])
 
-    # --- Phase (angular) ticks ---
+    # --- Phase ticks ---
     if phase_ticks is not None:
         ax.set_xticks(phase_ticks)
     else:
-        # reasonable default: 0..2π
         ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
 
     ax.set_xticklabels([f"${np.rad2deg(x):.0f}^\circ$" for x in ax.get_xticks()])
 
-    # --- Grid styling ---
     ax.grid(True, alpha=0.4)
 
-    # --- Annotate t ticks along curve ---
+    # --- t annotations ---
     if t_ticks is not None:
         t_ticks = np.asarray(t_ticks)
 
-        # find closest indices
         for tt in t_ticks:
             idx = np.argmin(np.abs(t - tt))
-            # ax.plot(theta[idx], r[idx], 'o', color=line.get_color(), ms=5)
 
             ax.text(
                 theta[idx],
                 r[idx],
-                fr" $\theta={np.rad2deg(t[idx]):.0f}^\circ$",
+                fr"$\theta={np.rad2deg(theta[idx]):.0f}^\circ$",
                 fontsize=8,
                 ha="left",
                 va="bottom"
+            )
+
+    # ============================================================
+    # --- NEW: arrows indicating increasing t --------------------
+    # ============================================================
+    if n_arrows > 0 and len(t) > 2:
+        idxs = np.linspace(0, len(t) - 2, n_arrows, dtype=int)
+
+        for i in idxs:
+            i2 = i + 1
+
+            ax.annotate(
+                "",
+                xy=(theta[i2], r[i2]),
+                xytext=(theta[i], r[i]),
+                arrowprops=dict(
+                    arrowstyle="->",
+                    color=line.get_color(),
+                    lw=1.2,
+                    alpha=0.8
+                )
             )
 
     return fig, ax
