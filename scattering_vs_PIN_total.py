@@ -13,18 +13,43 @@ the last point seems significant at 2-3 x BPF:
 # compare spectra at points, directivities, ...
 # profit?
 
-from scattering_vs_PIN import *
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 
-SUFFIX = '_D360_HR'
-# SUFFIX = '_HIGHRES'
+# BEGINNING OF HEADER
+MODE = 'half'
+from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, p_to_SPL, spl_from_autopower, plot_BPF_peaks
+from Constants.data_assim import getGojonData
+# vary configuration
+from SourceMode.Configurations_NACA0012 import m_surface
+
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
+# SUFFIX = '_D360_HR'
+
+# from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
+# SUFFIX = '_D20L20W20_D180'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
 
 sourceArray.numerics['CompactnessCorrection'] = True
-# sourceArray.numerics['CompactnessCorrection'] = False
 
+NDIPOLES = sourceArray.Ndipoles
+ms = np.array([2])
+
+r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
+PIN = sourceArray.PIN
+D_bras = sourceArray.green.radius * 2
+g = -1 * sourceArray.green.origin[2]
+B = sourceArray.B
+c = sourceArray.chord[0]
+Omega = sourceArray.Omega
+c0 = sourceArray.SoS
+han = sourceArray.getHanson()
+# END OF HEADER
 
 ind_theta = -1      # -60 to 60 in 10
 ind_phi = 9          # 0 to 350 in 10

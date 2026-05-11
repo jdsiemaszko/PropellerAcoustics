@@ -1,5 +1,6 @@
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen
 from Constants.helpers import read_force_file
+from Constants.data_assim import read_selig_airfoil, compute_camber_thickness
 import numpy as np
 from SourceMode.SourceMode import SourceModeArray
 
@@ -18,7 +19,12 @@ dr = np.diff(r_inner)[0]
 r_outer = np.hstack([r_inner-dr/2, r_inner[-1]+dr/2])
 twist = np.deg2rad(10) * np.ones_like(r_outer)
 chord = 0.025 * np.ones_like(r_outer)
-t_c = 0.0809 * np.ones_like(r_outer) # NACA0012
+# t_c = 0.0809 * np.ones_like(r_outer) # NACA0012
+
+name, x, y = read_selig_airfoil('./Data/current/airfoils/NACA0012.dat')
+xc, camber, thickness = compute_camber_thickness(x, y)
+t_c_uniform = np.interp(np.linspace(0., 1., 1000), xc, thickness)
+
 Nr = np.shape(r_outer)[0]-1
 caxis = np.array([1.0, 0.0, 0.0])
 D_prop = 0.2
@@ -99,7 +105,7 @@ D20L20W00_D180 = SourceModeArray(
                         green = cg_midres_D20L20W00,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -112,7 +118,7 @@ D20L20W00_D360 = SourceModeArray(
                         green = cg_highres_D20L20W00,
                         numerics={'Ndipoles' : 360},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -125,7 +131,7 @@ D20L20W00_D90 = SourceModeArray(
                         green = cg_lowres_D20L20W00,
                         numerics={'Ndipoles' : 90},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -138,7 +144,7 @@ D20L20W10_D180 = SourceModeArray(
                         green = cg_midres_D20L20W10,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -151,7 +157,7 @@ D20L20W20_D180 = SourceModeArray(
                         green = cg_midres_D20L20W20,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -164,7 +170,7 @@ D20L20W40_D180 = SourceModeArray(
                         green = cg_midres_D20L20W40,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -177,7 +183,7 @@ D20L20W60_D180 = SourceModeArray(
                         green = cg_midres_D20L20W60,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -190,7 +196,7 @@ D20L20W80_D180 = SourceModeArray(
                         green = cg_midres_D20L20W80,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -203,7 +209,7 @@ D20L20W100_D180 = SourceModeArray(
                         green = cg_midres_D20L20W100,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -216,7 +222,7 @@ D10L20W00_D180 = SourceModeArray(
                         green = cg_midres_D10L20W00,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 
@@ -229,7 +235,7 @@ D15L20W00_D180 = SourceModeArray(
                         green = cg_midres_D10L20W00,
                         numerics={'Ndipoles' : 180},
                         c = c0,
-                        dt = t_c * chord, # thickness distribution used for thickness noise
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
                         )
 

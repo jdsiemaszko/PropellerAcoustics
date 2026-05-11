@@ -33,7 +33,7 @@ class SourceMode():
         self.green = green
         self.BLH = BLH # blade loading harmonics, shape (3, Nharmonics), unit of NEWTONS!, convention: radial, axial, tangential loadings!
         Nk = BLH.shape[1]
-        self.s = np.arange(0, Nk+1, 1) # helper array, running from 0 to len(self.BLH) - 1
+        self.s = np.arange(0, Nk, 1) # helper array, running from 0 to len(self.BLH) - 1
         self.B = B
         self.gamma = gamma
         self.axis = axis / np.linalg.norm(axis)
@@ -820,7 +820,7 @@ class SourceModeArray():
         print(f'maximum surface SPL: {np.max(p_to_SPL(pmB))} dB')
         return fig, ax
       
-    def getLoading(self, Fzprime, Fphiprime, numerics=None):
+    def getLoading(self, Fzprime, Fphiprime, numerics=None, steady_only=False):
         """
         interface with PIN module, computing the loading and setting self.BLH to that loading
         """
@@ -833,7 +833,7 @@ class SourceModeArray():
         BLH_S = np.zeros_like(BLH)
         BLH_S[:, 0, :] = BLH[:, 0, :]
         
-        if self.green.origin[2] is not 0: # if beam is off-center, only use the steady component
+        if steady_only: # use only the steady loading
             self.updateBLH(BLH_S)
         else:
             self.updateBLH(BLH) # use the full loading distribution instead.
@@ -849,7 +849,7 @@ class SourceModeArray():
         twist_rad=self.twist,
         chord_m=self.chord,
         radius_m=self.radius,
-        t_c = self.dt / self.chord,
+        t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt * self.chord[:, None] ).mean(axis=1) / self.chord**2, # TODO: fix????
         Fzprime_Npm=Fzprime,
         Fphiprime_Npm=Fphiprime,
         B=self.B,
@@ -858,7 +858,7 @@ class SourceModeArray():
         Omega_rads=self.Omega,
         rho_kgm3=self.rho0,
         c_mps=self.SoS,
-        kmax=self.Nk,
+        kmax=self.Nk-1,
         nb=1,
         numerics=numerics if numerics is not None else {'Nphi': 180, 'Nthetab': 36}
         )

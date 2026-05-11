@@ -28,30 +28,38 @@ Nphi = 36
 
 # BEGINNING OF HEADER
 # vary configuration
-from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
 from SourceMode.Configurations_NACA0012 import m_surface
 
-SUFFIX = '_D360_HR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
+# SUFFIX = '_D360_HR'
+
+# from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
+# SUFFIX = '_D20L20W20_D180'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
+
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Ndipoles
 ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
-BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi) # compute loading on the fly, return PIN for reuse
+BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
 PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
 B = sourceArray.B
 c = sourceArray.chord[0]
+Omega = sourceArray.Omega
+c0 = sourceArray.SoS
 han = sourceArray.getHanson()
-
 # END OF HEADER
 
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
-data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=2, RPM=8000)
+data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=sourceArray.B, RPM=int(Omega * 60/2/np.pi))
 
 data_modal, ms_data = getHarmonicsFromData(data, freq.T, BPF)
 data = data_modal[np.where(ms[0] == ms_data)]
@@ -107,7 +115,7 @@ beam_loading = PIN.getStrutLoadingHarmonics()
 
 
 ##### -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
-##### save gradients in the far-field (run once per observer and m)
+#### save gradients in the far-field (run once per observer and m)
 # for index, sm in enumerate(sourceArray.children):
 
 #     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
@@ -135,8 +143,7 @@ p_direct_loading = sourceArray.getDirectPressure(x_cart, ms)
 
 #### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
-#### save gradients in the far-field (run once per observer and m)
-
+### save gradients in the far-field (run once per observer and m)
 # for index, sm in enumerate(sourceArray.children):
 #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
 #     print(f'pre-computing far-field G {index+1}')
