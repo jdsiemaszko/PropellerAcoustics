@@ -36,7 +36,7 @@ SUFFIX = '_D180_MR'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([2]) # harmonic to plot
+ms = np.array([5]) # harmonic to plot
 phi_plot = 90 # phi_experimental to plot, in degrees
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
@@ -153,6 +153,7 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
 # scattering total
 p_total_scattering = p_direct_thickness + p_direct_loading + p_scattered_loading + p_scattered_thickness
+p_total_scattering_loading = p_direct_thickness + p_direct_loading + p_scattered_loading
 
 # pin total
 p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
@@ -169,6 +170,11 @@ fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering),
         np.angle(p_total_scattering *np.exp(-1j * np.angle(p_total_scattering[0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'r', 'linestyle':'dashed','marker':'s', 'label':'Scattering'})
+
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering_loading),
+        np.angle(p_total_scattering_loading *np.exp(-1j * np.angle(p_total_scattering_loading[0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+        , valmax=65, valmin=10, fig=fig, ax=ax,
+        plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'*', 'label':'Scattering (loading only)'})
 
 fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin),
         np.angle(p_total_scattering *np.exp(-1j * np.angle(p_total_pin[0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
