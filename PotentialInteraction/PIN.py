@@ -57,9 +57,11 @@ class PotentialInteraction:
         else:
 
             Uiz = -np.sqrt(self.Fzprime * self.B /  4 / np.pi / self.rho / self.seg_radius) # positive upwards, mind that this should include total loading: B * Fzprime
+            Uiz[np.where(Uiz==0)] = 1e-12 # dont divide by zero!
             Uiphi = self.Fphiprime * self.B / 4 / np.pi / self.rho / self.seg_radius / np.abs(Uiz) # positive to the right, Note: dQ is the side force, not torque!
             # Uiphi = np.zeros_like(self.seg_radius) # ignore component!
             self.Ui = np.stack([Uiphi, Uiz]) # shape (2, Nr)
+            self.Ui = np.real(self.Ui)
 
         # pre-compute common arrays
         Nphi = self._numerics.get('Nphi', 360)

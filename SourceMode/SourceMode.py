@@ -4,6 +4,8 @@ import matplotlib.colors as colors
 from TailoredGreen.TailoredGreen import TailoredGreen
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Constants.helpers import p_to_SPL, plot_3D_directivity, plot_directivity_contour
+from PotentialInteraction.PIN import PotentialInteraction
+from Hanson.far_field import HansonModel
 
 def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, normal:np.ndarray):
     # get the radial,radial, and axial unit vectors given an azimuth, the axis vector, origin point, and zero-azimuth direction
@@ -26,10 +28,12 @@ class SourceMode():
                   chord = None,
 
                   ):
+        self.numerics = numerics
+        
         self.green = green
         self.BLH = BLH # blade loading harmonics, shape (3, Nharmonics), unit of NEWTONS!, convention: radial, axial, tangential loadings!
         Nk = BLH.shape[1]
-        self.s = np.arange(0, Nk, 1) # helper array, running from 0 to len(self.BLH) - 1
+        self.s = np.arange(0, Nk+1, 1) # helper array, running from 0 to len(self.BLH) - 1
         self.B = B
         self.gamma = gamma
         self.axis = axis / np.linalg.norm(axis)
@@ -49,7 +53,6 @@ class SourceMode():
             self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
             self.t_c_distribution = dt / self.chord
 
-        self.numerics=numerics
         self.Ndipoles = numerics.get('Ndipoles', 36)
 
         if radial is None:
@@ -443,7 +446,6 @@ class SourceMode():
         self.green._plotSurfaceSolution(SPL_mb, fig=fig, ax=ax, levels=20, cmap='viridis', title=None)
         return fig, ax
         
-
 class SourceModeArray():
     def __init__(self, BLH:np.ndarray, B:int,   Omega:float, gamma:np.ndarray, axis:np.ndarray,
                   origin:np.ndarray, radius:np.ndarray, green:TailoredGreen, radial:np.ndarray=None,
@@ -515,13 +517,24 @@ class SourceModeArray():
                 chord = self.chord[index] if self.chord is not None else None
             ) # construct source modes at each radial station
 
+
+        self.Hanson = self.getHanson()
+        self.PIN = self.getPIN(self.BLH[1, 0, :], self.BLH[2, 0, :])
+
     def updateBLH(self, BLH):
         """
         update the BLH value and propagate it to self.children (couldn't be bothered with setters)
         """
         self.BLH = BLH # change in parent, of size 3, Nk, Nr
         for index, (child, BLH_seg) in enumerate(zip(self.children, np.transpose(self.BLH, axes=(2, 0, 1)))):
-            child.BLH = BLH_seg # change in child, of size 3, Nk
+            # IN NEWTONS!
+            child.BLH = BLH_seg * self.dr[index] # propagate change to children, result of shape 3, Nk
+
+        PIN = self.getPIN(BLH[1, 0, :], BLH[2, 0, :])
+        self.PIN = PIN # overwrite PIN as well!
+
+        return
+        
 
     def getPressure(self, x:np.ndarray, m:np.ndarray, gradG=None, BLH=None):
         if not isinstance(m, np.ndarray):
@@ -806,10 +819,67 @@ class SourceModeArray():
         
         print(f'maximum surface SPL: {np.max(p_to_SPL(pmB))} dB')
         return fig, ax
+      
+    def getLoading(self, Fzprime, Fphiprime, numerics=None):
+        """
+        interface with PIN module, computing the loading and setting self.BLH to that loading
+        """
 
+        PIN = self.getPIN(Fzprime, Fphiprime, numerics)
 
-
+        BLH = PIN.getBladeLoadingHarmonics()
+        BLH_US = np.zeros_like(BLH)
+        BLH_US[:, 1:, :] = BLH[:, 1:, :]
+        BLH_S = np.zeros_like(BLH)
+        BLH_S[:, 0, :] = BLH[:, 0, :]
         
+        if self.green.origin[2] is not 0: # if beam is off-center, only use the steady component
+            self.updateBLH(BLH_S)
+        else:
+            self.updateBLH(BLH) # use the full loading distribution instead.
+        
+        return BLH, BLH_S, BLH_US, PIN
+    
+    def getPIN(self, Fzprime, Fphiprime, numerics=None):
+        """
+        interface with PIN module, computing the loading and setting self.BLH to that loading
+        """
+
+        PIN = PotentialInteraction(
+        twist_rad=self.twist,
+        chord_m=self.chord,
+        radius_m=self.radius,
+        t_c = self.dt / self.chord,
+        Fzprime_Npm=Fzprime,
+        Fphiprime_Npm=Fphiprime,
+        B=self.B,
+        Dcylinder_m=self.green.radius * 2,
+        Lcylinder_m=-1 * self.green.origin[2],
+        Omega_rads=self.Omega,
+        rho_kgm3=self.rho0,
+        c_mps=self.SoS,
+        kmax=self.Nk,
+        nb=1,
+        numerics=numerics if numerics is not None else {'Nphi': 180, 'Nthetab': 36}
+        )
+
+        return PIN
+
+    def getHanson(self):
+
+        han = HansonModel(
+        radius_m=self.radius, # blade radius stations [m] of size Nr + 1
+        axis=self.axis, origin=self.origin,
+        Omega_rads=self.Omega, # rotation speed [rad/s]
+        rho_kgm3=self.rho0, # fluid density [kg/m^3]
+        c_mps= self.SoS, # speed of sound [m/s]
+        nb=1 # number of beams 
+        )
+
+        return han
+        
+
+
 if __name__ == "__main__":
     from TailoredGreen.CylinderGreen import CylinderGreen
     

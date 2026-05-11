@@ -13,23 +13,40 @@ the last point seems significant at 2-3 x BPF:
 # compare spectra at points, directivities, ...
 # profit?
 
-from scattering_vs_PIN import *
+# from scattering_vs_PIN import *
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from Constants.data_assim import getGojonData, getHarmonicsFromData
+from PotentialInteraction.PIN import PotentialInteraction
+from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity
+MODE = 'half'
+Ntheta = 18
+Nphi = 36
+
+
+# BEGINNING OF HEADER
+# vary configuration
+from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
+from SourceMode.Configurations_NACA0012 import m_surface
 
 SUFFIX = '_D360_HR'
-# SUFFIX = '_D180_MR'
-# SUFFIX = '_D90_LR'
-m_surface = np.arange(1, 11, 1) # harmonics to extract
 sourceArray.numerics['CompactnessCorrection'] = True
-# sourceArray.numerics['CompactnessCorrection'] = False
-
 
 NDIPOLES = sourceArray.Ndipoles
-
 ms = np.array([2])
+
+r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi) # compute loading on the fly, return PIN for reuse
+PIN = sourceArray.PIN
+D_bras = sourceArray.green.radius * 2
+g = -1 * sourceArray.green.origin[2]
+B = sourceArray.B
+c = sourceArray.chord[0]
+han = sourceArray.getHanson()
+
+# END OF HEADER
 
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -56,6 +73,7 @@ theta_m, phi_m = np.meshgrid(theta, phi, indexing='ij')
 # shapes: (Ntheta, Nphi)
 
 # flatten
+R = np.max(np.linalg.norm(x_cart_data, axis=0))
 R_arr     = np.full(theta_m.size, R)
 theta_arr = theta_m.ravel()
 phi_arr   = phi_m.ravel()
@@ -65,6 +83,28 @@ Y = R_arr * np.sin(theta_arr) * np.sin(phi_arr)
 Z = R_arr * np.cos(theta_arr)
 
 x_cart = np.array([X, Y, Z])
+
+PIN._numerics['include_vortex_sources'] = True
+PIN._numerics['include_thickness_sources'] = False
+beam_loading = PIN.getStrutLoadingHarmonics() 
+
+p_beam_loading, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # mind the indexing change for m
+p_blade_loading, _ = han.getPressureRotor(x_cart, ms, BLH) 
+
+p_blade_thickness, _ = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner)) # NACA0012
+
+PIN._numerics['include_vortex_sources'] = False
+PIN._numerics['include_thickness_sources'] = True
+beam_loading = PIN.getStrutLoadingHarmonics() 
+
+p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
+
+
+PIN._numerics['include_vortex_sources'] = True
+PIN._numerics['include_thickness_sources'] = True
+beam_loading = PIN.getStrutLoadingHarmonics()
+
+
 
 ##### -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
 ##### save gradients in the far-field (run once per observer and m)
@@ -90,12 +130,6 @@ p_direct_loading = sourceArray.getDirectPressure(x_cart, ms)
 # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
 # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
 
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = False
-beam_loading = PIN.getStrutLoadingHarmonics() 
-
-p_beam_loading, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # mind the indexing change for m
-p_blade_loading, _ = han.getPressureRotor(x_cart, ms, BLH) 
 
 
 
@@ -119,20 +153,6 @@ ind_m = np.where(m_surface == ms[0])[0][0]
 for index, sm in enumerate(sourceArray.children):
     G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
 
-p_blade_thickness, _ = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner)) # NACA0012
-
-# BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
-
-PIN._numerics['include_vortex_sources'] = False
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics() 
-
-p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
-
-
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics()
 
 p_beam_total , _ = han.getPressureStator(x_cart, ms*B, beam_loading)
 

@@ -26,7 +26,7 @@ sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
 
-ind_theta = 6      # -60 to 60 in 10
+ind_theta = -1      # -60 to 60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'

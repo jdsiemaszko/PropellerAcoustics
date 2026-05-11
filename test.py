@@ -1,0 +1,1 @@
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180
