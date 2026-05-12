@@ -31,10 +31,15 @@ from SourceMode.Configurations_NACA0012 import m_surface
 
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 SUFFIX = '_D180_MR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
+# SUFFIX = '_D360_HR'
+
+
 ms = np.array([2]) # harmonic to plot
-phi_plot = -90 # phi_experimental to plot, in degrees
+phi_plot = -170 # phi_experimental to plot, in degrees
 
 sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
 
 NDIPOLES = sourceArray.Ndipoles
 
@@ -62,6 +67,7 @@ phase = -data['phase']   # shape: (n_freq, n_theta, n_phi), mind we need to conj
 Pxx = data['Pxx']  # shape: (n_freq, n_theta, n_phi)
 phi = 180 - data['phi'] # shape Nphi, mind switch from exp to numerical frame
 theta = 90 - data['theta'] # shape Ntheta
+theta = theta.reshape(theta.shape[0])
 radius = 1.62 # assume
 phi_index = np.where(phi%360==phi_plot%360)[0][0]
 
@@ -75,28 +81,6 @@ x_cart = np.array([
     radius * np.sin(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
     radius * np.cos(np.deg2rad(theta)) * np.ones_like(phi),
 ]) # observer positions, shape 3, Ntheta
-
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = False
-beam_loading = PIN.getStrutLoadingHarmonics() 
-
-p_beam_loading, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # mind the indexing change for m
-p_blade_loading, _ = han.getPressureRotor(x_cart, ms, BLH) 
-
-p_blade_thickness, _ = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner)) # NACA0012
-
-PIN._numerics['include_vortex_sources'] = False
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics() 
-
-p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
-
-
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics()
-
-
 
 ##### -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
 #### save gradients in the far-field (run once per observer and m)
@@ -176,30 +160,30 @@ fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, v
                              plot_kwargs={'color':'k', 'linestyle':None,'marker':'x', 'label':'Experimental total'},)
 
 # numerical
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering),
-        np.angle(p_total_scattering) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering[:, 0]),
+        np.angle(p_total_scattering[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'g', 'linestyle':'dashed','marker':'s', 'label':'Scattering total'})
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_loading),
-        np.angle(p_direct_loading) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_loading[:, 0]),
+        np.angle(p_direct_loading[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'r', 'linestyle':'dashed', 'marker':'o', 'label':'Direct Loading'})
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_thickness),
-        np.angle(p_direct_thickness) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_thickness[:, 0]),
+        np.angle(p_direct_thickness[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'b', 'linestyle':'dashed','marker':'*', 'label':'Direct Thickness'})
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_scattered_loading),
-        np.angle(p_scattered_loading) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_scattered_loading[:, 0]),
+        np.angle(p_scattered_loading[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'^', 'label':'Scattered Loading'})
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_scattered_thickness),
-        np.angle(p_scattered_thickness) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_scattered_thickness[:, 0]),
+        np.angle(p_scattered_thickness[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
-        plot_kwargs={'color':'c', 'linestyle':'dashed','marker':'p', 'label':'Scattered Thickness'})
+        plot_kwargs={'color':'c', 'linestyle':'dashed','marker':'+', 'label':'Scattered Thickness'})
 
 ax.legend()
 plt.show()

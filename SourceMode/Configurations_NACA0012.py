@@ -104,9 +104,10 @@ D20L20W00_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D20L20W00,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W00_D360 = SourceModeArray(
@@ -117,9 +118,10 @@ D20L20W00_D360 = SourceModeArray(
                         radius=r_outer,
                         green = cg_highres_D20L20W00,
                         numerics={'Ndipoles' : 360},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W00_D90 = SourceModeArray(
@@ -130,9 +132,10 @@ D20L20W00_D90 = SourceModeArray(
                         radius=r_outer,
                         green = cg_lowres_D20L20W00,
                         numerics={'Ndipoles' : 90},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W10_D180 = SourceModeArray(
@@ -143,9 +146,10 @@ D20L20W10_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D20L20W10,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W20_D180 = SourceModeArray(
@@ -156,9 +160,10 @@ D20L20W20_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D20L20W20,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W40_D180 = SourceModeArray(
@@ -169,9 +174,10 @@ D20L20W40_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D20L20W40,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W60_D180 = SourceModeArray(
@@ -182,9 +188,10 @@ D20L20W60_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D20L20W60,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W80_D180 = SourceModeArray(
@@ -195,9 +202,10 @@ D20L20W80_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D20L20W80,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D20L20W100_D180 = SourceModeArray(
@@ -208,9 +216,10 @@ D20L20W100_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D20L20W100,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D10L20W00_D180 = SourceModeArray(
@@ -221,9 +230,10 @@ D10L20W00_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D10L20W00,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 D15L20W00_D180 = SourceModeArray(
@@ -234,9 +244,10 @@ D15L20W00_D180 = SourceModeArray(
                         radius=r_outer,
                         green = cg_midres_D10L20W00,
                         numerics={'Ndipoles' : 180},
-                        c = c0,
+                        c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil = 'naca0012'
                         )
 
 

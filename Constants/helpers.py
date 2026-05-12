@@ -7,7 +7,8 @@ import matplotlib.colors as colors
 from scipy.interpolate import interp1d
 import pandas as pd
 import re
-
+import neuralfoil as nf
+from scipy.optimize import root_scalar
 
 def p_to_SPL(p, pref=PREF, upper=200, lower=-200):
     SPLdB = 20 * np.log10(np.abs(p) / pref) + SPLSHIFT
@@ -931,7 +932,7 @@ def plot_complex_curve(
     else:
         ax.set_xticks(np.linspace(0, 2*np.pi, 8, endpoint=False))
 
-    ax.set_xticklabels([f"${np.rad2deg(x):.0f}^\circ$" for x in ax.get_xticks()])
+    ax.set_xticklabels([rf"${np.rad2deg(x):.0f}^\circ$" for x in ax.get_xticks()])
 
     ax.grid(True, alpha=0.4)
 
@@ -943,9 +944,9 @@ def plot_complex_curve(
             idx = np.argmin(np.abs(t - tt))
 
             ax.text(
-                theta[idx],
-                r[idx],
-                fr"$\theta={np.rad2deg(theta[idx]):.0f}^\circ$",
+                float(theta[idx]),
+                float(r[idx]),
+                rf"$\theta={np.rad2deg(theta[idx]):.0f}^\circ$",
                 fontsize=8,
                 ha="left",
                 va="bottom"
@@ -962,8 +963,10 @@ def plot_complex_curve(
 
             ax.annotate(
                 "",
-                xy=(theta[i2], r[i2]),
-                xytext=(theta[i], r[i]),
+                # xy=(theta[i2], r[i2]),
+                # xytext=(theta[i], r[i]),
+                xy=(float(theta[i2]), float(r[i2])),
+                xytext=(float(theta[i]), float(r[i])),
                 arrowprops=dict(
                     arrowstyle="->",
                     color=line.get_color(),
@@ -973,3 +976,47 @@ def plot_complex_curve(
             )
 
     return fig, ax
+
+
+def find_alpha(CL_target, Re, airfoil, alpha_bounds=(-10, 10)):
+
+    def residual(alpha):
+        aero = nf.get_aero_from_airfoil(
+            airfoil=airfoil,
+            alpha=alpha,
+            Re=Re,
+            model_size="xxxlarge",
+        )
+            # Convert safely to scalar
+        CL_val = float(np.atleast_1d(aero['CL'])[0])
+        
+        return CL_val - CL_target
+
+    a_min, a_max = alpha_bounds
+
+    # Check that the root is bracketed
+    f_min = residual(a_min)
+    f_max = residual(a_max)
+
+    if f_min * f_max > 0:
+        raise ValueError(
+            "Root is not bracketed in the provided alpha range. "
+            f"f({a_min})={f_min}, f({a_max})={f_max}"
+        )
+
+    sol = root_scalar(
+        residual,
+        bracket=[a_min, a_max],
+        method='brentq',   # robust and fast for 1D
+        xtol=1e-6
+    )
+
+    if not sol.converged:
+        raise RuntimeError("Alpha solve did not converge")
+    aero = nf.get_aero_from_airfoil(
+        airfoil=airfoil,
+        alpha=sol.root,
+        Re=Re,
+        model_size="xxxlarge",
+    )
+    return sol.root, aero

@@ -159,29 +159,35 @@ p_total_scattering_loading = p_direct_thickness + p_direct_loading + p_scattered
 p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
 p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
 
+
+
+
+
+
+
 # experimental
 fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, valmin=10,
                              plot_kwargs={'color':'k', 'linestyle':None,'marker':'s', 'label':'Experimental'},)
 
 # numerical
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering),
-        np.angle(p_total_scattering * np.exp(-1j * np.angle(p_total_scattering[0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering[:, 0]),
+        np.angle(p_total_scattering[:, 0] * np.exp(-1j * np.angle(p_total_scattering[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'r', 'linestyle':'dashed','marker':'s', 'label':'Scattering'})
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering_loading),
-        np.angle(p_total_scattering_loading * np.exp(-1j * np.angle(p_total_scattering_loading[0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering_loading[:, 0]),
+        np.angle(p_total_scattering_loading[:, 0] * np.exp(-1j * np.angle(p_total_scattering_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'*', 'label':'Scattering (loading only)'})
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin),
-        np.angle(p_total_pin * np.exp(-1j * np.angle(p_total_pin[0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin[:, 0]),
+        np.angle(p_total_pin[:, 0] * np.exp(-1j * np.angle(p_total_pin[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'b', 'linestyle':'dashed','marker':'o', 'label':'PIN (incl. thickness)'})
 
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin_loading),
-        np.angle(p_total_pin_loading * np.exp(-1j * np.angle(p_total_pin_loading[0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin_loading[:, 0]),
+        np.angle(p_total_pin_loading[:, 0] * np.exp(-1j * np.angle(p_total_pin_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
         , valmax=65, valmin=10, fig=fig, ax=ax,
         plot_kwargs={'color':'g', 'linestyle':'dashed','marker':'^', 'label':'PIN (loading only)'})
 ax.legend()

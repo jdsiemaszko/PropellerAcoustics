@@ -19,6 +19,7 @@ import matplotlib.colors as colors
 
 
 # BEGINNING OF HEADER
+FILE='TOTAL'
 MODE = 'half'
 from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, p_to_SPL, spl_from_autopower, plot_BPF_peaks
 from Constants.data_assim import getGojonData
@@ -34,7 +35,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 SUFFIX = '_D180_MR'
 
-sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = True
+sourceArray.numerics['CompactnessCorrection'] = False
+
 
 NDIPOLES = sourceArray.Ndipoles
 ms = np.array([2])
@@ -51,7 +54,7 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = -1      # -60 to 60 in 10
+ind_theta = 6      # 60 to -60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -123,7 +126,7 @@ for index, sm in enumerate(sourceArray.children):
     print(f'pre-computing far-field gradients {index+1}')
 
     gradG = sm.getScatteringGreenGradient(x_cart, ms*B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
-    np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}.npy', gradG)
+    np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', gradG)
 
 
 
@@ -131,7 +134,7 @@ for index, sm in enumerate(sourceArray.children):
 
 gradG_arr = np.zeros((Nr, 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 for index, sm in enumerate(sourceArray.children):
-    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}.npy')
+    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
 
 p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
@@ -150,12 +153,12 @@ for index, sm in enumerate(sourceArray.children):
     print(f'pre-computing far-field gradients {index+1}')
 
     G = sm.getScatteringGreen(x_cart, ms*B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
-    np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}.npy', G)
+    np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
 
 
 G_arr = np.zeros((Nr, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 for index, sm in enumerate(sourceArray.children):
-    G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}.npy')
+    G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
 
 p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)[0]
