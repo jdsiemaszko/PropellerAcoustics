@@ -22,7 +22,7 @@ from Constants.data_assim import getGojonData, getHarmonicsFromData
 from PotentialInteraction.PIN import PotentialInteraction
 from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity
 MODE = 'half'
-FILE = 'TOTAL_DIR'
+FILE = 'DIR_COMPONENTS'
 Ntheta = 18
 Nphi = 36
 
@@ -43,7 +43,7 @@ SUFFIX = '_D180_MR'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([2])
+ms = np.array([5])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
@@ -92,26 +92,6 @@ Y = R_arr * np.sin(theta_arr) * np.sin(phi_arr)
 Z = R_arr * np.cos(theta_arr)
 
 x_cart = np.array([X, Y, Z])
-
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = False
-beam_loading = PIN.getStrutLoadingHarmonics() 
-
-p_beam_loading, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # mind the indexing change for m
-p_blade_loading, _ = han.getPressureRotor(x_cart, ms, BLH) 
-
-p_blade_thickness, _ = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner)) # NACA0012
-
-PIN._numerics['include_vortex_sources'] = False
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics() 
-
-p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
-
-
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics()
 
 
 
@@ -162,8 +142,6 @@ for index, sm in enumerate(sourceArray.children):
     G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
 
 
-p_beam_total , _ = han.getPressureStator(x_cart, ms*B, beam_loading)
-
 p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)
 p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
@@ -171,18 +149,19 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 # scattering total
 p_total_scattering = p_direct_thickness + p_direct_loading + p_scattered_loading + p_scattered_thickness
 
-# pin total
-p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
-p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
 
 # shift to relative phase w.r.t. mic one at phi=0
 ind_theta_ref = 0
 ind_phi_ref = np.where(phi==0)[0][0]
 ind_combined = ind_theta_ref * phi.shape[0] + ind_phi_ref
 
+p_direct_thickness *= np.exp(-1j * np.angle(p_direct_thickness[ind_combined, :]))
+p_direct_loading  *= np.exp(-1j * np.angle(p_direct_loading[ind_combined, :]))
+p_scattered_loading *= np.exp(-1j * np.angle(p_scattered_loading[ind_combined, :]))
+p_scattered_thickness *= np.exp(-1j * np.angle(p_scattered_thickness[ind_combined, :]))
 p_total_scattering *= np.exp(-1j * np.angle(p_total_scattering[ind_combined, :]))
-p_total_pin  *= np.exp(-1j * np.angle(p_total_pin [ind_combined, :]))
-p_total_pin_loading *= np.exp(-1j * np.angle(p_total_pin_loading[ind_combined, :]))
+
+
 
 
 
@@ -192,46 +171,64 @@ p_total_pin_loading *= np.exp(-1j * np.angle(p_total_pin_loading[ind_combined, :
 
 # 3D SPL diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(221, projection="3d")
-ax2 = fig.add_subplot(222, projection="3d")
-ax3 = fig.add_subplot(223, projection="3d")
-ax4 = fig.add_subplot(224, projection="3d")
+ax1 = fig.add_subplot(321, projection="3d")
+ax2 = fig.add_subplot(322, projection="3d")
+ax3 = fig.add_subplot(323, projection="3d")
+ax4 = fig.add_subplot(324, projection="3d")
+ax5 = fig.add_subplot(325, projection="3d")
+ax6 = fig.add_subplot(326, projection="3d")
+
 
 VMIN, VMAX = 10, 65
 fig, ax1 = plot_3D_directivity(
-    p_total_pin_loading[:, 0], theta_m, phi_m, title='PIN Model (vortex only)', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
 )
 fig, ax2 = plot_3D_directivity(
-    p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    p_direct_loading[:, 0],theta_m, phi_m, title='Direct Loading', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
 fig, ax4 = plot_3D_directivity(
-    p_total_pin[:, 0], theta_m, phi_m, title='PIN Model (incl. blade thickness)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+)
+fig, ax5 = plot_3D_directivity(
+    p_total_scattering[:, 0], theta_m, phi_m, title='Scattering total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+)
+fig, ax6 = plot_3D_directivity(
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment (total)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
 )
 fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 
 
 # 3D phase diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(221, projection="3d")
-ax2 = fig.add_subplot(222, projection="3d")
-ax3 = fig.add_subplot(223, projection="3d")
-ax4 = fig.add_subplot(224, projection="3d")
+ax1 = fig.add_subplot(321, projection="3d")
+ax2 = fig.add_subplot(322, projection="3d")
+ax3 = fig.add_subplot(323, projection="3d")
+ax4 = fig.add_subplot(324, projection="3d")
+ax5 = fig.add_subplot(325, projection="3d")
+ax6 = fig.add_subplot(326, projection="3d")
+
 
 VMIN, VMAX = 10, 65
 fig, ax1 = plot_3D_phase_directivity(
-    p_total_pin_loading[:, 0], theta_m, phi_m, title='PIN Model (vortex only)', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
 )
 fig, ax2 = plot_3D_phase_directivity(
-    p_total_scattering[:, 0], theta_m, phi_m, title='Scattering Model', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
-fig, ax3 =  plot_3D_phase_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiement', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+fig, ax3 = plot_3D_phase_directivity(
+    p_direct_loading[:, 0],theta_m, phi_m,  title='Direct Loading', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
-fig, ax4 =  plot_3D_phase_directivity(
-    p_total_pin[:, 0], theta_m, phi_m, title='PIN Model (incl. blade thickness)', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+fig, ax4 = plot_3D_phase_directivity(
+    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+)
+fig, ax5 = plot_3D_phase_directivity(
+    p_total_scattering[:, 0], theta_m, phi_m, title='Scattering total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+)
+fig, ax6 = plot_3D_phase_directivity(
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment (total)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
 )
 fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 plt.show()
