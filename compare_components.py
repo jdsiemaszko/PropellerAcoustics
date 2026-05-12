@@ -31,8 +31,6 @@ Nphi = 36
 # vary configuration
 from SourceMode.Configurations_NACA0012 import m_surface
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
-# SUFFIX = '_D360_HR'
 
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
@@ -40,10 +38,15 @@ from SourceMode.Configurations_NACA0012 import m_surface
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 SUFFIX = '_D180_MR'
 
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
+# SUFFIX = '_D360_HR'
+
 sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
+
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([3])
+ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse

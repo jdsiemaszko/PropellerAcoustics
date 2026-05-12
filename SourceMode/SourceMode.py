@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from TailoredGreen.TailoredGreen import TailoredGreen
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from Constants.helpers import p_to_SPL, plot_3D_directivity, plot_directivity_contour
+from Constants.helpers import p_to_SPL, plot_3D_directivity, plot_directivity_contour, find_alpha
 from PotentialInteraction.PIN import PotentialInteraction
 from Hanson.far_field import HansonModel
+import aerosandbox as asb
+import neuralfoil as nf
 
 def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, normal:np.ndarray):
     # get the radial,radial, and axial unit vectors given an azimuth, the axis vector, origin point, and zero-azimuth direction
@@ -19,7 +21,10 @@ def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, 
 
 class SourceMode():
 
-    def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TailoredGreen, radial:np.ndarray=None,
+    def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TailoredGreen,
+                 airfoil,
+                 Omega, rho0, c0, nu,
+                  radial:np.ndarray=None,
                   numerics={
                       'Ndipoles':36
                   },
@@ -43,6 +48,11 @@ class SourceMode():
         # self.dt = dt # thickness of the element, used to compute thickness noise
 
         self.chord = chord # chord used in thickness noise (Glegg)
+        self.airfoil = airfoil
+        self.Omega = Omega
+        self.nu = nu # kinematic viscosity
+        self.rho0 = rho0
+        self.SoS = c0
 
         if isinstance(dt, float):
             self.dt = dt
@@ -143,23 +153,9 @@ class SourceMode():
 
         BLH = self.BLH if BLH is None else BLH
 
-        # loadings = np.zeros((self.NBLH, m.shape[0], self.numerics['Ndipoles'], 3)) # (Ns, Nm, Ndipoles, 3 (ndim)))
-
-        # expterm = np.exp(1j * self.dipole_angles[None, None, :] * (m[None, :, None] * self.B  - self.s[:, None, None]) / (m[None, :, None] * self.B * Omega)) # shape (Ns, Nm, Ndipoles)
-        
         expterm = np.exp(+1j *  (m[None, :, None] * self.B  - self.s[:, None, None]) * self.dipole_angles[None, None, :])   # shape (Ns, Nm, Ndipoles)
         expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns-1, Nm, Ndipoles)
         
-        # expterm = np.ones((self.BLH.shape[0],m.shape[0],self.dipole_angles.shape[0]))
-        # expterm_negative = expterm
-
-        # LEGACY (1D loading)
-        # force_unit = self.force_unit.T # Ndipoles, 3
-        # loadings_positive_mag = self.BLH[:, None, None] * expterm[:, :, :] # shape (Ns, Nm, Ndipoles)
-        # loadings_positive = loadings_positive_mag[:,:,:, None] * force_unit[None, None, :, :] (Ns, Nm, Ndipoles, 3)
-        # loadings_negative = np.conjugate(self.BLH[:, None, None, None]) * expterm_negative[:, :, :, None] * force_unit[None, None, :, :] # shape (Ns, Nm, Ndipoles, 3)
-        # print(loadings.shape, expterm.shape, force_unit.shape, self.dipole_angles.shape)
-
         # UPDATE (3D loading)
         BLH_rotated = self._rotate_loadings(BLH=BLH) # shape (Ns, Ndipoles, 3)
         loadings_positive = expterm[:, :, :, None] * BLH_rotated[:, None, :, :]
@@ -181,8 +177,48 @@ class SourceMode():
 
         return loadings
     
+    def _getMeanLoadingChordDistribution(self, Omega=None, nu=None, rho0=None, BLH = None):
+        """
+        get mean loading distribution by interfacing with neuralfoil,
+        assume net sectional loading Lprime is known
+        nu - kinematic viscosity, used to compute Re
+        """
+
+        BLH = self.BLH if BLH is None else BLH
+        Omega = Omega if Omega is not None else self.Omega
+        nu = nu if nu is not None else self.nu
+        rho0 = rho0 if rho0 is not None else self.rho0
+
+        Lnet = np.sqrt(BLH[0, 0]**2 + BLH[1, 0]**2 + BLH[2, 0]**2)
+
+        CL = Lnet / 0.5 / rho0 / Omega**2 / self.radius**2 / self.dr / self.chord
+        Re = self.chord * Omega * self.radius / nu if nu is not None else 5e6 # pick high Re if not provided
+
+        # find parameters corresponding to this CL
+        alpha, aero = find_alpha(CL, Re, self.airfoil)
+
+        # compute the pressure distribution (assumption: incompressible flow)
+        ue_upper = np.array([aero[f'upper_bl_ue/vinf_{ind}'] for ind in range(0, 32, 1)]) # hard-coded range?
+        ue_lower = np.array([aero[f'lower_bl_ue/vinf_{ind}'] for ind in range(0, 32, 1)])
+
+        # chord stations (hard-coded in nf)
+        x_c_outer = np.linspace(0, 1, 32 + 1)
+        x_c = (x_c_outer[1:] + x_c_outer[:-1]) * 0.5
+
+        cp_upper = 1 - ue_upper**2
+        cp_lower = 1 - ue_lower**2
+
+        f = cp_lower - cp_upper # pressure distribution (arbitrary scale)
+        # we should have np.sum(f) * 1/32 = CL
+
+        f = f.reshape(32)
+        f_interp = np.interp(self.chord_stations, x_c * self.chord - self.chord / 2, f)
+
+        return self.chord_stations, f_interp
+
     def _getCompactnessCorrectionLoading(self, loading, m):
         splus = self.s
+        Ns = splus.shape[0]
         sminus = -self.s[::-1]
         s = np.concatenate((sminus[:-1], splus)) # twosided, as in the function above, shape 2Ns-1
 
@@ -191,14 +227,17 @@ class SourceMode():
 
         theta = np.linspace(0, np.pi, N)  # no singularity
         u = -np.cos(theta)
-        weight = 2 * np.cos(theta / 2)**2  # comes from transformation
+        weight = 2 * np.cos(theta / 2)**2  # comes from transformation, integrand * du/dtheta
+        # weight = np.sqrt((1-u) / (1+u)) * np.sin(theta) #integrand * du/dtheta
+        # weight = np.sin(theta) * 1 / np.tan(theta/2) #integrand * du/dtheta
+        # weight[0] = 0 # ignore the nan at theta=0, limit converges to 0?
 
         # such that np.trapezoid(weight, theta) = pi !
 
         phase = np.exp(
             1j * (m[None, None, :] * self.B - s[None, :, None])
             * (self.chord / 2 * u[:, None, None]) / self.radius
-        )
+        ) # shape Nchord stations, 2Ns-1, Nm, symmetric in s?
 
         factor = 1 / np.pi * np.trapezoid(
             weight[:, None, None] * phase,
@@ -206,21 +245,27 @@ class SourceMode():
             axis=0
         ) # shape 2*Ns-1, Nm
 
-        # factor = self.chord / 2 / np.pi * np.trapezoid(
-        #     np.sqrt((1- 2 * chord_stations[:, None, None] / self.chord) / (1 + 2 * chord_stations[:, None, None] / self.chord)) * 
-        #     np.exp(-1j * (m[None, None, :]  * self.B - s[None, :, None]) * chord_stations[:, None, None] / self.radius),
-        #     chord_stations,
-        #     axis=0
-        # ) # shape 2*Ns-1, Nm
 
-        # argument = (m[None, :] * self.B - s[:, None]) * self.chord / 2 / self.radius
-        # mask = np.abs(argument) > 1e-12
+        # OVERWRITE THE MEAN LOADING FACTOR! - mean lift behaves different from unsteady gust responses!
+        chord_stations, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nchord stations
 
-        # factor_test = np.ones_like(argument)
-        # factor_test[mask] = np.sin(argument[mask]) / argument[mask]
+        phase0 = np.exp(
+            1j * (m[None, :] * self.B)
+            * (chord_stations[:, None]) / self.radius
+        ) # shape Nchord stations, Nm
 
-        # return loading * factor_test[:, :, None, None]
-        return loading * factor[:, :, None, None]
+        dx = np.diff(chord_stations)[0] # assumed uniform
+        factor[Ns-1, :] = np.sum(
+            f0[:, None] * phase0 * dx,
+            axis=0
+        ) / np.sum(f0 * dx) # shape Nm, mind the normalization
+
+        loading *= factor[:, :, None, None]
+
+        ##### correct for the point-load location: should be at c/4, we put it at c/2
+        # loading *= np.exp(1j * )
+
+        return loading
     
     def getPressure(self, x:np.ndarray, Omega, m:np.ndarray, c:float = 340., gradG=None, BLH=None):
 
@@ -448,9 +493,12 @@ class SourceMode():
         
 class SourceModeArray():
     def __init__(self, BLH:np.ndarray, B:int,   Omega:float, gamma:np.ndarray, axis:np.ndarray,
-                  origin:np.ndarray, radius:np.ndarray, green:TailoredGreen, radial:np.ndarray=None,
-                  c = 340.0,
+                  origin:np.ndarray, radius:np.ndarray, green:TailoredGreen, 
+                  airfoil,
+                  radial:np.ndarray=None,
+                  c0 = 340.0,
                   rho0 = 1.2,
+                  nu = 14.61e-6, # m^2/s, 
                 numerics={
                     'Ndipoles':36
                 },
@@ -463,6 +511,7 @@ class SourceModeArray():
         gamma - array of blade twists, same as above (Nr+1)
         dt - segment thickness IN METERS, np.ndarray of size (Nr)
         chord - segment chord in METERS, size (Nr)
+        airfoil - an instance of aerosandbox.Airfoil or a string used to construct such, or a list of Nr such instances, one per radial station
         """ 
 
 
@@ -471,8 +520,10 @@ class SourceModeArray():
         self.s = np.arange(1, len(self.BLH) + 1) # helper array
         self.B = B
         self.Omega = Omega
-        self.SoS = c # speed of sound 
+        self.SoS = c0 # speed of sound 
         self.rho0=rho0
+        self.nu = nu
+
 
 
         self.twist = gamma # Nr + 1
@@ -491,6 +542,21 @@ class SourceModeArray():
 
         if self.BLH.shape[2] !=  self.Nr:
             raise ValueError('BLH array size does not match the number of radial stations, see docstring')
+        
+        if isinstance(airfoil, str):
+            self.airfoil = [asb.Airfoil(airfoil)] * self.Nr
+        elif isinstance(airfoil, list) or isinstance(airfoil, np.ndarray):
+            self.airfoil = []
+            for element in airfoil: # for each element, check if its a str or Airfoil instance
+                if isinstance(airfoil, str):
+                    self.airfoil.append(asb.Airfoil(airfoil))
+                else:
+                    self.airfoil.append(element)
+
+        else: # if not any of the above, assume airfoil is an instance of asb.Airfoil and fill the array with it
+            self.airfoil = [airfoil] * self.Nr
+
+
 
         self.Ndipoles = numerics.get('Ndipoles', 36)
         self.axis = axis
@@ -514,7 +580,10 @@ class SourceModeArray():
                 BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
                         B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
                 numerics=self.numerics, dr = self.dr[index], dt = self.dt[index] if dt is not None else None,
-                chord = self.chord[index] if self.chord is not None else None
+                chord = self.chord[index] if self.chord is not None else None,
+                airfoil = self.airfoil[index],
+                c0 = c0, Omega=Omega, nu=nu, rho0=rho0
+
             ) # construct source modes at each radial station
 
 
@@ -535,7 +604,6 @@ class SourceModeArray():
 
         return
         
-
     def getPressure(self, x:np.ndarray, m:np.ndarray, gradG=None, BLH=None):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
