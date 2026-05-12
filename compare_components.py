@@ -43,7 +43,7 @@ SUFFIX = '_D180_MR'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([5])
+ms = np.array([3])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
@@ -155,11 +155,20 @@ ind_theta_ref = 0
 ind_phi_ref = np.where(phi==0)[0][0]
 ind_combined = ind_theta_ref * phi.shape[0] + ind_phi_ref
 
-p_direct_thickness *= np.exp(-1j * np.angle(p_direct_thickness[ind_combined, :]))
-p_direct_loading  *= np.exp(-1j * np.angle(p_direct_loading[ind_combined, :]))
-p_scattered_loading *= np.exp(-1j * np.angle(p_scattered_loading[ind_combined, :]))
-p_scattered_thickness *= np.exp(-1j * np.angle(p_scattered_thickness[ind_combined, :]))
-p_total_scattering *= np.exp(-1j * np.angle(p_total_scattering[ind_combined, :]))
+phase_ref = np.angle(p_total_scattering[ind_combined, :])
+
+
+p_direct_thickness *= np.exp(-1j * phase_ref)
+p_direct_loading  *= np.exp(-1j * phase_ref)
+p_scattered_loading *= np.exp(-1j * phase_ref)
+p_scattered_thickness *= np.exp(-1j * phase_ref)
+p_total_scattering *= np.exp(-1j * phase_ref)
+
+# p_direct_thickness *= np.exp(-1j * np.angle(p_direct_thickness[ind_combined, :]))
+# p_direct_loading  *= np.exp(-1j * np.angle(p_direct_loading[ind_combined, :]))
+# p_scattered_loading *= np.exp(-1j * np.angle(p_scattered_loading[ind_combined, :]))
+# p_scattered_thickness *= np.exp(-1j * np.angle(p_scattered_thickness[ind_combined, :]))
+# p_total_scattering *= np.exp(-1j * np.angle(p_total_scattering[ind_combined, :]))
 
 
 
