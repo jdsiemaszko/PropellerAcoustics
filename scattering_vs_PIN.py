@@ -211,10 +211,11 @@ sourceArray = SourceModeArray(
                         radius=r_outer,
                         green = cg,
                         numerics={'Ndipoles' : NDIPOLES},
-                        c = c0,
+                        c0 = c0,
                         # dt = t_c * chord, # thickness distribution used for thickness noise
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
+                        airfoil='naca0012'
                         )
 
 

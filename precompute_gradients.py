@@ -8,8 +8,8 @@ import time
 
 # manually input everything, couldn't be bothered
 from SourceMode.Configurations_NACA0012 import *
-sourceArray = D10L20W00_D180
-SUFFIX = 'D10L20_D180'
+sourceArray = D15L20W00_D180
+SUFFIX = 'D15L20_D180'
 
 ms = np.arange(1, 11, 1)
 MODE = 'half'

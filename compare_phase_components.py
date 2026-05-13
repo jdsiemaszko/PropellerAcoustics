@@ -35,8 +35,8 @@ SUFFIX = '_D180_MR'
 # SUFFIX = '_D360_HR'
 
 
-ms = np.array([2]) # harmonic to plot
-phi_plot = -170 # phi_experimental to plot, in degrees
+ms = np.array([1]) # harmonic to plot
+phi_plot = 90 # phi_experimental to plot, in degrees
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False

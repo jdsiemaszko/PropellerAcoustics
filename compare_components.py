@@ -193,24 +193,24 @@ ax6 = fig.add_subplot(326, projection="3d")
 
 VMIN, VMAX = 10, 65
 fig, ax1 = plot_3D_directivity(
-    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness Noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
 )
 fig, ax2 = plot_3D_directivity(
-    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness Noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_directivity(
-    p_direct_loading[:, 0],theta_m, phi_m, title='Direct Loading', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    p_direct_loading[:, 0],theta_m, phi_m, title='Direct Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
 fig, ax4 = plot_3D_directivity(
-    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
 )
 fig, ax5 = plot_3D_directivity(
-    p_total_scattering[:, 0], theta_m, phi_m, title='Scattering total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
 )
 fig, ax6 = plot_3D_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment (total)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
 )
-fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
+# fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 
 
 # 3D phase diagram
@@ -225,22 +225,22 @@ ax6 = fig.add_subplot(326, projection="3d")
 
 VMIN, VMAX = 10, 65
 fig, ax1 = plot_3D_phase_directivity(
-    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness Noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
 )
 fig, ax2 = plot_3D_phase_directivity(
-    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness Noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_phase_directivity(
-    p_direct_loading[:, 0],theta_m, phi_m,  title='Direct Loading', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    p_direct_loading[:, 0],theta_m, phi_m,  title='Direct Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
 fig, ax4 = plot_3D_phase_directivity(
-    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
 )
 fig, ax5 = plot_3D_phase_directivity(
-    p_total_scattering[:, 0], theta_m, phi_m, title='Scattering total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
 )
 fig, ax6 = plot_3D_phase_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment (total)', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
 )
-fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
+# fig.suptitle(rf"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 plt.show()

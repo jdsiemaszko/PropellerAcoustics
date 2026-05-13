@@ -365,6 +365,7 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
         # --- normalize radius ---
         r0 = (mag_db - valmin) / (valmax - valmin) * (1 - blending) + blending
+        r0[np.where(r0<=0)] = 0
         mag_db0 = mag_db.reshape(Ntheta, Nphi)
         r0 = r0.reshape(Ntheta, Nphi)
 
@@ -469,8 +470,11 @@ def plot_3D_phase_directivity(
         mag = np.abs(G)
         mag_norm = mag / (mag.max() + 1e-12)
         r0 = (mag_db - valmin) / (valmax - valmin) * (1 - blending) + blending
+        r0[np.where(r0<=0)] = 0
+
     else:
         r0 = np.ones_like(phase) * (1 - blending) + blending
+
 
     phase_2D = phase.reshape(Ntheta, Nphi)
     r0 = r0.reshape(Ntheta, Nphi)

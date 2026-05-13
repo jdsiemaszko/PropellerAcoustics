@@ -54,6 +54,7 @@ class SourceMode():
         self.rho0 = rho0
         self.SoS = c0
 
+        # TODO: shift chord stations by c/4?
         if isinstance(dt, float):
             self.dt = dt
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
@@ -212,7 +213,11 @@ class SourceMode():
         # we should have np.sum(f) * 1/32 = CL
 
         f = f.reshape(32)
-        f_interp = np.interp(self.chord_stations, x_c * self.chord - self.chord / 2, f)
+
+        # interpolate at the physical chord stations, whatever the x=0 position is
+        # f_interp = np.interp(self.chord_stations, x_c / 2, f)
+
+        f_interp = np.interp((self.chord_stations-self.chord_stations[0])/self.chord, x_c, f)
 
         return self.chord_stations, f_interp
 
@@ -248,6 +253,8 @@ class SourceMode():
 
         # OVERWRITE THE MEAN LOADING FACTOR! - mean lift behaves different from unsteady gust responses!
         chord_stations, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nchord stations
+
+        # TODO: replace all loading distributions with f0? -> should reduce the loading noise
 
         phase0 = np.exp(
             1j * (m[None, :] * self.B)

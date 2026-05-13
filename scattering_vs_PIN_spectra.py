@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 SUFFIX = '_D360_HR'
-
-ind_theta = 7       # -60 to 60 in 10
-ind_phi = 0          # 0 to 350 in 10
+FILENAME = 'SPECTRA_LOADING'
+ind_theta = 6       # -60 to 60 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -23,7 +23,7 @@ with load_h5(f"{datadir}/{casefile}_autopower.h5") as f:
 
     BPF = B * RPM / 60
     data = ap[f"Autopower_RPM_{RPM}_Pa2"][:, ind_theta, ind_phi] # (freq, polar, azimuth), (aziuth=0 = > beam axis, azimuth=9 => 90 deg)
-theta = 90 - theta_exp
+theta = 90 + theta_exp
 phi = 180 - phi_exp
 print(f'Theta_exp = {theta_exp} deg, Phi_exp = {phi_exp} deg')
 print(f'Theta = {theta} deg, Phi = {phi} deg')
@@ -127,8 +127,14 @@ ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental, total", c
 # ax.plot(ms, SPL_rotor_total, label=f"Model (rotor, total)", color='y', marker='*', linestyle='dashed')
 # ax.plot(ms, SPL_beam, label=f"Model (beam, loading)", color='m', marker='o')
 # ax.plot(ms, SPL_total, label=f"Model (total)", color='k', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_beam, label=f"Beam PIN", color='r', marker='o')
-ax.plot(ms, SPL_scattered, label=f"Blade Scattering", color='b', marker='s')
+ax.plot(ms, SPL_beam, label=f"current (PIN)", color='r',
+        #  marker='o'
+        alpha=0.5
+         )
+ax.plot(ms, SPL_scattered, label=f"current (scattering)", color='b',
+        #  marker='s'
+        alpha=0.5
+        )
 # ax.plot(ms, SPL_scattered_US, label=f"Blade Scattering (unsteady)", color='g', marker='^')
 
 import pandas as pd
@@ -137,14 +143,20 @@ data1 = pd.read_csv(filename1)
 spl_vella = data1[' y']
 fs_vella = data1['x']
 
+filename1 = './Data/Vella2026/SPL_theta0phi90_corrected.csv'
+data1 = pd.read_csv(filename1)
+spl_vella_corr = data1[' y']
+fs_vella_corr = data1['x']
+
 filename2 = './Data/Zamponi2026/SPL_theta0phi90.csv'
 data2 = pd.read_csv(filename2)
 spl_zamponi = data2[' y']
 fs_zamponi = data2['x']
 
 ax.plot(fs_vella/BPF, spl_vella, label=f"Vella et al. (2026)", color='m', marker='^')
+ax.plot(fs_vella/BPF, spl_vella + 10 * np.log10(2), label=f"Vella et al. (2026) (corrected)", color='m', marker='^', linestyle='dashed')
 ax.plot(np.round(fs_zamponi), spl_zamponi, label=f"Zamponi et al.(2026)", color='c', marker='o')
-ax.plot(np.round(fs_zamponi), spl_zamponi + 10 * np.log10(2), label=f"Zamponi et al.(2026) (corrected)", color='g', marker='p')
+ax.plot(np.round(fs_zamponi), spl_zamponi + 10 * np.log10(2), label=f"Zamponi et al.(2026) (corrected)", color='c', marker='o', linestyle='dashed')
 
 
 ax.legend()

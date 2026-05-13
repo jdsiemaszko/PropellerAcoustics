@@ -32,11 +32,14 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
 
-# sourceArray.numerics['CompactnessCorrection'] = True
-sourceArray.numerics['CompactnessCorrection'] = False
+from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D10L20_D180'
+
+sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
 
 
 NDIPOLES = sourceArray.Ndipoles

@@ -31,8 +31,8 @@ from SourceMode.Configurations_NACA0012 import m_surface
 
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 SUFFIX = '_D180_MR'
-ms = np.array([1]) # harmonic to plot
-phi_plot = -160 # phi_experimental to plot, in degrees
+ms = np.array([5]) # harmonic to plot
+phi_plot = 90 # phi_experimental to plot, in degrees
 
 sourceArray.numerics['CompactnessCorrection'] = True
 
