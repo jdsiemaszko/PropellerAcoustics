@@ -1,6 +1,6 @@
 import numpy as np
 import numpy as np
-from scipy.special import jv
+from scipy.special import jv, fresnel
 from scipy.interpolate import interp1d
 from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated, plot_directivity_contour, p_to_SPL
 import matplotlib.pyplot as plt
@@ -27,7 +27,7 @@ class PotentialInteraction:
         self.Lcylinder = Lcylinder_m
         self.Omega=Omega_rads
         self.rho = rho_kgm3
-        self.c = c_mps # speed of sound
+        self.SoS = c_mps # speed of sound
         self.nbeam = nb
         self._numerics = numerics
 
@@ -284,26 +284,17 @@ class PotentialInteraction:
 
     def getBladeLoadingHarmonics(self, QS=False):
         """
-        returns loading ON the blade in the fourier domain
+        returns loading acting ON the blade in the frequency domain, according to Sears
         result of shape (3, Nk, Nr)
         3: radial, axial, tangential
         k's correspond to frequencies k * Omega
         QS - if True, use quasi-steady assumption, else use full unsteady Sears function
         """
 
-        w = self.getBladeDownwash() # Nr, Nphi
-        k = self.k # Nk
-        phi = self.phi # Nphi
-
-        dphi = np.diff(self.phi)[0]
-        wk = 1 / 2 / np.pi * np.sum(
-            dphi * np.exp(1j * k[None, None, :] * self.phi[None, :, None])*
-            w[:, :, None], axis=1 # reduce the phi axis, result of shape Nr, Nk
-        )
-        wk = wk.T # Nk, Nr for consistency
+        wk = self.getBladeDownwashHarmonics()
 
         Ur = self.Ur # Nr
-
+        k = self.k
         # --- Theodorsen arguments ---
         sigma = k[:, None] * self.Omega * self.seg_chord[None, :] / (2.0 * Ur[None, :])      # (Nk, Nr)
         beta = np.pi/2 - self.seg_twist # alpha in Wu et al. 2022, shape Nr
@@ -347,6 +338,90 @@ class PotentialInteraction:
         Fblade[2, 0, :] = self.Fphiprime # tangential, positive backwards
 
         return Fblade
+
+    def getBladeLoadingHarmonicsAmiet(self, chord_stations=None):
+        """
+        return Amiet's prediction of US loading of a flat plate, assuming a spanwise gust k2 = 0, and thus THETA = infinity and the gust is supercritical
+        
+        result of shape (3, Nk, Nr, Nc) with chordwise stations of size Nc,
+        optionally, the chordwise array (ranging from -1 to 1) can be provided as an input
+        """
+
+        Mach = np.sqrt(
+         (self.Omega * self.seg_radius - self.Ui[0])**2 + 
+         self.Ui[1]**2 
+        ) / self.SoS # shape Nr
+
+        beta = np.sqrt(1-Mach**2) # Nr
+
+        k = self.k
+        kprime = k[:, None] * self.seg_chord[None, :] / 2 # Nk, Nr
+
+        # TODO: check if this makes any sense
+        
+        mu = Mach[None, :] / 2 / beta[None, :]**2 * k[:, None] # Nk, Nr
+        kappa = mu # assuming k2=0, shape Nk, Nr
+
+        chord_stations = chord_stations if chord_stations is not None else np.linspace(-1+1e-12, 1, 100)
+
+        wk = self.getBladeDownwashHarmonics() # harmonics of downwash at blade station, measured at half-chord only, shape Nk, Nr
+
+        S, C = fresnel(2 * kappa[:, :, None] * (1-chord_stations[None, None, :])) # shape Nk, Nr, Nc each
+        E = C + 1j * S # assemble the complex term
+
+        # l(x, r) of shape Nk, Nr, Nc
+        lift_per_unit_area_k = 2 * self.rho * self.SoS * Mach[None, :, None] * wk[:, :, None] * np.exp(1j *
+                np.pi/4) / np.sqrt(2 * np.pi * kprime[:, :, None] + beta[None, :, None]**2 * kappa[:, :, None]) * (
+                1 - np.sqrt(2 / (1 + chord_stations[None, None, :])) - (1-1j) * E
+            ) * np.exp(-1j * (Mach[None, :, None] * mu[:, :, None] - kappa[:, :, None]) * (1+chord_stations[None, None, :]))
+
+        loading_harmonics_per_unit_area = np.zeros((3, k.shape[0], self.seg_radius.shape[0], chord_stations.shape[0]), dtype=np.complex128)
+
+        # same as above
+        loading_harmonics_per_unit_area[1, 1:, :, :] = lift_per_unit_area_k[1:, :, :]  * np.cos(self.seg_twist[None, :, None])
+        loading_harmonics_per_unit_area[2, 1:, :, :] = lift_per_unit_area_k[1:, :, :]  * np.sin(self.seg_twist[None, :, None])
+
+        loading_harmonics_per_unit_area[1, 0, :, :] = self.getSearsLoadingDistribution(self.Fzprime, chord_stations) # map the net loads to "reasonable" distributions from Sears
+        loading_harmonics_per_unit_area[2, 0, :, :] = self.getSearsLoadingDistribution(self.Fphiprime, chord_stations)
+
+        # "net loading", used only for debugging
+        # note this is not meaningfull for acoustics since for an acoustic source we should not be able to 
+
+        # loading_harmonics_per_unit_area of shape 3, Nk, Nr, Nc
+        loading_harmonics_per_unit_span = np.trapezoid(loading_harmonics_per_unit_area, chord_stations[None, None, None, :] * self.seg_chord[None, None, :, None], axis=-1) # shape 3, Nk, Nr, unit N/m
+
+        return loading_harmonics_per_unit_area, loading_harmonics_per_unit_span, k, self.seg_radius, chord_stations # return array and all its inputs
+
+    def getSearsLoadingDistribution(self, loading, chord_stations):
+        """
+        given the net load in units N/m, compute the loading distribution along the chord in units N/m^2
+
+        loading - array of shape Nr of net sectional loading harmonics
+        chord_stations - locations to compute the distributed load at of shape Nc, representing non-dimensional chordwise locations from -1 to 1
+
+        note: chord stations should be "well conditioned" for the reverse (integration along the chord) to work properly
+        consider a transform in the form x = -cos(theta) for theta in (0, pi) to cluster points near LE
+        """
+
+        # dc = np.diff(chord_stations)[0] * self.chord / 2 # assumed uniform!, shape Nr
+
+        # loading_per_unit_area = 2 / self.seg_chord[:, None] / np.pi * np.sqrt((1-chord_stations[None, :])/(1+chord_stations[None, :])) * loading[:, None] # units of N/m^2, shape of Nk, Nr, Nc
+
+        # return loading_per_unit_area
+
+        theta_stations = np.arccos(chord_stations) # map chordwise stations to theta space, where Sears kernel is defined, shape Nc
+
+        # Sears kernel in θ-space (no sqrt singularity)
+        kernel = np.tan(0.5 * theta_stations)[None, :]
+
+        loading_per_unit_area = (
+            2 / self.seg_chord[:, None] / np.pi
+            * kernel
+            * loading[:, None]
+        )
+
+        return loading_per_unit_area
+
 
     def getBladeDownwash(self):
         """
@@ -403,6 +478,21 @@ class PotentialInteraction:
 
         return w_normal
     
+    def getBladeDownwashHarmonics(self):
+
+        w = self.getBladeDownwash() # Nr, Nphi
+        k = self.k # Nk
+        phi = self.phi # Nphi
+
+        dphi = np.diff(self.phi)[0]
+        wk = 1 / 2 / np.pi * np.sum(
+            dphi * np.exp(1j * k[None, None, :] * self.phi[None, :, None])*
+            w[:, :, None], axis=1 # reduce the phi axis, result of shape Nr, Nk
+        )
+        wk = wk.T # Nk, Nr for consistency
+
+        return wk
+
     def plotDownwashInRotorPlane(self, fig=None, ax=None):
         w_normal = self.getBladeDownwash() # Nr, Nphi
         r = self.seg_radius
