@@ -35,11 +35,11 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
-# SUFFIX = '_D360_HR'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
+SUFFIX = '_D360_HR'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
@@ -123,6 +123,7 @@ BLH_S = np.zeros_like(BLH)
 BLH_S[:, 0, :] = BLH[:, 0, :]
 BLH_US = np.zeros_like(BLH)
 BLH_US[:, 1:, :] = BLH[:, 1:, :]
+# BLH_US[1, 1:, :] = BLH[1, 1:, :]
 
 p_scattered_loading_S = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
 p_direct_loading_S = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
