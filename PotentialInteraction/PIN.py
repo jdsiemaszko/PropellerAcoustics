@@ -216,7 +216,11 @@ class PotentialInteraction:
         for vortex_index in range(-10, 10, 1): # sum an arbitrary amount of vortices, further ones should be negligible
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
             # phased vortices: shift the passage time by vortex_index * T/B
-            zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega) + 1j * self.Lcylinder 
+            zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega
+                                             
+                                             + self.seg_chord[None, :] / 4 / self.seg_radius[None, :] # position the vortex at quarter-chord!
+
+                                             ) + 1j * self.Lcylinder 
             zvbar = np.conjugate(zv) # complex conjugate
 
             if include_vortex_sources:

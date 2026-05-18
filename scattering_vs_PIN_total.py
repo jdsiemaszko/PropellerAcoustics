@@ -32,11 +32,15 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
 
-from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D10L20_D180'
+# from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D10L20_D180'
+
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180'
+
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
@@ -58,7 +62,7 @@ han = sourceArray.getHanson()
 # END OF HEADER
 
 ind_theta = 6      # 60 to -60 in 10
-ind_phi = 9          # 0 to 350 in 10
+ind_phi = 8          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 

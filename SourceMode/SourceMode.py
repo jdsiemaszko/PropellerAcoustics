@@ -57,10 +57,15 @@ class SourceMode():
         # TODO: shift chord stations by c/4?
         if isinstance(dt, float):
             self.dt = dt
+
+            # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, self.numerics.get('Nchordstations', 1000))
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
+
             self.t_c_distribution = np.ones_like(self.chord_stations) * self.dt / self.chord
         elif isinstance(dt, np.ndarray):
+            # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, dt.shape[0])
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, dt.shape[0]) # assume equidistant thickness stations over the chord length
+
             self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
             self.t_c_distribution = dt / self.chord
 
@@ -117,7 +122,7 @@ class SourceMode():
 
 
         # reshape to GLOBAL cartesian frame: 
-        BLH_global = B @ self.BLH   # (3, Nk)
+        BLH_global = B @ BLH   # (3, Nk)
 
         # Skew-symmetric matrix of axis
         K = np.array([
@@ -158,7 +163,10 @@ class SourceMode():
         expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns-1, Nm, Ndipoles)
         
         # UPDATE (3D loading)
+
+        # TODO: fix!
         BLH_rotated = self._rotate_loadings(BLH=BLH) # shape (Ns, Ndipoles, 3)
+
         loadings_positive = expterm[:, :, :, None] * BLH_rotated[:, None, :, :]
         loadings_negative = np.conjugate(BLH_rotated[:, None, :, :]) * expterm_negative[:, :, :, None]
 
@@ -227,10 +235,10 @@ class SourceMode():
         sminus = -self.s[::-1]
         s = np.concatenate((sminus[:-1], splus)) # twosided, as in the function above, shape 2Ns-1
 
-        N = self.numerics.get('Nchordstations', 1000)
+        # N = self.numerics.get('Nchordstations', 1000)
         # chord_stations = np.linspace(-self.chord/2+1e-12, self.chord/2, N)
 
-        theta = np.linspace(0, np.pi, N)  # no singularity
+        theta = np.linspace(0, np.pi, self.chord_stations.shape[0])  # no singularity
         u = -np.cos(theta)
         weight = 2 * np.cos(theta / 2)**2  # comes from transformation, integrand * du/dtheta
         # weight = np.sqrt((1-u) / (1+u)) * np.sin(theta) #integrand * du/dtheta
@@ -241,7 +249,8 @@ class SourceMode():
 
         phase = np.exp(
             1j * (m[None, None, :] * self.B - s[None, :, None])
-            * (self.chord / 2 * u[:, None, None]) / self.radius
+            # * (self.chord / 2 * u[:, None, None]) / self.radius
+            * np.arctan((self.chord / 2 * u[:, None, None]) / self.radius) # near the root, the approximation phi ~= x/r may fail!
         ) # shape Nchord stations, 2Ns-1, Nm, symmetric in s?
 
         factor = 1 / np.pi * np.trapezoid(
@@ -252,25 +261,31 @@ class SourceMode():
 
 
         # OVERWRITE THE MEAN LOADING FACTOR! - mean lift behaves different from unsteady gust responses!
-        chord_stations, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nchord stations
+        # chord_stations, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nchord stations
 
-        # TODO: replace all loading distributions with f0? -> should reduce the loading noise
+        # phase0 = np.exp(
+        #     1j * (m[None, :] * self.B)
+        #     * (chord_stations[:, None]) / self.radius
+        # ) # shape Nchord stations, Nm
 
-        phase0 = np.exp(
-            1j * (m[None, :] * self.B)
-            * (chord_stations[:, None]) / self.radius
-        ) # shape Nchord stations, Nm
+        # dx = np.diff(chord_stations)[0] # assumed uniform
+        # factor[Ns-1, :] = np.sum(
+        #     f0[:, None] * phase0 * dx,
+        #     axis=0
+        # ) / np.sum(f0 * dx) # shape Nm, mind the normalization
 
-        dx = np.diff(chord_stations)[0] # assumed uniform
-        factor[Ns-1, :] = np.sum(
-            f0[:, None] * phase0 * dx,
-            axis=0
-        ) / np.sum(f0 * dx) # shape Nm, mind the normalization
+        # phase = np.exp(
+        #     1j * (m[None, None, :] * self.B - s[None, :, None])
+        #     * (chord_stations[:, None, None]) / self.radius
+        # ) # shape Nc, 2*Ns-1, Nm
+
+        # dx = np.diff(chord_stations)[0] # assumed uniform
+        # factor = np.sum(
+        #     f0[:, None, None] * phase * dx,
+        #     axis=0
+        # ) / np.sum(f0 * dx) # shape 2*Ns-1, Nm
 
         loading *= factor[:, :, None, None]
-
-        ##### correct for the point-load location: should be at c/4, we put it at c/2
-        # loading *= np.exp(1j * )
 
         return loading
     
@@ -329,7 +344,10 @@ class SourceMode():
         chord_stations = self.chord_stations
 
         # TODO: figure out the sign!
-        phase = np.exp(1j * m[None, :] * self.B * chord_stations[:, None] / self.radius)
+        phase = np.exp(1j * m[None, :] * self.B 
+                    #  * chord_stations[:, None] / self.radius
+            * np.arctan(chord_stations[:, None] / self.radius) # near the root, the approximation phi ~= x/r may fail!
+        )
         # apply the integral
         t_c_effective = 1 / self.chord * np.trapezoid(self.t_c_distribution[:, None] * phase, chord_stations, axis=0) # shape Nm
             
@@ -623,7 +641,7 @@ class SourceModeArray():
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index])
+            pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index] if BLH[index] is not None else None)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
@@ -645,7 +663,7 @@ class SourceModeArray():
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index], gradG_surface=gradG_surface[index])
+            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index] if BLH[index] is not None else None, gradG_surface=gradG_surface[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
@@ -658,7 +676,7 @@ class SourceModeArray():
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS, BLH=BLH[index])
+            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS, BLH= BLH[index]  * self.dr[index] if BLH[index] is not None else None)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
@@ -711,7 +729,7 @@ class SourceModeArray():
     #     pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
     #     for index, child in enumerate(self.children):
     #         print(f'computing contribution of source mode {index+1} of {self.Nr}')
-    #         pmB += child._getPressureFromGrad(x, m, gradG = gradG_surface[index], BLH=BLH[index])
+    #         pmB += child._getPressureFromGrad(x, m, gradG = gradG_surface[index], BLH=BLH[index]  * self.dr[index] if BLH[index] is not None else None)
     #     return pmB 
     
     def plotSelf(self, fig=None, ax=None, plot_normals='last'):

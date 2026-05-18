@@ -37,11 +37,14 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
 
-from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D10L20_D180'
+# from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D10L20_D180'
+
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 
@@ -59,6 +62,9 @@ Omega = sourceArray.Omega
 c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
+
+BLH_S = np.zeros_like(BLH)
+BLH_S[:, 0, :] = BLH[:, 0, :]
 
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -136,7 +142,14 @@ for index, sm in enumerate(sourceArray.children):
     gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
 
 
+
+# total scattered loading
 p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
+
+# only steady loading is scattered
+# p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
+
+
 p_direct_loading = sourceArray.getDirectPressure(x_cart, ms)
 
 # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
