@@ -46,7 +46,7 @@ sourceArray.numerics['CompactnessCorrection'] = True
 
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([2])
+ms = np.array([1])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
@@ -116,8 +116,19 @@ for index, sm in enumerate(sourceArray.children):
     gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
 
 
-p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
-p_direct_loading = sourceArray.getDirectPressure(x_cart, ms)
+
+
+# steady/unsteady loading
+BLH_S = np.zeros_like(BLH)
+BLH_S[:, 0, :] = BLH[:, 0, :]
+BLH_US = np.zeros_like(BLH)
+BLH_US[:, 1:, :] = BLH[:, 1:, :]
+
+p_scattered_loading_S = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
+p_direct_loading_S = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
+
+p_scattered_loading_US = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))
+p_direct_loading_US = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))
 
 # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
 # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
@@ -150,7 +161,7 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
 
 # scattering total
-p_total_scattering = p_direct_thickness + p_direct_loading + p_scattered_loading + p_scattered_thickness
+p_total_scattering = p_direct_thickness + p_direct_loading_S + p_scattered_loading_S + p_direct_loading_US + p_scattered_loading_US + p_scattered_thickness
 
 
 # shift to relative phase w.r.t. mic one at phi=0
@@ -162,8 +173,10 @@ phase_ref = np.angle(p_total_scattering[ind_combined, :])
 
 
 p_direct_thickness *= np.exp(-1j * phase_ref)
-p_direct_loading  *= np.exp(-1j * phase_ref)
-p_scattered_loading *= np.exp(-1j * phase_ref)
+p_direct_loading_S  *= np.exp(-1j * phase_ref)
+p_scattered_loading_S *= np.exp(-1j * phase_ref)
+p_direct_loading_US  *= np.exp(-1j * phase_ref)
+p_scattered_loading_US *= np.exp(-1j * phase_ref)
 p_scattered_thickness *= np.exp(-1j * phase_ref)
 p_total_scattering *= np.exp(-1j * phase_ref)
 
@@ -183,12 +196,15 @@ p_total_scattering *= np.exp(-1j * phase_ref)
 
 # 3D SPL diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(321, projection="3d")
-ax2 = fig.add_subplot(322, projection="3d")
-ax3 = fig.add_subplot(323, projection="3d")
-ax4 = fig.add_subplot(324, projection="3d")
-ax5 = fig.add_subplot(325, projection="3d")
-ax6 = fig.add_subplot(326, projection="3d")
+ax1 = fig.add_subplot(421, projection="3d")
+ax2 = fig.add_subplot(422, projection="3d")
+ax3 = fig.add_subplot(423, projection="3d")
+ax4 = fig.add_subplot(424, projection="3d")
+ax5 = fig.add_subplot(425, projection="3d")
+ax6 = fig.add_subplot(426, projection="3d")
+ax7 = fig.add_subplot(427, projection="3d")
+ax8 = fig.add_subplot(428, projection="3d")
+
 
 
 VMIN, VMAX = 10, 65
@@ -199,28 +215,37 @@ fig, ax2 = plot_3D_directivity(
     p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness Noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_directivity(
-    p_direct_loading[:, 0],theta_m, phi_m, title='Direct Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    p_direct_loading_S[:, 0],theta_m, phi_m, title='Direct Steady Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
 fig, ax4 = plot_3D_directivity(
-    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+    p_scattered_loading_S[:, 0], theta_m, phi_m, title='Scattered Steady Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
 )
 fig, ax5 = plot_3D_directivity(
-    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+    p_direct_loading_US[:, 0],theta_m, phi_m, title='Direct Unsteady Loading Noise', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
 )
 fig, ax6 = plot_3D_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+    p_scattered_loading_US[:, 0], theta_m, phi_m, title='Scattered Unsteady Loading Noise', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+)
+fig, ax7 = plot_3D_directivity(
+    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax7, valmin=VMIN, valmax=VMAX,
+)
+fig, ax8 = plot_3D_directivity(
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax8, valmin=VMIN, valmax=VMAX,
 )
 # fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 
 
 # 3D phase diagram
 fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(321, projection="3d")
-ax2 = fig.add_subplot(322, projection="3d")
-ax3 = fig.add_subplot(323, projection="3d")
-ax4 = fig.add_subplot(324, projection="3d")
-ax5 = fig.add_subplot(325, projection="3d")
-ax6 = fig.add_subplot(326, projection="3d")
+ax1 = fig.add_subplot(421, projection="3d")
+ax2 = fig.add_subplot(422, projection="3d")
+ax3 = fig.add_subplot(423, projection="3d")
+ax4 = fig.add_subplot(424, projection="3d")
+ax5 = fig.add_subplot(425, projection="3d")
+ax6 = fig.add_subplot(426, projection="3d")
+ax7 = fig.add_subplot(427, projection="3d")
+ax8 = fig.add_subplot(428, projection="3d")
+
 
 
 VMIN, VMAX = 10, 65
@@ -231,16 +256,22 @@ fig, ax2 = plot_3D_phase_directivity(
     p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness Noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
 )
 fig, ax3 = plot_3D_phase_directivity(
-    p_direct_loading[:, 0],theta_m, phi_m,  title='Direct Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+    p_direct_loading_S[:, 0],theta_m, phi_m, title='Direct Steady Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
 )
 fig, ax4 = plot_3D_phase_directivity(
-    p_scattered_loading[:, 0], theta_m, phi_m, title='Scattered Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+    p_scattered_loading_S[:, 0], theta_m, phi_m, title='Scattered Steady Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
 )
 fig, ax5 = plot_3D_phase_directivity(
-    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+    p_direct_loading_US[:, 0],theta_m, phi_m, title='Direct Unsteady Loading Noise', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
 )
 fig, ax6 = plot_3D_phase_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+    p_scattered_loading_US[:, 0], theta_m, phi_m, title='Scattered Unsteady Loading Noise', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+)
+fig, ax7 = plot_3D_phase_directivity(
+    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax7, valmin=VMIN, valmax=VMAX,
+)
+fig, ax8 = plot_3D_phase_directivity(
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax8, valmin=VMIN, valmax=VMAX,
 )
 # fig.suptitle(rf"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
 plt.show()

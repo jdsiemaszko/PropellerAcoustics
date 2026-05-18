@@ -63,8 +63,7 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-BLH_S = np.zeros_like(BLH)
-BLH_S[:, 0, :] = BLH[:, 0, :]
+
 
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -147,6 +146,8 @@ for index, sm in enumerate(sourceArray.children):
 p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
 
 # only steady loading is scattered
+# BLH_S = np.zeros_like(BLH)
+# BLH_S[:, 0, :] = BLH[:, 0, :]
 # p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
 
 
