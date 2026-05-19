@@ -39,7 +39,7 @@ LABELS = [f'W={mm:.0f}mm' for mm in [0, 0, 10, 20, 40, 60, 80, 100]]
 LABELS[0] += ' (incl. unsteady loading)'
 
 ind_theta = 0      # -60 to 60 in 10
-ind_phi = 15          # 0 to 350 in 10
+ind_phi = 7          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 

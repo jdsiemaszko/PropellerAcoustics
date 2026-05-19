@@ -422,7 +422,6 @@ class PotentialInteraction:
 
         return loading_per_unit_area
 
-
     def getBladeDownwash(self):
         """
         get downwash at the blade station due to uniform inflow over the cylinder, in m/s, in the time domain
@@ -802,5 +801,131 @@ class PotentialInteraction:
         ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
         
         print(f'maximum surface SPL: {np.max(p_to_SPL(pk))} dB')
+        return fig, ax
+
+    def plotBladeLoadingPerUnitArea(self, m, fig=None, ax=None, chord_stations=None):
+        """
+        Plot the loading at harmonic k=m along the radial and chord
+        directions for each component of loading as contour plots.
+
+        Parameters
+        ----------
+        m : int
+            Harmonic index/value to plot.
+        fig : matplotlib.figure.Figure, optional
+            Existing figure handle.
+        ax : array-like of matplotlib.axes.Axes, optional
+            Existing axes handle(s). Must contain 3 axes.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+        ax : ndarray of matplotlib.axes.Axes
+        """
+
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        # loading_harmonics_per_unit_area shape:
+        # (3, Nk, Nr, Nc)
+        (
+            loading_harmonics_per_unit_area,
+            loading_harmonics_per_unit_span,
+            k,
+            radius,
+            chord_stations,
+        ) = self.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations)
+
+        # Find harmonic index
+        ik = np.argmin(np.abs(k - m))
+
+        # Create figure/axes if needed
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(
+                1, 3,
+                figsize=(15, 4),
+                constrained_layout=True
+            )
+
+        ax = np.atleast_1d(ax)
+
+        if len(ax) != 3:
+            raise ValueError("ax must contain 3 axes.")
+
+        # Radius mesh
+        R = np.tile(radius[:, None], (1, len(chord_stations)))  # (Nr, Nc)
+
+        # Chord positions varying with radius
+        chord_positions = (
+            self.seg_chord[:, None] / 2
+            * chord_stations[None, :]
+        )  # (Nr, Nc)
+
+        component_names = ["r", "ax", "\phi"]
+
+        from matplotlib.colors import LogNorm
+
+        # ------------------------------------------------------------------
+        # Compute common logarithmic color scale across all 3 components
+        # ------------------------------------------------------------------
+
+        all_data = np.abs(loading_harmonics_per_unit_area[:, ik, :, :])
+
+        # Avoid zeros for logarithmic scaling
+        positive_data = all_data[all_data > 0]
+
+        if positive_data.size == 0:
+            vmin, vmax = 1e-12, 1.0
+        else:
+            vmin = np.min(positive_data)
+            vmax = np.max(positive_data)
+
+        # Optional dynamic range limiting
+        vmax = min(vmax, 2 * np.mean(positive_data))
+
+        # Ensure valid bounds
+        vmin = max(vmin, vmax * 1e-6)
+
+        norm = LogNorm(vmin=vmin, vmax=vmax)
+
+        # Log-spaced contour levels
+        levels = np.logspace(
+            np.log10(vmin),
+            np.log10(vmax),
+            51
+        )
+
+        # ------------------------------------------------------------------
+        # Plot
+        # ------------------------------------------------------------------
+
+        for i in range(3):
+
+            # Select component and harmonic
+            data = np.abs(
+                loading_harmonics_per_unit_area[i, ik, :, :]
+            )  # (Nr, Nc)
+
+            # Avoid zeros in plotted field
+            data = np.maximum(data, vmin)
+
+            cf = ax[i].contourf(
+                R,
+                chord_positions,
+                data,
+                levels=levels,
+                norm=norm,
+                cmap="viridis",
+            )
+
+            ax[i].set_title(f"$F_{{{component_names[i]}}}^{{k={k[ik]}}}$")
+            ax[i].set_xlabel("Radius")
+            ax[i].set_ylabel("Chord")
+
+            # Keep equal scaling
+            ax[i].set_aspect(1)
+
+            fig.colorbar(cf, ax=ax[i])
+
         return fig, ax
 

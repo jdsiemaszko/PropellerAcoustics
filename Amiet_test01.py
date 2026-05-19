@@ -35,17 +35,21 @@ pin = PotentialInteraction(
     nb=1,
     numerics={'Nphi': 720, 'Nthetab': 36*2, 'include_vortex_sources':True, 'include_thickness_sources':True}
 )
-
+theta = np.linspace(0, np.pi, 100001)
+# chord_stations_outer = np.linspace(-1, 1, 101)
+chord_stations_outer = -np.cos(theta)
+chord_stations = (chord_stations_outer[1:] + chord_stations_outer[:-1]) / 2
 # pin.plotDownwashInRotorPlane()
 # plt.show()
 
 # pin.plotStrutLoading3D()
 # plt.show()
+pin.plotBladeLoadingPerUnitArea(m=1, chord_stations = chord_stations)
+plt.show()
 
 
 FbladeSears = pin.getBladeLoadingHarmonics()
-chord_stations_outer = np.linspace(-1, 1, 101)
-chord_stations = (chord_stations_outer[1:] + chord_stations_outer[:-1]) / 2
+
 FbladeAmiet_dist, FbladeAmiet, _, _, _ = pin.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations)
 
 k = pin.k
