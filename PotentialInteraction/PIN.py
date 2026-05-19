@@ -359,7 +359,7 @@ class PotentialInteraction:
 
         # TODO: REWRITE THIS FULLY BASED ON MISH & DEVENPORT 2006
         
-        mu = Mach[None, :] / 2 / beta[None, :]**2 * k[:, None] # Nk, Nr
+        mu = Mach[None, :] / beta[None, :]**2 * k[:, None] # Nk, Nr
         kappa = mu # assuming k2=0, shape Nk, Nr
 
         if chord_stations is not None and dc is not None:
@@ -371,16 +371,27 @@ class PotentialInteraction:
             chord_stations = (chord_stations_outer[1:] + chord_stations_outer[:-1]) / 2
             dc = np.diff(chord_stations_outer)
 
+        x = (1+chord_stations) / 2 # ranging from 0 to 1
+
         wk = self.getBladeDownwashHarmonics() # harmonics of downwash at blade station, measured at half-chord only, shape Nk, Nr
 
-        S, C = fresnel((2 * kappa[:, :, None] * (1-chord_stations[None, None, :])/ np.pi)**(0.5)) # shape Nk, Nr, Nc each
-        E = -1j * C + 1j * -1j * S # assemble the complex term
+        S, C = fresnel(2 * 1j * (1/np.pi * (2-x[None, None, :]) * (kappa[:, :, None])**(0.5))) # shape Nk, Nr, Nc each
+        E = C + 1j * S # assemble the complex term
 
-        # l(x, r) of shape Nk, Nr, Nc
-        lift_per_unit_area_k = 2 * self.rho * self.SoS * Mach[None, :, None] * wk[:, :, None] * np.exp(1j *
-                np.pi/4) / np.sqrt(2 * np.pi * kprime[:, :, None] + beta[None, :, None]**2 * kappa[:, :, None]) * (
-                1 - np.sqrt(2 / (1 + chord_stations[None, None, :])) - (1-1j) * E
-            ) * np.exp(-1j * (Mach[None, :, None] * mu[:, :, None] - kappa[:, :, None]) * (1+chord_stations[None, None, :]))
+        # S, C = fresnel((2 * kappa[:, :, None] * (1-chord_stations[None, None, :])/ np.pi)**(0.5)) # shape Nk, Nr, Nc each
+        # E = -1j * C + 1j * -1j * S # assemble the complex term
+
+        # all of shape Nk, Nr, Nc
+        fk = 1 - (x[None, None, :]/2)**(0.5) * (1 - (1-1j) * E) # supercritical case
+
+        gk = -fk / np.pi / beta[None, :, None] * (np.pi * x[None, None, :] * (1j * kappa[:, :, None] + 1j * (Mach[None, :, None] * mu[:, :, None] + kprime[:, :, None])))**(-0.5)
+
+        lift_per_unit_area_k = 2 * np.pi * self.rho * self.SoS * Mach[None, :, None] * wk[:, :, None] * gk
+
+        # lift_per_unit_area_k = 2 * self.rho * self.SoS * Mach[None, :, None] * wk[:, :, None] * np.exp(1j *
+        #         np.pi/4) / np.sqrt(2 * np.pi * kprime[:, :, None] + beta[None, :, None]**2 * kappa[:, :, None]) * (
+        #         1 - np.sqrt(2 / (1 + chord_stations[None, None, :])) - (1-1j) * E
+        #     ) * np.exp(-1j * (Mach[None, :, None] * mu[:, :, None] - kappa[:, :, None]) * (1+chord_stations[None, None, :]))
 
         loading_harmonics_per_unit_area = np.zeros((3, k.shape[0], self.seg_radius.shape[0], chord_stations.shape[0]), dtype=np.complex128)
 

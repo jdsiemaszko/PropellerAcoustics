@@ -53,14 +53,14 @@ FbladeSears = pin.getBladeLoadingHarmonics()
 FbladeAmiet_dist, FbladeAmiet, _, _, _ = pin.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations, dc=np.diff(chord_stations_outer))
 
 k = pin.k
+RINDEX = 25
 
 fig, ax = plt.subplots()
+ax.plot(k, np.abs(FbladeAmiet[1, :, RINDEX]), marker='s', color='r', label='Amiet')
+ax.plot(k, np.abs(FbladeSears[1, :, RINDEX]), marker='^', color='b', label='Sears')
 
-ax.plot(k, np.abs(FbladeAmiet[1, :, 30]), marker='s', color='r', label='Amiet')
-ax.plot(k, np.abs(FbladeSears[1, :, 30]), marker='^', color='b', label='Sears')
-
-ax.plot(k, np.abs(FbladeAmiet[2, :, 30]), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.abs(FbladeSears[2, :, 30]), marker='^', color='b', linestyle='dashed')
+ax.plot(k, np.abs(FbladeAmiet[2, :, RINDEX]), marker='s', color='r', linestyle='dashed')
+ax.plot(k, np.abs(FbladeSears[2, :, RINDEX]), marker='^', color='b', linestyle='dashed')
 ax.set_xlabel('k')
 ax.set_ylabel('$|F^z_{beam}|$ [N/m]')
 ax.legend()
@@ -71,11 +71,11 @@ plt.show()
 
 fig, ax = plt.subplots()
 
-ax.plot(k, np.real(FbladeAmiet[1, :, 30]), marker='s', color='r', label='Amiet')
-ax.plot(k, np.real(FbladeSears[1, :, 30]), marker='^', color='b', label='Sears')
+ax.plot(k, np.real(FbladeAmiet[1, :, RINDEX]), marker='s', color='r', label='Amiet')
+ax.plot(k, np.real(FbladeSears[1, :, RINDEX]), marker='^', color='b', label='Sears')
 
-ax.plot(k, np.real(FbladeAmiet[2, :, 30]), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.real(FbladeSears[2, :, 30]), marker='^', color='b', linestyle='dashed')
+ax.plot(k, np.real(FbladeAmiet[2, :, RINDEX]), marker='s', color='r', linestyle='dashed')
+ax.plot(k, np.real(FbladeSears[2, :, RINDEX]), marker='^', color='b', linestyle='dashed')
 ax.set_xlabel('k')
 ax.set_ylabel('$real(F^z_{beam})$ [N/m]')
 ax.legend()
@@ -85,11 +85,11 @@ plt.show()
 
 fig, ax = plt.subplots()
 
-ax.plot(k, np.imag(FbladeAmiet[1, :, 30]), marker='s', color='r', label='Amiet')
-ax.plot(k, np.imag(FbladeSears[1, :, 30]), marker='^', color='b', label='Sears')
+ax.plot(k, np.imag(FbladeAmiet[1, :, RINDEX]), marker='s', color='r', label='Amiet')
+ax.plot(k, np.imag(FbladeSears[1, :, RINDEX]), marker='^', color='b', label='Sears')
 
-ax.plot(k, np.imag(FbladeAmiet[2, :, 30]), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.imag(FbladeSears[2, :, 30]), marker='^', color='b', linestyle='dashed')
+ax.plot(k, np.imag(FbladeAmiet[2, :, RINDEX]), marker='s', color='r', linestyle='dashed')
+ax.plot(k, np.imag(FbladeSears[2, :, RINDEX]), marker='^', color='b', linestyle='dashed')
 ax.set_xlabel('k')
 ax.set_ylabel('$imag(F^z_{beam})$ [N/m]')
 ax.legend()
@@ -99,11 +99,11 @@ plt.show()
 
 fig, ax = plt.subplots()
 
-ax.plot(k, np.rad2deg(np.angle(FbladeAmiet[1, :, 30])), marker='s', color='r', label='Amiet')
-ax.plot(k, np.rad2deg(np.angle(FbladeSears[1, :, 30])), marker='^', color='b', label='Sears')
+ax.plot(k, np.rad2deg(np.angle(FbladeAmiet[1, :, RINDEX])), marker='s', color='r', label='Amiet')
+ax.plot(k, np.rad2deg(np.angle(FbladeSears[1, :, RINDEX])), marker='^', color='b', label='Sears')
 
-ax.plot(k, np.rad2deg(np.angle(FbladeAmiet[2, :, 30])), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.rad2deg(np.angle(FbladeSears[2, :, 30])), marker='^', color='b', linestyle='dashed')
+ax.plot(k, np.rad2deg(np.angle(FbladeAmiet[2, :, RINDEX])), marker='s', color='r', linestyle='dashed')
+ax.plot(k, np.rad2deg(np.angle(FbladeSears[2, :, RINDEX])), marker='^', color='b', linestyle='dashed')
 
 ax.set_xlabel('k')
 ax.set_ylabel('$Arg(F^z_{beam})$ [deg]')
