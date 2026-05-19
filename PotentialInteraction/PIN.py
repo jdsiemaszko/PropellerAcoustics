@@ -339,7 +339,7 @@ class PotentialInteraction:
 
         return Fblade
 
-    def getBladeLoadingHarmonicsAmiet(self, chord_stations=None):
+    def getBladeLoadingHarmonicsAmiet(self, chord_stations=None, dc=None):
         """
         return Amiet's prediction of US loading of a flat plate, assuming a spanwise gust k2 = 0, and thus THETA = infinity and the gust is supercritical
         
@@ -357,17 +357,24 @@ class PotentialInteraction:
         k = self.k
         kprime = k[:, None] * self.seg_chord[None, :] / 2 # Nk, Nr
 
-        # TODO: check if this makes any sense
+        # TODO: REWRITE THIS FULLY BASED ON MISH & DEVENPORT 2006
         
         mu = Mach[None, :] / 2 / beta[None, :]**2 * k[:, None] # Nk, Nr
         kappa = mu # assuming k2=0, shape Nk, Nr
 
-        chord_stations = chord_stations if chord_stations is not None else np.linspace(-1+1e-12, 1, 100)
+        if chord_stations is not None and dc is not None:
+            chord_stations = chord_stations 
+            dc = dc # TODO: remove redundancy
+        else:
+            theta = np.linspace(0, np.pi, 101)
+            chord_stations_outer = -np.cos(theta)
+            chord_stations = (chord_stations_outer[1:] + chord_stations_outer[:-1]) / 2
+            dc = np.diff(chord_stations_outer)
 
         wk = self.getBladeDownwashHarmonics() # harmonics of downwash at blade station, measured at half-chord only, shape Nk, Nr
 
-        S, C = fresnel(2 * kappa[:, :, None] * (1-chord_stations[None, None, :])) # shape Nk, Nr, Nc each
-        E = C + 1j * S # assemble the complex term
+        S, C = fresnel((2 * kappa[:, :, None] * (1-chord_stations[None, None, :])/ np.pi)**(0.5)) # shape Nk, Nr, Nc each
+        E = -1j * C + 1j * -1j * S # assemble the complex term
 
         # l(x, r) of shape Nk, Nr, Nc
         lift_per_unit_area_k = 2 * self.rho * self.SoS * Mach[None, :, None] * wk[:, :, None] * np.exp(1j *
@@ -388,7 +395,7 @@ class PotentialInteraction:
         # note this is not meaningfull for acoustics since for an acoustic source we should not be able to 
 
         # loading_harmonics_per_unit_area of shape 3, Nk, Nr, Nc
-        loading_harmonics_per_unit_span = np.trapezoid(loading_harmonics_per_unit_area, chord_stations[None, None, None, :] * self.seg_chord[None, None, :, None], axis=-1) # shape 3, Nk, Nr, unit N/m
+        loading_harmonics_per_unit_span = np.sum(loading_harmonics_per_unit_area * dc[None, None, None, :] * self.seg_chord[None, None, :, None] / 2, axis=-1) # shape 3, Nk, Nr, unit N/m
 
         return loading_harmonics_per_unit_area, loading_harmonics_per_unit_span, k, self.seg_radius, chord_stations # return array and all its inputs
 
@@ -803,7 +810,7 @@ class PotentialInteraction:
         print(f'maximum surface SPL: {np.max(p_to_SPL(pk))} dB')
         return fig, ax
 
-    def plotBladeLoadingPerUnitArea(self, m, fig=None, ax=None, chord_stations=None):
+    def plotBladeLoadingPerUnitArea(self, m, fig=None, ax=None, chord_stations=None, dc=None):
         """
         Plot the loading at harmonic k=m along the radial and chord
         directions for each component of loading as contour plots.
@@ -834,7 +841,7 @@ class PotentialInteraction:
             k,
             radius,
             chord_stations,
-        ) = self.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations)
+        ) = self.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations, dc=dc)
 
         # Find harmonic index
         ik = np.argmin(np.abs(k - m))

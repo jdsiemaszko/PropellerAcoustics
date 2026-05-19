@@ -35,7 +35,7 @@ pin = PotentialInteraction(
     nb=1,
     numerics={'Nphi': 720, 'Nthetab': 36*2, 'include_vortex_sources':True, 'include_thickness_sources':True}
 )
-theta = np.linspace(0, np.pi, 100001)
+theta = np.linspace(0, np.pi, 1001)
 # chord_stations_outer = np.linspace(-1, 1, 101)
 chord_stations_outer = -np.cos(theta)
 chord_stations = (chord_stations_outer[1:] + chord_stations_outer[:-1]) / 2
@@ -44,13 +44,13 @@ chord_stations = (chord_stations_outer[1:] + chord_stations_outer[:-1]) / 2
 
 # pin.plotStrutLoading3D()
 # plt.show()
-pin.plotBladeLoadingPerUnitArea(m=1, chord_stations = chord_stations)
+pin.plotBladeLoadingPerUnitArea(m=1, chord_stations = chord_stations, dc=np.diff(chord_stations_outer))
 plt.show()
 
 
 FbladeSears = pin.getBladeLoadingHarmonics()
 
-FbladeAmiet_dist, FbladeAmiet, _, _, _ = pin.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations)
+FbladeAmiet_dist, FbladeAmiet, _, _, _ = pin.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations, dc=np.diff(chord_stations_outer))
 
 k = pin.k
 
@@ -77,7 +77,7 @@ ax.plot(k, np.real(FbladeSears[1, :, 30]), marker='^', color='b', label='Sears')
 ax.plot(k, np.real(FbladeAmiet[2, :, 30]), marker='s', color='r', linestyle='dashed')
 ax.plot(k, np.real(FbladeSears[2, :, 30]), marker='^', color='b', linestyle='dashed')
 ax.set_xlabel('k')
-ax.set_ylabel('$|F^z_{beam}|$ [N/m]')
+ax.set_ylabel('$real(F^z_{beam})$ [N/m]')
 ax.legend()
 ax.grid()
 plt.title('Beam Loadings')
@@ -91,7 +91,7 @@ ax.plot(k, np.imag(FbladeSears[1, :, 30]), marker='^', color='b', label='Sears')
 ax.plot(k, np.imag(FbladeAmiet[2, :, 30]), marker='s', color='r', linestyle='dashed')
 ax.plot(k, np.imag(FbladeSears[2, :, 30]), marker='^', color='b', linestyle='dashed')
 ax.set_xlabel('k')
-ax.set_ylabel('$|F^z_{beam}|$ [N/m]')
+ax.set_ylabel('$imag(F^z_{beam})$ [N/m]')
 ax.legend()
 ax.grid()
 plt.title('Beam Loadings')
