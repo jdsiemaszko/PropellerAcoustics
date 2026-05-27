@@ -59,6 +59,9 @@ if shape == "PARROT":
     TTARGET = 2.15 / sourceArray.B # Newtons
     rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
     rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
+
+    q /= 1.125
+
     r_inner = sourceArray.seg_radius
     r1 = sourceArray.r1
     Fz = np.interp(r_inner/r1, rt, t) # same radial array
@@ -82,7 +85,7 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 7      # 60 to -60 in 10
+ind_theta = -1      # 60 to -60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'

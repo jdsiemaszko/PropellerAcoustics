@@ -55,7 +55,7 @@ shape = 'PARROT'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([5])
+ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
@@ -63,6 +63,8 @@ if shape == "PARROT":
     TTARGET = 2.15 / sourceArray.B # Newtons
     rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
     rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
+
+    q /= 1.125
 
     r_inner = sourceArray.seg_radius
     r1 = sourceArray.r1
