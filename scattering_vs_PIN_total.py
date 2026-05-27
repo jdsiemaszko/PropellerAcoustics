@@ -32,14 +32,19 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
 
 # from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'D15L20_D180'
+# shape='D'
+
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D180'
+shape = 'PARROT'
 
 
 sourceArray.numerics['CompactnessCorrection'] = True
@@ -47,9 +52,22 @@ sourceArray.numerics['CompactnessCorrection'] = True
 
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+
+if shape == "PARROT":
+    TTARGET = 2.15 / sourceArray.B # Newtons
+    rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
+    rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
+    r_inner = sourceArray.seg_radius
+    r1 = sourceArray.r1
+    Fz = np.interp(r_inner/r1, rt, t) # same radial array
+    Q = np.interp(r_inner/r1, rq, q) 
+    Fphi = Q / r_inner
+
+    Fz = Fz / np.trapezoid(Fz, r_inner) * TTARGET # rescale to target
+    Fphi = Fphi / np.trapezoid(Fz, r_inner) * TTARGET # rescale to target
+
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
 PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
@@ -57,16 +75,21 @@ g = -1 * sourceArray.green.origin[2]
 B = sourceArray.B
 c = sourceArray.chord[0]
 Omega = sourceArray.Omega
+if shape == 'PARROT':
+    Omega *= -1
+
 c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
 ind_theta = 7      # 60 to -60 in 10
-ind_phi = 16          # 0 to 350 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
-data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=2, RPM=8000)
+data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape=shape, B=2, 
+                                                                                                RPM=int(Omega * 60/2/np.pi)
+                                                                                                )
 data = data[:, ind_theta, ind_phi]
 x_cart = x_cart_data[:, ind_theta, ind_phi].reshape((3, 1))
 theta = theta_data[ind_theta]
@@ -132,7 +155,7 @@ for index, sm in enumerate(sourceArray.children):
     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
     print(f'pre-computing far-field gradients {index+1}')
 
-    gradG = sm.getScatteringGreenGradient(x_cart, ms*B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+    gradG = sm.getScatteringGreenGradient(x_cart, ms*B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', gradG)
 
 
@@ -159,7 +182,7 @@ for index, sm in enumerate(sourceArray.children):
     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
     print(f'pre-computing far-field gradients {index+1}')
 
-    G = sm.getScatteringGreen(x_cart, ms*B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
+    G = sm.getScatteringGreen(x_cart, ms*B * np.abs(Omega)  / c0, G_surface) # shape (Nm, Nx, Ny)
     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
 
 
@@ -203,10 +226,6 @@ fig, ax = plt.subplots(figsize=(7, 4))
 
 # ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (Hanson)", color='r', marker='^')
 # ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (Hanson)", color='g', marker='^')
-
-
-
-
 
 ax.plot(ms, SPL_rotor_loading, label=f"Loading Noise (Hanson)", color='r', marker='^')
 ax.plot(ms, SPL_rotor_thickness, label=f"Thickness Noise (Hanson)", color='b', marker='^')

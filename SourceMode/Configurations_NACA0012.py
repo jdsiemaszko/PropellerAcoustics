@@ -242,7 +242,7 @@ D15L20W00_D180 = SourceModeArray(
                         Omega=Omega, gamma =twist,
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
-                        green = cg_midres_D10L20W00,
+                        green = cg_midres_D15L20W00,
                         numerics={'Ndipoles' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
@@ -250,4 +250,26 @@ D15L20W00_D180 = SourceModeArray(
                         airfoil = 'naca0012'
                         )
 
+# Parrot rotor, see "Analysis of MAV Rotors Optimized for Low Noise and Aerodynamic Efficiency with Operational Constraints" by Volsi et al. (2024)
+# TODO: change pitch and chord distributions!
 
+rc, c = np.loadtxt('./Data/Parrot2024/chord.csv', skiprows=1, delimiter=',').T # radius, chord in meters
+rp, p = np.loadtxt('./Data/Parrot2024/pitch.csv', skiprows=1, delimiter=',').T # radius, pitch in degrees
+
+chord_parrot = np.interp(r_outer, rc, c)
+pitch_parrot = np.interp(r_outer, rp, p)
+# ref thrust of 2.15N
+PARROT_D20L20W00_D180 = SourceModeArray(
+                        BLH=np.zeros((3, Nk, Nr)), 
+                        B = NBLADES,
+                        Omega = 7250 / 60 * 2 * np.pi, # parrot rotor RPM!
+                        gamma = np.deg2rad(pitch_parrot),
+                        axis=axis_prop, origin=origin_prop,
+                        radius=r_outer,
+                        green = cg_midres_D20L20W00,
+                        numerics={'Ndipoles' : 180},
+                        c0 = c0,
+                        dt = t_c_uniform[None, :] * chord_parrot[:, None], # Nr, Nc
+                        chord = chord_parrot,
+                        airfoil = 'naca0012'
+                        )

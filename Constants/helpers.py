@@ -334,7 +334,9 @@ def compute_distance_matrix(x, y):
 def plot_3D_directivity(vector_to_plot, Theta, Phi, 
     extra_script=lambda fig, ax: None,
     blending=0.1, title=None,
-    valmin = None, valmax=None, fig=None, ax=None):
+    valmin = None, valmax=None, fig=None, ax=None,
+    plot_cbar=False,
+    ):
 
     Ntheta = Theta.shape[0]
     Nphi = Theta.shape[1]
@@ -414,8 +416,10 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
         # --- colorbar ---
         mappable = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
         mappable.set_array(mag_db_c)
-        cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
-        cbar.set_label("Directivity [dB]")
+
+        if plot_cbar:
+            cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
+            cbar.set_label("Directivity [dB]")
 
         # --- axes ---
         if title is not None:
@@ -437,7 +441,7 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
     ax.view_init(25,-45)
 
-    return fig, ax
+    return fig, ax, mappable
 
 def plot_3D_phase_directivity(
     vector_to_plot, Theta, Phi,
@@ -446,7 +450,8 @@ def plot_3D_phase_directivity(
     use_magnitude_radius=True,
     title=None,
     fig=None, ax=None,
-    valmin=None, valmax=None
+    valmin=None, valmax=None,
+    plot_cbar=False,
 ):
     import numpy as np
     import matplotlib.pyplot as plt
@@ -521,12 +526,12 @@ def plot_3D_phase_directivity(
     # --- colorbar ---
     mappable = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     mappable.set_array(phase_2D)
-    cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
-    cbar.set_label("Phase [rad]")
-
-    # nicer ticks
-    cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
-    cbar.set_ticklabels([r"$-\pi$", r"$-\pi/2$", "0", r"$\pi/2$", r"$\pi$"])
+    if plot_cbar:
+        cbar = fig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.1)
+        cbar.set_label("Phase [rad]")
+        # nicer ticks
+        cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
+        cbar.set_ticklabels([r"$-\pi$", r"$-\pi/2$", "0", r"$\pi/2$", r"$\pi$"])
 
     # --- axes ---
     if title is not None:
@@ -545,7 +550,7 @@ def plot_3D_phase_directivity(
 
     ax.view_init(25, -45)
 
-    return fig, ax
+    return fig, ax, mappable
 
 def plot_2D_directivity(
     G, Theta,
@@ -1024,3 +1029,118 @@ def find_alpha(CL_target, Re, airfoil, alpha_bounds=(-10, 10)):
         model_size="xxxlarge",
     )
     return sol.root, aero
+
+def plot_beam_azimuth(RMAX = 1.0, fig=None,ax=None):
+    """
+    plot a radial line from 0 to RMAX along azimuth zero
+    create 3D fig, ax environments if not provided
+    """
+
+        # Create figure/axes if needed
+    if fig is None or ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+    # Radial coordinate
+    r = np.linspace(0, RMAX, 100)
+
+    # Azimuth = 0
+    theta = 0.0
+
+    # Convert polar -> Cartesian
+    x = r * np.cos(theta)
+    y = r * np.sin(theta)
+
+    # Flat z=0 plane
+    z = np.zeros_like(r)
+
+    # Plot beam line
+    ax.plot(x, y, z, 
+        linewidth=3, color='k', linestyle='dashed', alpha=0.7,
+        zorder=1e6,)
+
+
+    # Force line artists to render above collections/surfaces
+    for artist in ax.lines:
+        artist.set_zorder(1e6)
+
+    return fig, ax
+
+
+def plot_rotation_arrow(RMAX=1.0, PHI_EXTENT=[0, 60], fig=None, ax=None):
+    """
+    Plot a curved counterclockwise rotation arrow in the xy-plane.
+
+    Creates 3D fig, ax environments if not provided.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+    ax : mpl_toolkits.mplot3d.axes3d.Axes3D
+    """
+
+    # Create figure/axes if needed
+    if fig is None or ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+    # Arc radius
+    r = RMAX
+
+    # Arc angles (counterclockwise)
+    theta = np.linspace(
+        np.deg2rad(PHI_EXTENT[0]),
+        np.deg2rad(PHI_EXTENT[1]),
+        200
+    )
+
+    # Arc coordinates
+    x = r * np.cos(theta)
+    y = r * np.sin(theta)
+
+    # Slight z-offset so arrow stays visible
+    z = np.full_like(x, 1e-6)
+
+    # Plot curved arc
+    ax.plot(
+        x,
+        y,
+        z,
+        color='k',
+        linewidth=2,
+        # alpha=0.7,
+        zorder=1e6,
+    )
+
+    # Arrowhead at end of arc
+    theta_end = theta[-1]
+
+    xh = r * np.cos(theta_end)
+    yh = r * np.sin(theta_end)
+    zh = 1e-6
+
+    # Tangent direction for CCW rotation
+    dx = -np.sin(theta_end)
+    dy =  np.cos(theta_end)
+
+    # Draw arrowhead
+    ax.quiver(
+        xh,
+        yh,
+        zh,
+        dx,
+        dy,
+        0,
+        length=0.12 * RMAX,
+        normalize=True,
+        color='k',
+        linewidth=2,
+        arrow_length_ratio=1.0,
+    )
+
+    # Force visibility above surfaces
+    for artist in ax.lines:
+        artist.set_zorder(1e6)
+
+    return fig, ax
+

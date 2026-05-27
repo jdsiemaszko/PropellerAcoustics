@@ -5,10 +5,14 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
     """
     parse the h5 files from the Gojon et al. 2023 dataset
     """
-    if shape != 'A':
-        casefile = f'ISAE_2_{shape}{int(1000*D)}_L{int(1000*L)}'
-    else:
-        casefile = f'ISAE_2_airfoil_8000'
+    match shape:
+        case 'PARROT':
+            casefile = f'ISAE_PARROT_D{int(1000*D)}_L{int(1000*L)}'
+        case 'A':
+            casefile = f'ISAE_2_airfoil_8000'
+        case _:
+            casefile = f'ISAE_2_{shape}{int(1000*D)}_L{int(1000*L)}'
+
     def load_h5(filename):
         return h5py.File(filename, "r")
 
@@ -20,7 +24,7 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
         theta_exp = np.array(g["theta_deg"])[0] # polar angle array
         radius = g["radius_m"][0][0] # float
 
-        BPF = B * RPM / 60
+        BPF = np.abs(B * RPM / 60)
         if shape != 'A':
             phi_exp = np.array(g["phi_deg"])[0]# azimuth
             data = np.array(ap[f"Autopower_RPM_{RPM}_Pa2"]) # (freq, polar, azimuth), (aziuth=0 = > beam axis, azimuth=9 => 90 deg)
@@ -38,6 +42,12 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
         radius * np.sin(np.deg2rad(phi[None, :])) * np.sin(np.deg2rad(theta[:, None])),
         radius * np.cos(np.deg2rad(theta[:, None])) * np.ones_like(phi[None, :]),
     ]) # shape Ntheta, Nphi
+
+    # switch the phi array if the rotor rotates the other way (CCW)
+    # all else should be unaffected
+    # TODO: check if correct
+    if RPM < 0:
+        phi = - phi
 
     return data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile
 
