@@ -34,7 +34,13 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
 
     theta_exp = -theta_exp # wrong arrangement in the dataset!
     theta = 90 - theta_exp
-    phi = 180 - phi_exp
+
+    # TODO: check if correct
+    if RPM < 0:
+        phi = (180 + phi_exp) % 360
+    else:
+        phi = (180 - phi_exp) % 360
+
     print(f'Theta_exp = {theta_exp} deg, Phi_exp = {phi_exp} deg')
     print(f'Theta = {theta} deg, Phi = {phi} deg')
     x_cart = np.array([
@@ -45,10 +51,7 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
 
     # switch the phi array if the rotor rotates the other way (CCW)
     # all else should be unaffected
-    # TODO: check if correct
-    if RPM < 0:
-        phi = - phi
-        # theta = (theta + 180) % 180
+
 
     return data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile
 
