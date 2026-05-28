@@ -335,7 +335,7 @@ class PotentialInteraction:
         Fblade[2, :, :] = Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
 
 
-        # steady loads. Note: phase shift
+        # steady loads.
         Fblade[1, 0, :] = self.Fzprime # axial, positive upwards, NOTE: Fzprime is PER BLADE, so is Fphiprime
         Fblade[2, 0, :] = self.Fphiprime # tangential, positive backwards
 
@@ -456,6 +456,10 @@ class PotentialInteraction:
         Ds = self.Dcylinder
         Ls = self.Lcylinder
 
+        # correct for position of c/4 - the shift may be significant if 1) the chord is large 2) the twist is large
+        # Leff = Ls + self.seg_chord / 4 * np.sin(self.seg_twist) # distance to quarter chord!
+        Leff = Ls * np.ones_like(self.seg_radius)
+
         # complex variable
         # Note: here we need the assumption r * pi >> Lcylinder!
         Nphi = self._numerics.get('Nphi', 360)
@@ -463,7 +467,7 @@ class PotentialInteraction:
 
         phi_long = np.linspace(-N * np.pi, N * np.pi, Nphi * N, endpoint=False)
 
-        z = 1j * Ls + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi
+        z = 1j * Leff[:, None] + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi
 
         # CIRCLE conjugate
         zprime = Ds**2 / 4 / z

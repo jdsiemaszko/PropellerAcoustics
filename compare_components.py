@@ -37,6 +37,7 @@ from SourceMode.Configurations_NACA0012 import m_surface
 
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D180_MR'
+# shape = 'D'
 
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
 # SUFFIX = '_D360_HR'
@@ -50,16 +51,13 @@ sourceArray.numerics['CompactnessCorrection'] = True
 
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([3])
+ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
 if shape == "PARROT":
-    TTARGET = 2.15 / sourceArray.B # Newtons
     rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
     rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
-
-    q /= 1.125
 
     r_inner = sourceArray.seg_radius
     r1 = sourceArray.r1
@@ -67,15 +65,17 @@ if shape == "PARROT":
     Q = np.interp(r_inner/r1, rq, q) 
     Fphi = Q / r_inner
 
-    Fz = Fz / np.trapezoid(Fz, r_inner) * TTARGET # rescale to target
-    Fphi = Fphi / np.trapezoid(Fz, r_inner) * TTARGET # rescale to target
+    TTARGET = 2.15 / sourceArray.B # Newtons
+    QTARGET = 25 / 1000 / sourceArray.B # Newton-radian-meters
+    Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
+    Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
 
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
 PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
 B = sourceArray.B
-c = sourceArray.chord[0]
+c = sourceArray.chord
 Omega = sourceArray.Omega
 
 if shape == 'PARROT':
@@ -186,7 +186,7 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
 
 # scattering total
-p_total_scattering = p_direct_thickness + p_direct_loading_S + p_scattered_loading_S + p_direct_loading_US + p_scattered_loading_US + p_scattered_thickness
+p_total_scattering = p_direct_thickness + p_direct_loading_S + p_scattered_loading_S + p_direct_loading_US + p_scattered_thickness + p_scattered_loading_US 
 
 
 # shift to relative phase w.r.t. mic one at phi=0

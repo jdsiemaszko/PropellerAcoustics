@@ -24,7 +24,7 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
         theta_exp = np.array(g["theta_deg"])[0] # polar angle array
         radius = g["radius_m"][0][0] # float
 
-        BPF = np.abs(B * RPM / 60)
+        BPF = np.abs(B * RPM / 60) # Hz
         if shape != 'A':
             phi_exp = np.array(g["phi_deg"])[0]# azimuth
             data = np.array(ap[f"Autopower_RPM_{RPM}_Pa2"]) # (freq, polar, azimuth), (aziuth=0 = > beam axis, azimuth=9 => 90 deg)
@@ -48,6 +48,7 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
     # TODO: check if correct
     if RPM < 0:
         phi = - phi
+        # theta = -theta
 
     return data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile
 

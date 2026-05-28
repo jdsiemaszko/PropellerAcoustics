@@ -12,8 +12,8 @@ import time
 # SUFFIX = 'D15L20_D180'
 
 from SourceMode.Configurations_NACA0012 import *
-sourceArray = PARROT_D20L20W00_D180
-SUFFIX = 'PARROT_D20L20_D180'
+sourceArray = PARROT_D20L20W00_D360
+SUFFIX = 'PARROT_D20L20_D360'
 
 ms = np.arange(1, 11, 1)
 MODE = 'half'
@@ -136,11 +136,11 @@ for index, sm in enumerate(sourceArray.children):
     source_positions = sm.dipole_positions
 
     start_compute = time.time()
-    G_surface = sm.green.getGreenAtSurface(source_positions, ms*
-sourceArray.B * 
-sourceArray.Omega / 
-sourceArray.SoS
-)  # shape (Nm, Nz, Ny)
+    G_surface = sm.green.getGreenAtSurface( source_positions, ms*
+                                            sourceArray.B * 
+                                            sourceArray.Omega / 
+                                            sourceArray.SoS
+                                            )  # shape (Nm, Nz, Ny)
     end_compute = time.time()
 
     np.save(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
