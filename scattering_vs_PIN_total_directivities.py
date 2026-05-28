@@ -60,7 +60,7 @@ shape = 'PARROT'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([3])
+ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 

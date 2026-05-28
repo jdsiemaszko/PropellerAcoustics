@@ -243,8 +243,19 @@ class SourceMode():
         # weight = 2 * np.cos(theta / 2)**2  # comes from transformation, integrand * du/dtheta
 
 
-        # weight = (1-np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)?
-        weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)? # pretty sure it's this one!
+        weight = (1-np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)?
+        # weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)? 
+
+        # Roger et al. (2006):
+        """
+        The [reversed Sears'] model ensures a concentration of the induced loads at the trailing edge. 
+        In fact, the classical Sears’ problem, assuming concentrated unsteady loads at the leading edge,
+        is valid at zero or moderate ﬂow rate. In contrast, the assumption of concentated loads
+        at the trailing edge is more reliable at high ﬂow rate because the trailing edges come closer to the
+        transmission shaft.
+        """
+
+        # TODO: implement REVERESED SEARS or PARRY with LEADING EDGE BACKSCATTERING
 
         # weight = np.sqrt((1-u) / (1+u)) * np.sin(theta) #integrand * du/dtheta
         # weight = np.sin(theta) * 1 / np.tan(theta/2) #integrand * du/dtheta

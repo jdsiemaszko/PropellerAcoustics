@@ -48,7 +48,7 @@ def getGojonData(datadir, D, L, shape='D', B=2, RPM=8000):
     # TODO: check if correct
     if RPM < 0:
         phi = - phi
-        # theta = -theta
+        # theta = (theta + 180) % 180
 
     return data, BPF, freq, x_cart, theta, phi, theta_exp, phi_exp, casefile
 
