@@ -46,6 +46,10 @@ for j in range(len(r)):
     idx_m01R = np.where(uy_m01R[:, 0] <= r_rT)[0]
     U_flow_m01R[j] = uy_m01R[idx_m01R[-1], 1]
 
+
+np.save('./data/Vella2026/Uinf.npy',U_flow_m01R)
+np.save('./data/Vella2026/r.npy',r)
+
 # Induced velocity
 Vi = np.abs(U_flow_m01R)
 Ur = np.sqrt((Omega * r)**2 + Vi**2)

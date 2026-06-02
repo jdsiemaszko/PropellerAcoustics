@@ -19,7 +19,7 @@ from scipy.interpolate import interp1d
 # Configuration
 # -------------------------------------------------------------------
 
-MAT_FILE = "./Data/current/iLES/ISAE2_L20_D20_Loading_50_50.mat"
+MAT_FILE = "./Data/current/iLES/ISAE2_L20_D20_Loading_20_20.mat"
 
 # -------------------------------------------------------------------
 # Load .mat file

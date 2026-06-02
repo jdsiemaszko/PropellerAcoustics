@@ -55,7 +55,6 @@ class PotentialInteraction:
         if U0_mps is not None:
             self.Ui = U0_mps # (2, Nr) x positive to the right, y positive upwards
         else:
-            
             # TODO: Landgrebe inflow model!
 
             Uiz = - np.sqrt(self.Fzprime * self.B /  4 / np.pi / self.rho / self.seg_radius) # positive upwards, mind that this should include total loading: B * Fzprime
@@ -68,12 +67,18 @@ class PotentialInteraction:
         # pre-compute common arrays
         Nphi = self._numerics.get('Nphi', 360)
         self.phi = np.linspace(-np.pi, np.pi, Nphi, endpoint=False)
-        Nthetab = self._numerics.get('Nthetab', 360)
+        Nthetab = self._numerics.get('Nthetab', 36)
         self.theta_beam = np.linspace(0, 2 * np.pi, Nthetab, endpoint=False) # angles on the cylinder surface, measured from the prop. plane, size (Npoints)
 
         self.Ur = np.sqrt(
             (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
         ) # relative velocity over the blade (mean?), shape Nr
+
+    def updateUi(self, Ui):
+        self.Ui = Ui
+        self.Ur = np.sqrt(
+            (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
+        )
 
     def getStrutLoading(self):
         pressure  = self.getStrutPressure() # Nthetab, Nphi, Nr
@@ -134,9 +139,15 @@ class PotentialInteraction:
         """
         get QS-unsteady circulation as a function of phi
         """
+
+        do_gamma_steady = self._numerics.get('gamma_steady', False) # do we consider QS or S gamma?
+
         gamma_k = self.getGammaHarmonics() #Nk, Nr
         gamma_kk, kk = twoside_spectrum(gamma_k, self.k) # get two-sided spectrum
         gamma_phi, phi = ifft_periodic(gamma_kk, 2 * np.pi, self.phi, kk) # Nphi, Nr
+
+        if do_gamma_steady: 
+            gamma_phi = np.ones_like(phi)[:, None] * np.mean(gamma_phi, axis=0)[None, :] # fill the gamma array with means along phi
 
         return gamma_phi
 

@@ -212,7 +212,6 @@ class HansonModel():
 
         pt_mb *= -m**2 * self.B**2 * multiplier * self.Omega**2 * self.rho * np.exp(1j
                 * m * self.B * self.Omega / c0 * R[:, None]) / 4 / np.pi / R[:, None]
-
         return pt_mb, x
 
     def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fstator:np.ndarray, multiplier:float=None):
