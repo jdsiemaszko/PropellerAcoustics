@@ -541,7 +541,8 @@ class SourceModeArray():
                   rho0 = 1.2,
                   nu = 14.61e-6, # m^2/s, 
                 numerics={
-                    'Ndipoles':36
+                    'Ndipoles':36,
+                    'Nlayers':1
                 },
                 dt = None,
                 chord = None
@@ -600,7 +601,9 @@ class SourceModeArray():
 
 
 
-        self.Ndipoles = numerics.get('Ndipoles', 36)
+        self.Ndipoles = numerics.get('Ndipoles', 36) # number of dipoles in EACH source mode
+        self.Nlayers = numerics.get('Nlayers', 1) # number of layers in the axial direction
+
         self.axis = axis
         self.origin = origin
         self.numerics=numerics
@@ -618,6 +621,8 @@ class SourceModeArray():
 
         self.children = [None] * self.Nr # individual source modes!
         for index, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, np.transpose(self.BLH, axes=(2, 0, 1)))):
+
+            # create child source-modes, each at a given radial station
             self.children[index] = SourceMode(
                 BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
                         B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
@@ -988,7 +993,8 @@ class SourceModeArray():
 
         return han
         
-
+    def getGreen(self):
+        return self.green
 
 if __name__ == "__main__":
     from TailoredGreen.CylinderGreen import CylinderGreen
