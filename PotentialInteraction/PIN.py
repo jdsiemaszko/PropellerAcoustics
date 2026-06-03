@@ -1,6 +1,6 @@
 import numpy as np
 import numpy as np
-from scipy.special import jv
+from scipy.special import jv, fresnel
 from scipy.interpolate import interp1d
 from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated, plot_directivity_contour, p_to_SPL
 import matplotlib.pyplot as plt
@@ -27,7 +27,7 @@ class PotentialInteraction:
         self.Lcylinder = Lcylinder_m
         self.Omega=Omega_rads
         self.rho = rho_kgm3
-        self.c = c_mps # speed of sound
+        self.SoS = c_mps # speed of sound
         self.nbeam = nb
         self._numerics = numerics
 
@@ -55,8 +55,9 @@ class PotentialInteraction:
         if U0_mps is not None:
             self.Ui = U0_mps # (2, Nr) x positive to the right, y positive upwards
         else:
+            # TODO: Landgrebe inflow model!
 
-            Uiz = -np.sqrt(self.Fzprime * self.B /  4 / np.pi / self.rho / self.seg_radius) # positive upwards, mind that this should include total loading: B * Fzprime
+            Uiz = - np.sqrt(self.Fzprime * self.B /  4 / np.pi / self.rho / self.seg_radius) # positive upwards, mind that this should include total loading: B * Fzprime
             Uiz[np.where(Uiz==0)] = 1e-12 # dont divide by zero!
             Uiphi = self.Fphiprime * self.B / 4 / np.pi / self.rho / self.seg_radius / np.abs(Uiz) # positive to the right, Note: dQ is the side force, not torque!
             # Uiphi = np.zeros_like(self.seg_radius) # ignore component!
@@ -66,12 +67,18 @@ class PotentialInteraction:
         # pre-compute common arrays
         Nphi = self._numerics.get('Nphi', 360)
         self.phi = np.linspace(-np.pi, np.pi, Nphi, endpoint=False)
-        Nthetab = self._numerics.get('Nthetab', 360)
+        Nthetab = self._numerics.get('Nthetab', 36)
         self.theta_beam = np.linspace(0, 2 * np.pi, Nthetab, endpoint=False) # angles on the cylinder surface, measured from the prop. plane, size (Npoints)
 
         self.Ur = np.sqrt(
             (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
         ) # relative velocity over the blade (mean?), shape Nr
+
+    def updateUi(self, Ui):
+        self.Ui = Ui
+        self.Ur = np.sqrt(
+            (self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2
+        )
 
     def getStrutLoading(self):
         pressure  = self.getStrutPressure() # Nthetab, Nphi, Nr
@@ -132,9 +139,15 @@ class PotentialInteraction:
         """
         get QS-unsteady circulation as a function of phi
         """
+
+        do_gamma_steady = self._numerics.get('gamma_steady', False) # do we consider QS or S gamma?
+
         gamma_k = self.getGammaHarmonics() #Nk, Nr
         gamma_kk, kk = twoside_spectrum(gamma_k, self.k) # get two-sided spectrum
         gamma_phi, phi = ifft_periodic(gamma_kk, 2 * np.pi, self.phi, kk) # Nphi, Nr
+
+        if do_gamma_steady: 
+            gamma_phi = np.ones_like(phi)[:, None] * np.mean(gamma_phi, axis=0)[None, :] # fill the gamma array with means along phi
 
         return gamma_phi
 
@@ -284,26 +297,17 @@ class PotentialInteraction:
 
     def getBladeLoadingHarmonics(self, QS=False):
         """
-        returns loading ON the blade in the fourier domain
+        returns loading acting ON the blade in the frequency domain, according to Sears
         result of shape (3, Nk, Nr)
         3: radial, axial, tangential
         k's correspond to frequencies k * Omega
         QS - if True, use quasi-steady assumption, else use full unsteady Sears function
         """
 
-        w = self.getBladeDownwash() # Nr, Nphi
-        k = self.k # Nk
-        phi = self.phi # Nphi
-
-        dphi = np.diff(self.phi)[0]
-        wk = 1 / 2 / np.pi * np.sum(
-            dphi * np.exp(1j * k[None, None, :] * self.phi[None, :, None])*
-            w[:, :, None], axis=1 # reduce the phi axis, result of shape Nr, Nk
-        )
-        wk = wk.T # Nk, Nr for consistency
+        wk = self.getBladeDownwashHarmonics()
 
         Ur = self.Ur # Nr
-
+        k = self.k
         # --- Theodorsen arguments ---
         sigma = k[:, None] * self.Omega * self.seg_chord[None, :] / (2.0 * Ur[None, :])      # (Nk, Nr)
         beta = np.pi/2 - self.seg_twist # alpha in Wu et al. 2022, shape Nr
@@ -342,11 +346,112 @@ class PotentialInteraction:
         Fblade[2, :, :] = Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
 
 
-        # steady loads. Note: phase shift
+        # steady loads.
         Fblade[1, 0, :] = self.Fzprime # axial, positive upwards, NOTE: Fzprime is PER BLADE, so is Fphiprime
         Fblade[2, 0, :] = self.Fphiprime # tangential, positive backwards
 
         return Fblade
+
+    def getBladeLoadingHarmonicsAmiet(self, chord_stations=None, dc=None):
+        """
+        return Amiet's prediction of US loading of a flat plate, assuming a spanwise gust k2 = 0, and thus THETA = infinity and the gust is supercritical
+        
+        result of shape (3, Nk, Nr, Nc) with chordwise stations of size Nc,
+        optionally, the chordwise array (ranging from -1 to 1) can be provided as an input
+        """
+
+        Mach = np.sqrt(
+         (self.Omega * self.seg_radius - self.Ui[0])**2 + 
+         self.Ui[1]**2 
+        ) / self.SoS # shape Nr
+
+        beta = np.sqrt(1-Mach**2) # Nr
+
+        k = self.k
+        kprime = k[:, None] * self.seg_chord[None, :] / 2 # Nk, Nr
+
+        # TODO: REWRITE THIS FULLY BASED ON MISH & DEVENPORT 2006
+        
+        mu = Mach[None, :] / beta[None, :]**2 * k[:, None] # Nk, Nr
+        kappa = mu # assuming k2=0, shape Nk, Nr
+
+        if chord_stations is not None and dc is not None:
+            chord_stations = chord_stations 
+            dc = dc # TODO: remove redundancy
+        else:
+            theta = np.linspace(0, np.pi, 101)
+            chord_stations_outer = -np.cos(theta)
+            chord_stations = (chord_stations_outer[1:] + chord_stations_outer[:-1]) / 2
+            dc = np.diff(chord_stations_outer)
+
+        x = (1+chord_stations) / 2 # ranging from 0 to 1
+
+        wk = self.getBladeDownwashHarmonics() # harmonics of downwash at blade station, measured at half-chord only, shape Nk, Nr
+
+        S, C = fresnel(2 * 1j * (1/np.pi * (2-x[None, None, :]) * (kappa[:, :, None])**(0.5))) # shape Nk, Nr, Nc each
+        E = C + 1j * S # assemble the complex term
+
+        # S, C = fresnel((2 * kappa[:, :, None] * (1-chord_stations[None, None, :])/ np.pi)**(0.5)) # shape Nk, Nr, Nc each
+        # E = -1j * C + 1j * -1j * S # assemble the complex term
+
+        # all of shape Nk, Nr, Nc
+        fk = 1 - (x[None, None, :]/2)**(0.5) * (1 - (1-1j) * E) # supercritical case
+
+        gk = -fk / np.pi / beta[None, :, None] * (np.pi * x[None, None, :] * (1j * kappa[:, :, None] + 1j * (Mach[None, :, None] * mu[:, :, None] + kprime[:, :, None])))**(-0.5)
+
+        lift_per_unit_area_k = 2 * np.pi * self.rho * self.SoS * Mach[None, :, None] * wk[:, :, None] * gk
+
+        # lift_per_unit_area_k = 2 * self.rho * self.SoS * Mach[None, :, None] * wk[:, :, None] * np.exp(1j *
+        #         np.pi/4) / np.sqrt(2 * np.pi * kprime[:, :, None] + beta[None, :, None]**2 * kappa[:, :, None]) * (
+        #         1 - np.sqrt(2 / (1 + chord_stations[None, None, :])) - (1-1j) * E
+        #     ) * np.exp(-1j * (Mach[None, :, None] * mu[:, :, None] - kappa[:, :, None]) * (1+chord_stations[None, None, :]))
+
+        loading_harmonics_per_unit_area = np.zeros((3, k.shape[0], self.seg_radius.shape[0], chord_stations.shape[0]), dtype=np.complex128)
+
+        # same as above
+        loading_harmonics_per_unit_area[1, 1:, :, :] = lift_per_unit_area_k[1:, :, :]  * np.cos(self.seg_twist[None, :, None])
+        loading_harmonics_per_unit_area[2, 1:, :, :] = lift_per_unit_area_k[1:, :, :]  * np.sin(self.seg_twist[None, :, None])
+
+        loading_harmonics_per_unit_area[1, 0, :, :] = self.getSearsLoadingDistribution(self.Fzprime, chord_stations) # map the net loads to "reasonable" distributions from Sears
+        loading_harmonics_per_unit_area[2, 0, :, :] = self.getSearsLoadingDistribution(self.Fphiprime, chord_stations)
+
+        # "net loading", used only for debugging
+        # note this is not meaningfull for acoustics since for an acoustic source we should not be able to 
+
+        # loading_harmonics_per_unit_area of shape 3, Nk, Nr, Nc
+        loading_harmonics_per_unit_span = np.sum(loading_harmonics_per_unit_area * dc[None, None, None, :] * self.seg_chord[None, None, :, None] / 2, axis=-1) # shape 3, Nk, Nr, unit N/m
+
+        return loading_harmonics_per_unit_area, loading_harmonics_per_unit_span, k, self.seg_radius, chord_stations # return array and all its inputs
+
+    def getSearsLoadingDistribution(self, loading, chord_stations):
+        """
+        given the net load in units N/m, compute the loading distribution along the chord in units N/m^2
+
+        loading - array of shape Nr of net sectional loading harmonics
+        chord_stations - locations to compute the distributed load at of shape Nc, representing non-dimensional chordwise locations from -1 to 1
+
+        note: chord stations should be "well conditioned" for the reverse (integration along the chord) to work properly
+        consider a transform in the form x = -cos(theta) for theta in (0, pi) to cluster points near LE
+        """
+
+        # dc = np.diff(chord_stations)[0] * self.chord / 2 # assumed uniform!, shape Nr
+
+        # loading_per_unit_area = 2 / self.seg_chord[:, None] / np.pi * np.sqrt((1-chord_stations[None, :])/(1+chord_stations[None, :])) * loading[:, None] # units of N/m^2, shape of Nk, Nr, Nc
+
+        # return loading_per_unit_area
+
+        theta_stations = np.arccos(chord_stations) # map chordwise stations to theta space, where Sears kernel is defined, shape Nc
+
+        # Sears kernel in θ-space (no sqrt singularity)
+        kernel = np.tan(0.5 * theta_stations)[None, :]
+
+        loading_per_unit_area = (
+            2 / self.seg_chord[:, None] / np.pi
+            * kernel
+            * loading[:, None]
+        )
+
+        return loading_per_unit_area
 
     def getBladeDownwash(self):
         """
@@ -362,6 +467,10 @@ class PotentialInteraction:
         Ds = self.Dcylinder
         Ls = self.Lcylinder
 
+        # correct for position of c/4 - the shift may be significant if 1) the chord is large 2) the twist is large
+        # Leff = Ls + self.seg_chord / 4 * np.sin(self.seg_twist) # distance to quarter chord!
+        Leff = Ls * np.ones_like(self.seg_radius)
+
         # complex variable
         # Note: here we need the assumption r * pi >> Lcylinder!
         Nphi = self._numerics.get('Nphi', 360)
@@ -369,7 +478,7 @@ class PotentialInteraction:
 
         phi_long = np.linspace(-N * np.pi, N * np.pi, Nphi * N, endpoint=False)
 
-        z = 1j * Ls + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi
+        z = 1j * Leff[:, None] + self.seg_radius[:, None] * phi_long[None, :] # Nr, Nphi
 
         # CIRCLE conjugate
         zprime = Ds**2 / 4 / z
@@ -403,6 +512,21 @@ class PotentialInteraction:
 
         return w_normal
     
+    def getBladeDownwashHarmonics(self):
+
+        w = self.getBladeDownwash() # Nr, Nphi
+        k = self.k # Nk
+        phi = self.phi # Nphi
+
+        dphi = np.diff(self.phi)[0]
+        wk = 1 / 2 / np.pi * np.sum(
+            dphi * np.exp(1j * k[None, None, :] * self.phi[None, :, None])*
+            w[:, :, None], axis=1 # reduce the phi axis, result of shape Nr, Nk
+        )
+        wk = wk.T # Nk, Nr for consistency
+
+        return wk
+
     def plotDownwashInRotorPlane(self, fig=None, ax=None):
         w_normal = self.getBladeDownwash() # Nr, Nphi
         r = self.seg_radius
@@ -712,5 +836,131 @@ class PotentialInteraction:
         ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
         
         print(f'maximum surface SPL: {np.max(p_to_SPL(pk))} dB')
+        return fig, ax
+
+    def plotBladeLoadingPerUnitArea(self, m, fig=None, ax=None, chord_stations=None, dc=None):
+        """
+        Plot the loading at harmonic k=m along the radial and chord
+        directions for each component of loading as contour plots.
+
+        Parameters
+        ----------
+        m : int
+            Harmonic index/value to plot.
+        fig : matplotlib.figure.Figure, optional
+            Existing figure handle.
+        ax : array-like of matplotlib.axes.Axes, optional
+            Existing axes handle(s). Must contain 3 axes.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+        ax : ndarray of matplotlib.axes.Axes
+        """
+
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        # loading_harmonics_per_unit_area shape:
+        # (3, Nk, Nr, Nc)
+        (
+            loading_harmonics_per_unit_area,
+            loading_harmonics_per_unit_span,
+            k,
+            radius,
+            chord_stations,
+        ) = self.getBladeLoadingHarmonicsAmiet(chord_stations=chord_stations, dc=dc)
+
+        # Find harmonic index
+        ik = np.argmin(np.abs(k - m))
+
+        # Create figure/axes if needed
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(
+                1, 3,
+                figsize=(15, 4),
+                constrained_layout=True
+            )
+
+        ax = np.atleast_1d(ax)
+
+        if len(ax) != 3:
+            raise ValueError("ax must contain 3 axes.")
+
+        # Radius mesh
+        R = np.tile(radius[:, None], (1, len(chord_stations)))  # (Nr, Nc)
+
+        # Chord positions varying with radius
+        chord_positions = (
+            self.seg_chord[:, None] / 2
+            * chord_stations[None, :]
+        )  # (Nr, Nc)
+
+        component_names = ["r", "ax", "\phi"]
+
+        from matplotlib.colors import LogNorm
+
+        # ------------------------------------------------------------------
+        # Compute common logarithmic color scale across all 3 components
+        # ------------------------------------------------------------------
+
+        all_data = np.abs(loading_harmonics_per_unit_area[:, ik, :, :])
+
+        # Avoid zeros for logarithmic scaling
+        positive_data = all_data[all_data > 0]
+
+        if positive_data.size == 0:
+            vmin, vmax = 1e-12, 1.0
+        else:
+            vmin = np.min(positive_data)
+            vmax = np.max(positive_data)
+
+        # Optional dynamic range limiting
+        vmax = min(vmax, 2 * np.mean(positive_data))
+
+        # Ensure valid bounds
+        vmin = max(vmin, vmax * 1e-6)
+
+        norm = LogNorm(vmin=vmin, vmax=vmax)
+
+        # Log-spaced contour levels
+        levels = np.logspace(
+            np.log10(vmin),
+            np.log10(vmax),
+            51
+        )
+
+        # ------------------------------------------------------------------
+        # Plot
+        # ------------------------------------------------------------------
+
+        for i in range(3):
+
+            # Select component and harmonic
+            data = np.abs(
+                loading_harmonics_per_unit_area[i, ik, :, :]
+            )  # (Nr, Nc)
+
+            # Avoid zeros in plotted field
+            data = np.maximum(data, vmin)
+
+            cf = ax[i].contourf(
+                R,
+                chord_positions,
+                data,
+                levels=levels,
+                norm=norm,
+                cmap="viridis",
+            )
+
+            ax[i].set_title(f"$F_{{{component_names[i]}}}^{{k={k[ik]}}}$")
+            ax[i].set_xlabel("Radius")
+            ax[i].set_ylabel("Chord")
+
+            # Keep equal scaling
+            ax[i].set_aspect(1)
+
+            fig.colorbar(cf, ax=ax[i])
+
         return fig, ax
 

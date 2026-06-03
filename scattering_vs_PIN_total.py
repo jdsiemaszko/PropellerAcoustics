@@ -32,41 +32,75 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'D15L20_D180'
+# shape='D'
 
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D180'
+shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L21W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180_v2'
+# shape = 'PARROT'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
-BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
+
+if shape == "PARROT":
+
+    rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
+    rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
+
+    q /= 1.125
+
+    r_inner = sourceArray.seg_radius
+    r1 = sourceArray.r1
+    Fz = np.interp(r_inner/r1, rt, t) # same radial array
+    Q = np.interp(r_inner/r1, rq, q) 
+    Fphi = Q / r_inner
+
+    TTARGET = 2.15 / sourceArray.B # Newtons
+    QTARGET = 25 / 1000 / sourceArray.B # Newton-radian-meters
+    Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
+    Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
+
+BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
 PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
+# g= 0.02
 B = sourceArray.B
-c = sourceArray.chord[0]
+c = sourceArray.chord
 Omega = sourceArray.Omega
+if shape == 'PARROT':
+    Omega *= -1
+
 c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 7      # 60 to -60 in 10
-ind_phi = 16          # 0 to 350 in 10
+ind_theta = 6      # 60 to -60 in 10
+ind_phi = 27          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
-data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=2, RPM=8000)
+data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape=shape, B=2, 
+                                                                                                RPM=int(Omega * 60/2/np.pi)
+                                                                                                )
 data = data[:, ind_theta, ind_phi]
 x_cart = x_cart_data[:, ind_theta, ind_phi].reshape((3, 1))
 theta = theta_data[ind_theta]
@@ -89,12 +123,18 @@ ms = np.arange(1, 11, 1) # harmonics to extract
 # pLmB_model_rotor = pSmB_model_rotor + pUSmB_model_rotor
 # SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 # SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
-pLmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+
+pLSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
                                     #    blade_l.getBladeLoadingHarmonics()
-                                    BLH
+                                    BLH_S
                                        )[0][0]
 
-ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner))[0][0] # NACA0012
+pLUSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+                                    #    blade_l.getBladeLoadingHarmonics()
+                                    BLH_US
+                                       )[0][0]
+
+ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, sourceArray.seg_chord, 0.082 * np.ones_like(r_inner))[0][0] # NACA0012
 # BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
 
 
@@ -115,9 +155,9 @@ BL = PIN.getStrutLoadingHarmonics()
 pmB_model_beam_total = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
 
-pmB_model_rotor_total = pLmB_model_rotor + ptmB_model_rotor
-pmB_model_rotor_loading = pLmB_model_rotor
-pmB_model_total = pLmB_model_rotor + ptmB_model_rotor + pmB_model_beam_total # assuming coherent
+pmB_model_rotor_total = pLSmB_model_rotor + pLUSmB_model_rotor + ptmB_model_rotor
+pmB_model_rotor_loading = pLSmB_model_rotor + pLUSmB_model_rotor
+pmB_model_total = pLSmB_model_rotor + pLUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam_total # assuming coherent
 # pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
 
 
@@ -132,7 +172,7 @@ for index, sm in enumerate(sourceArray.children):
     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
     print(f'pre-computing far-field gradients {index+1}')
 
-    gradG = sm.getScatteringGreenGradient(x_cart, ms*B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+    gradG = sm.getScatteringGreenGradient(x_cart, ms*B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', gradG)
 
 
@@ -145,7 +185,9 @@ for index, sm in enumerate(sourceArray.children):
 
 
 p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
-p_direct = sourceArray.getDirectPressure(x_cart, ms)[0]
+p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
+p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
+
 
 # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
 # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy')
@@ -159,7 +201,7 @@ for index, sm in enumerate(sourceArray.children):
     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
     print(f'pre-computing far-field gradients {index+1}')
 
-    G = sm.getScatteringGreen(x_cart, ms*B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
+    G = sm.getScatteringGreen(x_cart, ms*B * np.abs(Omega)  / c0, G_surface) # shape (Nm, Nx, Ny)
     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
 
 
@@ -174,12 +216,14 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)[0]
 # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered_thickness)
 # p_scattered_thickness = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy')
 
-p_total_scattering = p_direct + p_scattered + p_direct_thickness + p_scattered_thickness
-p_rotor_total = p_direct + p_direct_thickness
+p_total_scattering = p_direct_s + p_direct_us + p_scattered + p_direct_thickness + p_scattered_thickness
+p_rotor_total = p_direct_s + p_direct_us + p_direct_thickness
 p_total_minus_scattered_thickness = p_total_scattering - p_scattered_thickness
 
 # SPLS PIN MODEL
 SPL_rotor_loading = p_to_SPL(pmB_model_rotor_loading)
+SPL_rotor_S = p_to_SPL(pLSmB_model_rotor)
+SPL_rotor_US = p_to_SPL(pLUSmB_model_rotor)
 
 SPL_rotor_total = p_to_SPL(pmB_model_rotor_total)
 SPL_rotor_thickness = p_to_SPL(ptmB_model_rotor)
@@ -189,7 +233,8 @@ SPL_beam_thickness = p_to_SPL(pmB_model_beam_thickness)
 SPL_total_PIN = p_to_SPL(pmB_model_total)
 
 # SPLS TOTAL SCATTERING
-SPL_direct  = p_to_SPL(p_direct)
+SPL_direct_s = p_to_SPL(p_direct_s)
+SPL_direct_us = p_to_SPL(p_direct_us)
 SPL_scattered = p_to_SPL(p_scattered)
 SPL_direct_thickness = p_to_SPL(p_direct_thickness)
 SPL_scattered_thickness = p_to_SPL(p_scattered_thickness)
@@ -204,11 +249,9 @@ fig, ax = plt.subplots(figsize=(7, 4))
 # ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (Hanson)", color='r', marker='^')
 # ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (Hanson)", color='g', marker='^')
 
+ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (Hanson)", color='r', marker='^')
+ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (Hanson)", color='g', marker='^')
 
-
-
-
-ax.plot(ms, SPL_rotor_loading, label=f"Loading Noise (Hanson)", color='r', marker='^')
 ax.plot(ms, SPL_rotor_thickness, label=f"Thickness Noise (Hanson)", color='b', marker='^')
 ax.plot(ms, SPL_rotor_total, label=f"Rotor Total (Hanson)", color='y', marker='^')
 ax.plot(ms, SPL_beam_loading, label=f"Beam Loading due to Blade Loading", color='m', marker='^')
@@ -222,7 +265,9 @@ fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1,
                              'alpha':0.75
                          })
 
-ax.plot(ms, SPL_direct, label=f"Loading Noise (SM)", color='r', marker='s', linestyle='dashed')
+ax.plot(ms, SPL_direct_s, label=f"Steady Loading Noise (SM)", color='r', marker='s', linestyle='dashed')
+ax.plot(ms, SPL_direct_us, label=f"Unsteady Loading Noise (SM)", color='g', marker='s', linestyle='dashed')
+
 ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM)", color='b', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_SM_rotor_total, label=f"Rotor Total (SM)", color='y', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')

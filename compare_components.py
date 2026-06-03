@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from Constants.data_assim import getGojonData, getHarmonicsFromData
 from PotentialInteraction.PIN import PotentialInteraction
-from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity
+from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, plot_beam_azimuth, plot_rotation_arrow
 MODE = 'half'
 FILE = 'DIR_COMPONENTS'
 Ntheta = 18
@@ -37,25 +37,49 @@ from SourceMode.Configurations_NACA0012 import m_surface
 
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D180_MR'
+# shape = 'D'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
-SUFFIX = '_D360_HR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray # pick configuration
+# SUFFIX = '_D360_HR'
+
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D180'
+shape = 'PARROT'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
 
 NDIPOLES = sourceArray.Ndipoles
-ms = np.array([1])
+ms = np.array([3])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+
+if shape == "PARROT":
+    rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
+    rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
+
+    r_inner = sourceArray.seg_radius
+    r1 = sourceArray.r1
+    Fz = np.interp(r_inner/r1, rt, t) # same radial array
+    Q = np.interp(r_inner/r1, rq, q) 
+    Fphi = Q / r_inner
+
+    TTARGET = 2.15 / sourceArray.B # Newtons
+    QTARGET = 25 / 1000 / sourceArray.B # Newton-radian-meters
+    Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
+    Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
+
 BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
 PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
 B = sourceArray.B
-c = sourceArray.chord[0]
+c = sourceArray.chord
 Omega = sourceArray.Omega
+
+if shape == 'PARROT':
+    Omega *= -1
 c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
@@ -63,7 +87,7 @@ han = sourceArray.getHanson()
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
-data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape='D', B=sourceArray.B, RPM=int(Omega * 60/2/np.pi))
+data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, D_bras, g, shape=shape, B=sourceArray.B, RPM=int(Omega * 60/2/np.pi))
 
 data_modal, ms_data = getHarmonicsFromData(data, freq.T, BPF)
 data = data_modal[np.where(ms[0] == ms_data)]
@@ -105,7 +129,7 @@ x_cart = np.array([X, Y, Z])
 #     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
 #     print(f'pre-computing far-field gradients {index+1}')
 
-#     gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+#     gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * np.abs(Omega) / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
 #     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', gradG)
 
 
@@ -139,12 +163,12 @@ p_direct_loading_US = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose
 
 #### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
-### save gradients in the far-field (run once per observer and m)
+## save gradients in the far-field (run once per observer and m)
 # for index, sm in enumerate(sourceArray.children):
 #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
 #     print(f'pre-computing far-field G {index+1}')
 
-#     G = sm.getScatteringGreen(x_cart, m_surface * B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
+#     G = sm.getScatteringGreen(x_cart, m_surface * B * np.abs(Omega) / c0, G_surface) # shape (Nm, Nx, Ny)
 #     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', G)
 
 Nr = sourceArray.seg_radius.shape[0]
@@ -162,7 +186,7 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
 
 # scattering total
-p_total_scattering = p_direct_thickness + p_direct_loading_S + p_scattered_loading_S + p_direct_loading_US + p_scattered_loading_US + p_scattered_thickness
+p_total_scattering = p_direct_thickness + p_direct_loading_S + p_scattered_loading_S + p_direct_loading_US + p_scattered_thickness + p_scattered_loading_US 
 
 
 # shift to relative phase w.r.t. mic one at phi=0
@@ -209,31 +233,77 @@ ax8 = fig.add_subplot(428, projection="3d")
 
 
 VMIN, VMAX = 10, 65
-fig, ax1 = plot_3D_directivity(
-    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness Noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
-)
-fig, ax2 = plot_3D_directivity(
-    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness Noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
-)
-fig, ax3 = plot_3D_directivity(
-    p_direct_loading_S[:, 0],theta_m, phi_m, title='Direct Steady Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
-)
-fig, ax4 = plot_3D_directivity(
-    p_scattered_loading_S[:, 0], theta_m, phi_m, title='Scattered Steady Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
-)
-fig, ax5 = plot_3D_directivity(
-    p_direct_loading_US[:, 0],theta_m, phi_m, title='Direct Unsteady Loading Noise', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
-)
-fig, ax6 = plot_3D_directivity(
-    p_scattered_loading_US[:, 0], theta_m, phi_m, title='Scattered Unsteady Loading Noise', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
-)
-fig, ax7 = plot_3D_directivity(
-    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax7, valmin=VMIN, valmax=VMAX,
-)
-fig, ax8 = plot_3D_directivity(
-    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax8, valmin=VMIN, valmax=VMAX,
-)
+# fig, ax1 = plot_3D_directivity(
+#     p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness Noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+# )
+# fig, ax2 = plot_3D_directivity(
+#     p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness Noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+# )
+# fig, ax3 = plot_3D_directivity(
+#     p_direct_loading_S[:, 0],theta_m, phi_m, title='Direct Steady Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+# )
+# fig, ax4 = plot_3D_directivity(
+#     p_scattered_loading_S[:, 0], theta_m, phi_m, title='Scattered Steady Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+# )
+# fig, ax5 = plot_3D_directivity(
+#     p_direct_loading_US[:, 0],theta_m, phi_m, title='Direct Unsteady Loading Noise', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+# )
+# fig, ax6 = plot_3D_directivity(
+#     p_scattered_loading_US[:, 0], theta_m, phi_m, title='Scattered Unsteady Loading Noise', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+# )
+# fig, ax7 = plot_3D_directivity(
+#     p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax7, valmin=VMIN, valmax=VMAX,
+# )
+# fig, ax8 = plot_3D_directivity(
+#     peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax8, valmin=VMIN, valmax=VMAX,
+# )
 # fig.suptitle(f"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
+
+fig, ax1, _ = plot_3D_directivity(
+    p_direct_thickness[:, 0], theta_m, phi_m, title=fr'$\langle G_0 Q\rangle_\Omega$', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+fig, ax2, _  = plot_3D_directivity(
+    p_scattered_thickness[:, 0], theta_m, phi_m, title=fr'$\langle G_s Q\rangle_\Omega$', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+fig, ax3, _  = plot_3D_directivity(
+    p_direct_loading_S[:, 0],theta_m, phi_m, title=fr'$-\langle \boldsymbol{{\nabla}} G_0 \circ \boldsymbol{{F}}_0\rangle_\Omega$', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+fig, ax4, _  = plot_3D_directivity(
+    p_scattered_loading_S[:, 0], theta_m, phi_m, title=fr'$-\langle \boldsymbol{{\nabla}} G_s \circ \boldsymbol{{F}}_0\rangle_\Omega$', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+fig, ax5, _  = plot_3D_directivity(
+    p_direct_loading_US[:, 0],theta_m, phi_m, title=fr'$-\sum_{{k>0}}\langle \boldsymbol{{\nabla}} G_0 \circ \boldsymbol{{F}}_k\rangle_\Omega$', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+fig, ax6, _  = plot_3D_directivity(
+    p_scattered_loading_US[:, 0], theta_m, phi_m, title=fr'$-\sum_{{k>0}}\langle \boldsymbol{{\nabla}} G_s \circ \boldsymbol{{F}}_k\rangle_\Omega$', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+fig, ax7, _  = plot_3D_directivity(
+    p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax7, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+fig, ax8, mappable  = plot_3D_directivity(
+    peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax8, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
+)
+
+cbar = fig.colorbar(mappable, ax=[ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8], shrink=0.7, pad=0.1)
+cbar.set_label("Directivity [dB]")
+
+R0 = 1.1
+R1 = R0 * 1.1
+for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8]:
+    plot_beam_azimuth(R0, fig, ax)
+    plot_rotation_arrow(R1, PHI_EXTENT=[20, 90], fig=fig, ax=ax)
+    ax.set_xlim(-R0, R0)
+    ax.set_ylim(-R0, R0)
+    ax.set_zlim(-R0, R0)
+
 
 
 # 3D phase diagram
@@ -250,29 +320,46 @@ ax8 = fig.add_subplot(428, projection="3d")
 
 
 VMIN, VMAX = 10, 65
-fig, ax1 = plot_3D_phase_directivity(
-    p_direct_thickness[:, 0], theta_m, phi_m, title='Direct Thickness Noise', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+fig, ax1, _  = plot_3D_phase_directivity(
+    p_direct_thickness[:, 0], theta_m, phi_m, title=fr'$\langle G_0 Q\rangle_\Omega$', fig=fig, ax=ax1, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
-fig, ax2 = plot_3D_phase_directivity(
-    p_scattered_thickness[:, 0], theta_m, phi_m, title='Scattered Thickness Noise', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+fig, ax2, _  = plot_3D_phase_directivity(
+    p_scattered_thickness[:, 0], theta_m, phi_m, title=fr'$\langle G_s Q\rangle_\Omega$', fig=fig, ax=ax2, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
-fig, ax3 = plot_3D_phase_directivity(
-    p_direct_loading_S[:, 0],theta_m, phi_m, title='Direct Steady Loading Noise', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+fig, ax3, _  = plot_3D_phase_directivity(
+    p_direct_loading_S[:, 0],theta_m, phi_m, title=fr'$-\langle \boldsymbol{{\nabla}} G_0 \circ \boldsymbol{{F}}_0\rangle_\Omega$', fig=fig, ax=ax3, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
-fig, ax4 = plot_3D_phase_directivity(
-    p_scattered_loading_S[:, 0], theta_m, phi_m, title='Scattered Steady Loading Noise', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+fig, ax4, _  = plot_3D_phase_directivity(
+    p_scattered_loading_S[:, 0], theta_m, phi_m, title=fr'$-\langle \boldsymbol{{\nabla}} G_s \circ \boldsymbol{{F}}_0\rangle_\Omega$', fig=fig, ax=ax4, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
-fig, ax5 = plot_3D_phase_directivity(
-    p_direct_loading_US[:, 0],theta_m, phi_m, title='Direct Unsteady Loading Noise', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+fig, ax5, _  = plot_3D_phase_directivity(
+    p_direct_loading_US[:, 0],theta_m, phi_m, title=fr'$-\sum_{{k>0}}\langle \boldsymbol{{\nabla}} G_0 \circ \boldsymbol{{F}}_k\rangle_\Omega$', fig=fig, ax=ax5, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
-fig, ax6 = plot_3D_phase_directivity(
-    p_scattered_loading_US[:, 0], theta_m, phi_m, title='Scattered Unsteady Loading Noise', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+fig, ax6, _  = plot_3D_phase_directivity(
+    p_scattered_loading_US[:, 0], theta_m, phi_m, title=fr'$-\sum_{{k>0}}\langle \boldsymbol{{\nabla}} G_s \circ \boldsymbol{{F}}_k\rangle_\Omega$', fig=fig, ax=ax6, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
-fig, ax7 = plot_3D_phase_directivity(
+fig, ax7, _  = plot_3D_phase_directivity(
     p_total_scattering[:, 0], theta_m, phi_m, title='Model Total', fig=fig, ax=ax7, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
-fig, ax8 = plot_3D_phase_directivity(
+fig, ax8, mappable  = plot_3D_phase_directivity(
     peq_data[0, :, :], np.deg2rad(theta_m_data), np.deg2rad(phi_m_data), title='Experiment', fig=fig, ax=ax8, valmin=VMIN, valmax=VMAX,
+plot_cbar=False,
 )
 # fig.suptitle(rf"Directivities of $\hat{{p}}_{{{ms[0] * B:.0f}}}$")
+cbar = fig.colorbar(mappable, ax=[ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8], shrink=0.7, pad=0.1)
+cbar.set_label("Phase [rad]")
+for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8]:
+    plot_beam_azimuth(R0, fig, ax)
+    plot_rotation_arrow(R1, PHI_EXTENT=[20, 90], fig=fig, ax=ax)
+    ax.set_xlim(-R0, R0)
+    ax.set_ylim(-R0, R0)
+    ax.set_zlim(-R0, R0)
+
 plt.show()

@@ -240,7 +240,23 @@ class SourceMode():
 
         theta = np.linspace(0, np.pi, self.chord_stations.shape[0])  # no singularity
         u = -np.cos(theta)
-        weight = 2 * np.cos(theta / 2)**2  # comes from transformation, integrand * du/dtheta
+        # weight = 2 * np.cos(theta / 2)**2  # comes from transformation, integrand * du/dtheta
+
+
+        weight = (1-np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)?
+        # weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)? 
+
+        # Roger et al. (2006):
+        """
+        The [reversed Sears'] model ensures a concentration of the induced loads at the trailing edge. 
+        In fact, the classical Sears’ problem, assuming concentrated unsteady loads at the leading edge,
+        is valid at zero or moderate ﬂow rate. In contrast, the assumption of concentated loads
+        at the trailing edge is more reliable at high ﬂow rate because the trailing edges come closer to the
+        transmission shaft.
+        """
+
+        # TODO: implement REVERESED SEARS or PARRY with LEADING EDGE BACKSCATTERING
+
         # weight = np.sqrt((1-u) / (1+u)) * np.sin(theta) #integrand * du/dtheta
         # weight = np.sin(theta) * 1 / np.tan(theta/2) #integrand * du/dtheta
         # weight[0] = 0 # ignore the nan at theta=0, limit converges to 0?
@@ -250,7 +266,7 @@ class SourceMode():
         phase = np.exp(
             1j * (m[None, None, :] * self.B - s[None, :, None])
             # * (self.chord / 2 * u[:, None, None]) / self.radius
-            * np.arctan((self.chord / 2 * u[:, None, None]) / self.radius) # near the root, the approximation phi ~= x/r may fail!
+            * np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius) # near the root, the approximation phi ~= x/r may fail!
         ) # shape Nchord stations, 2Ns-1, Nm, symmetric in s?
 
         factor = 1 / np.pi * np.trapezoid(
@@ -261,18 +277,18 @@ class SourceMode():
 
 
         # OVERWRITE THE MEAN LOADING FACTOR! - mean lift behaves different from unsteady gust responses!
-        # chord_stations, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nchord stations
+        chord_stations, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nchord stations
 
-        # phase0 = np.exp(
-        #     1j * (m[None, :] * self.B)
-        #     * (chord_stations[:, None]) / self.radius
-        # ) # shape Nchord stations, Nm
+        phase0 = np.exp(
+            1j * (m[None, :] * self.B)
+            * (chord_stations[:, None]) / self.radius
+        ) # shape Nchord stations, Nm
 
-        # dx = np.diff(chord_stations)[0] # assumed uniform
-        # factor[Ns-1, :] = np.sum(
-        #     f0[:, None] * phase0 * dx,
-        #     axis=0
-        # ) / np.sum(f0 * dx) # shape Nm, mind the normalization
+        dx = np.diff(chord_stations)[0] # assumed uniform
+        factor[Ns-1, :] = np.sum(
+            f0[:, None] * phase0 * dx,
+            axis=0
+        ) / np.sum(f0 * dx) # shape Nm, mind the normalization
 
         # phase = np.exp(
         #     1j * (m[None, None, :] * self.B - s[None, :, None])
@@ -346,7 +362,7 @@ class SourceMode():
         # TODO: figure out the sign!
         phase = np.exp(1j * m[None, :] * self.B 
                     #  * chord_stations[:, None] / self.radius
-            * np.arctan(chord_stations[:, None] / self.radius) # near the root, the approximation phi ~= x/r may fail!
+            * np.arctan(chord_stations[:, None] / self.radius * np.cos(self.gamma)) # near the root, the approximation phi ~= x/r may fail!
         )
         # apply the integral
         t_c_effective = 1 / self.chord * np.trapezoid(self.t_c_distribution[:, None] * phase, chord_stations, axis=0) # shape Nm
@@ -525,7 +541,8 @@ class SourceModeArray():
                   rho0 = 1.2,
                   nu = 14.61e-6, # m^2/s, 
                 numerics={
-                    'Ndipoles':36
+                    'Ndipoles':36,
+                    'Nlayers':1
                 },
                 dt = None,
                 chord = None
@@ -558,6 +575,7 @@ class SourceModeArray():
 
         self.seg_twist = (gamma[1:] + gamma[:-1]) / 2
         self.seg_radius = (radius[1:] + radius[:-1]) / 2
+        self.seg_chord = (chord[1:] + chord[:-1]) / 2 if chord is not None else None
         self.dr = np.diff(radius) # (Nr)
         self.dt = dt # array of size Nr or Nr, Nc, passed to children for each ind_r
         self.chord = chord # Nr
@@ -583,7 +601,9 @@ class SourceModeArray():
 
 
 
-        self.Ndipoles = numerics.get('Ndipoles', 36)
+        self.Ndipoles = numerics.get('Ndipoles', 36) # number of dipoles in EACH source mode
+        self.Nlayers = numerics.get('Nlayers', 1) # number of layers in the axial direction
+
         self.axis = axis
         self.origin = origin
         self.numerics=numerics
@@ -601,6 +621,8 @@ class SourceModeArray():
 
         self.children = [None] * self.Nr # individual source modes!
         for index, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, np.transpose(self.BLH, axes=(2, 0, 1)))):
+
+            # create child source-modes, each at a given radial station
             self.children[index] = SourceMode(
                 BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
                         B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
@@ -971,7 +993,8 @@ class SourceModeArray():
 
         return han
         
-
+    def getGreen(self):
+        return self.green
 
 if __name__ == "__main__":
     from TailoredGreen.CylinderGreen import CylinderGreen

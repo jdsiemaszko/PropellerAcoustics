@@ -155,6 +155,10 @@ class HansonModel():
         """
         thickness noise pressure, as per Hanson & Patrzych 1993
         computed at frequency mBOmega!!!
+
+        chord: of size Nr
+        thickness_to_chord: of size Nr pt
+
         """
         if not np.all(m != 0):
             raise ValueError("m=0 is not supported")
@@ -169,7 +173,6 @@ class HansonModel():
 
 
 
-        #TODO: some fuckery with kx?
         # Mtip = self.r1 * self.Omega / c0
         # Mr = self.radius_c * self.Omega / c0
         # kx = 2 * m[:, None] * self.B * chord[None, :] / self.r1 / 2 * Mtip / Mr[None, :] # shape Nm, Nr
@@ -209,7 +212,6 @@ class HansonModel():
 
         pt_mb *= -m**2 * self.B**2 * multiplier * self.Omega**2 * self.rho * np.exp(1j
                 * m * self.B * self.Omega / c0 * R[:, None]) / 4 / np.pi / R[:, None]
-
         return pt_mb, x
 
     def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fstator:np.ndarray, multiplier:float=None):
