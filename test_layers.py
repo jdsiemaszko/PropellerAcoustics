@@ -1,5 +1,7 @@
 from SourceMode.SourceMode import SourceModeArray
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sma
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sma1
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_5_10 as sma5
+
 from TailoredGreen.TailoredGreen import TailoredGreen
 from TailoredGreen.HalfCylinderGreen import HalfCylinderGreen
 import numpy as np
@@ -56,6 +58,7 @@ from Constants.data_assim import read_selig_airfoil, compute_camber_thickness
 #                         airfoil = 'naca0012'
 #                         )
 
-sma.plotSelf()
-
-plt.show()
+# sma1.plotSelf()
+# plt.show()
+# sma5.plotSelf()
+# plt.show()

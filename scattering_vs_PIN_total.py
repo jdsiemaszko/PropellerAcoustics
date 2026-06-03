@@ -44,9 +44,17 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D15L20_D180'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'PARROT_D20L20_D180'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180'
+# shape = 'PARROT'
+
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D36_1_10'
 shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_5_10 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D36_5_10'
+# shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L21W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180_v2'
@@ -56,7 +64,7 @@ sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
 
-NDIPOLES = sourceArray.Ndipoles
+NDIPOLES = sourceArray.Nsources
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
@@ -78,10 +86,11 @@ if shape == "PARROT":
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
 
-BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
-PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
+BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, D_bras, g, steady_only=False) # compute loading on the fly, return PIN for reuse
+PIN = sourceArray.PIN
+
 # g= 0.02
 B = sourceArray.B
 c = sourceArray.chord
@@ -93,7 +102,7 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 6      # 60 to -60 in 10
+ind_theta = 8     # 60 to -60 in 10
 ind_phi = 27          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -162,7 +171,7 @@ pmB_model_total = pLSmB_model_rotor + pLUSmB_model_rotor + ptmB_model_rotor + pm
 
 
 
-
+Nchildren = len(sourceArray.children)
 # SUFFIX = '
 
 # -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
@@ -179,14 +188,22 @@ for index, sm in enumerate(sourceArray.children):
 
 # extract and rearrange
 
-gradG_arr = np.zeros((Nr, 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+gradG_arr = np.zeros((Nchildren, 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 for index, sm in enumerate(sourceArray.children):
     gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
 
-p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
-p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
-p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
+
+# p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
+# p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
+
+sourceArray.updateBLH(BLH_S)
+p_direct_s = sourceArray.getDirectPressure(x_cart, ms)[0]
+p_scattered_s = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+
+sourceArray.updateBLH(BLH_US)
+p_direct_us = sourceArray.getDirectPressure(x_cart, ms)[0]
+p_scattered_us = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
 
 
 # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
@@ -205,7 +222,7 @@ for index, sm in enumerate(sourceArray.children):
     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
 
 
-G_arr = np.zeros((Nr, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+G_arr = np.zeros((Nchildren, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 for index, sm in enumerate(sourceArray.children):
     G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
@@ -216,7 +233,10 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)[0]
 # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered_thickness)
 # p_scattered_thickness = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy')
 
-p_total_scattering = p_direct_s + p_direct_us + p_scattered + p_direct_thickness + p_scattered_thickness
+for element in [p_direct_s, p_direct_us, p_scattered_s, p_scattered_us, p_direct_thickness, p_scattered_thickness]:
+    element[np.isnan(element)] = 0.0
+
+p_total_scattering = p_direct_s + p_direct_us + p_scattered_s + p_scattered_us + p_direct_thickness + p_scattered_thickness
 p_rotor_total = p_direct_s + p_direct_us + p_direct_thickness
 p_total_minus_scattered_thickness = p_total_scattering - p_scattered_thickness
 
@@ -235,7 +255,9 @@ SPL_total_PIN = p_to_SPL(pmB_model_total)
 # SPLS TOTAL SCATTERING
 SPL_direct_s = p_to_SPL(p_direct_s)
 SPL_direct_us = p_to_SPL(p_direct_us)
-SPL_scattered = p_to_SPL(p_scattered)
+SPL_scattered_s = p_to_SPL(p_scattered_s)
+SPL_scattered_us = p_to_SPL(p_scattered_us)
+SPL_scattered = p_to_SPL(p_scattered_s + p_scattered_us)
 SPL_direct_thickness = p_to_SPL(p_direct_thickness)
 SPL_scattered_thickness = p_to_SPL(p_scattered_thickness)
 SPL_SM_rotor_total = p_to_SPL(p_rotor_total)
@@ -270,6 +292,8 @@ ax.plot(ms, SPL_direct_us, label=f"Unsteady Loading Noise (SM)", color='g', mark
 
 ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM)", color='b', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_SM_rotor_total, label=f"Rotor Total (SM)", color='y', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_scattered_s, label=f"Scattered Steady Loading Noise", color='m', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_scattered_us, label=f"Scattered Unsteady Loading Noise", color='tab:pink', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise", color='c', marker='s', linestyle='dashed')
 ax.plot(ms, SPL_total_scattering, label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')

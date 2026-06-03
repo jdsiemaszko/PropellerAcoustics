@@ -994,7 +994,7 @@ def find_alpha(CL_target, Re, airfoil, alpha_bounds=(-10, 10)):
             airfoil=airfoil,
             alpha=alpha,
             Re=Re,
-            model_size="xxxlarge",
+            model_size="large",
         )
             # Convert safely to scalar
         CL_val = float(np.atleast_1d(aero['CL'])[0])
