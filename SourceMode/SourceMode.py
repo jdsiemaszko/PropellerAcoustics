@@ -61,22 +61,28 @@ class SourceMode():
         self.SoS = c0
 
         self.chord_0, self.chord_1 = chord_extent
+        self.chord_extent = self.chord_1 - self.chord_0
         self.azimuth_offset = azimuth_offset # loading w.r.t. this azimuth, we will need to shift it later to match the dipole positions
 
         # TODO: shift chord stations by c/4?
-        if isinstance(dt, float):
-            self.dt = dt
+        if isinstance(dt, float): # float: assume constant dt across the chord :(
+            self.dt = dt 
 
             # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, self.numerics.get('Nchordstations', 1000))
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
+            self.where_extent = np.where(np.logical_and(self.chord_stations >= self.chord_0, self.chord_stations <= self.chord_1))[0] # only pick the extent of this segment
 
             self.t_c_distribution = np.ones_like(self.chord_stations) * self.dt / self.chord
-        elif isinstance(dt, np.ndarray):
+        elif isinstance(dt, np.ndarray): # array: assume a known dt distribution
             # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, dt.shape[0])
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, dt.shape[0]) # assume equidistant thickness stations over the chord length
+            self.where_extent = np.where(np.logical_and(self.chord_stations >= self.chord_0, self.chord_stations <= self.chord_1))[0] # only pick the extent of this segment
 
-            self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
+            # mean thickness of the section -  need to account for the size of the element!
+            # self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
+            self.dt = 1/self.chord_extent * np.trapezoid(dt[self.where_extent], self.chord_stations[self.where_extent])
             self.t_c_distribution = dt / self.chord
+
 
         self.Nsources = numerics.get('Nsources', 36)
 
@@ -264,7 +270,7 @@ class SourceMode():
         transmission shaft.
         """
 
-        # TODO: implement REVERESED SEARS or PARRY with LEADING EDGE BACKSCATTERING
+        # TODO: implement PARRY with LEADING EDGE BACKSCATTERING
 
         # weight = np.sqrt((1-u) / (1+u)) * np.sin(theta) #integrand * du/dtheta
         # weight = np.sin(theta) * 1 / np.tan(theta/2) #integrand * du/dtheta
@@ -277,6 +283,11 @@ class SourceMode():
             # * (self.chord / 2 * u[:, None, None]) / self.radius
             * np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius) # near the root, the approximation phi ~= x/r may fail!
         ) # shape Nchord stations, 2Ns-1, Nm, symmetric in s?
+
+        where_extent = self.where_extent
+        weight = weight[where_extent]
+        phase = phase[where_extent, :, :]
+        theta = theta[where_extent]
 
         factor = 1 / np.pi * np.trapezoid(
             weight[:, None, None] * phase,
@@ -294,6 +305,10 @@ class SourceMode():
         ) # shape Nchord stations, Nm
 
         dx = np.diff(chord_stations)[0] # assumed uniform
+
+        phase0 = phase0[where_extent, :]
+        f0 = f0[where_extent]
+
         factor[Ns-1, :] = np.sum(
             f0[:, None] * phase0 * dx,
             axis=0
@@ -356,9 +371,14 @@ class SourceMode():
         # sources = -1j * rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
                 # * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
 
-        sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord * np.exp(1j
-                * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+        # total clumped at c/2
+        # sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord * np.exp(1j
+        #         * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
         
+        # accounting for chordwise extent!
+        sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord_extent * np.exp(1j
+            * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+
         if self.numerics.get('CompactnessCorrection', False):
             sources = self._getCompactnessCorrectionThickness(sources, m)
 
@@ -366,16 +386,23 @@ class SourceMode():
 
     def _getCompactnessCorrectionThickness(self, sources, m):
 
-        chord_stations = self.chord_stations
+        chord_stations = self.chord_stations # Nchord
 
         phase = np.exp(1j * m[None, :] * self.B 
                     #  * chord_stations[:, None] / self.radius
             * np.arctan(chord_stations[:, None] / self.radius * np.cos(self.gamma)) # near the root, the approximation phi ~= x/r may fail!
         )
         # apply the integral
-        t_c_effective = 1 / self.chord * np.trapezoid(self.t_c_distribution[:, None] * phase, chord_stations, axis=0) # shape Nm
+
+        where_extent = self.where_extent
+        chord_stations = chord_stations[where_extent]
+        phase = phase[where_extent, :]
+        t_c_dist = self.t_c_distribution[where_extent]
+
+        # TODO: triple check
+        t_c_effective = 1 / self.chord_extent * np.trapezoid(t_c_dist[:, None] * phase, chord_stations, axis=0) # shape Nm, should add up to t_c_mean if summed over the layers
             
-        return sources * (t_c_effective / self.dt * self.chord)[:, None] # Nm, Ny
+        return sources * (t_c_effective / self.dt * self.chord_extent)[:, None] # Nm, Ny
 
     def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float, rho0:float):
         # G is of shape (Nm, Nx, Ny)
@@ -513,9 +540,17 @@ class SourceMode():
             color="r",
             linewidth=3.0,
             alpha=0.1,
+            # marker='x',
+            zorder=10
+        )
+
+        ax.scatter(
+            x, y, z,
+            color="r",
+            linewidth=3.0,
+            # alpha=0.1,
             marker='x',
             zorder=10
-
         )
 
     def plotNormals(self, fig, ax):
@@ -1092,7 +1127,7 @@ class SourceModeArray():
         twist_rad=self.twist,
         chord_m=self.chord,
         radius_m=self.radius,
-        t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt * self.chord[:, None] ).mean(axis=1) / self.chord**2, # TODO: fix????
+        t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt).mean(axis=1) / self.chord, # TODO: fix????
         Fzprime_Npm=Fzprime,
         Fphiprime_Npm=Fphiprime,
         B=self.B,
