@@ -27,13 +27,16 @@ class SourceMode():
     def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TailoredGreen,
                  airfoil,
                  Omega, rho0, c0, nu,
+                dr,
+                  dt,
+                  chord ,
+                  chord_extent,
+                  azimuth_offset,
                   radial:np.ndarray=None,
                   numerics={
                       'Nsources':36
                   },
-                  dr = None,
-                  dt = None,
-                  chord = None,
+
 
                   ):
         self.numerics = numerics
@@ -56,6 +59,9 @@ class SourceMode():
         self.nu = nu # kinematic viscosity
         self.rho0 = rho0
         self.SoS = c0
+
+        self.chord_0, self.chord_1 = chord_extent
+        self.azimuth_offset = azimuth_offset # loading w.r.t. this azimuth, we will need to shift it later to match the dipole positions
 
         # TODO: shift chord stations by c/4?
         if isinstance(dt, float):
@@ -96,7 +102,7 @@ class SourceMode():
         self.force_unit = self.force_unit.T # (3, Nsources)
 
     def getDipoleGeometry(self):
-        Nsources = self.numerics['Nsources']
+        Nsources = self.numerics.get('Nsources', 180)
         dipole_angles = np.linspace(0, 2*np.pi, Nsources, endpoint=False)
         dipole_positions = self.origin[:, None] + self.radius * (np.cos(dipole_angles[None, :]) *
                          self.radial[:, None] + np.sin(dipole_angles[None, :]) *
@@ -362,7 +368,6 @@ class SourceMode():
 
         chord_stations = self.chord_stations
 
-        # TODO: figure out the sign!
         phase = np.exp(1j * m[None, :] * self.B 
                     #  * chord_stations[:, None] / self.radius
             * np.arctan(chord_stations[:, None] / self.radius * np.cos(self.gamma)) # near the root, the approximation phi ~= x/r may fail!
@@ -507,7 +512,7 @@ class SourceMode():
             x, y, z,
             color="r",
             linewidth=3.0,
-            alpha=0.5,
+            alpha=0.1,
             marker='x',
             zorder=10
 
@@ -611,12 +616,15 @@ class SourceModeArray():
         # shape (Nlayers, Nr), axial offsets of each layer: ranging from -0.5 to 0.5 of c * sin(gamma): DATUM IS THE MIDCHORD
         # should default to zero with a single layer
 
-        theta = np.linspace(0, np.pi, self.Nlayers+1) # dummy variable for discretizing the chord
-        theta = (theta[1:] + theta[:-1]) / 2
-        self.chord_discretization = -np.cos(theta)[:, None] * self.seg_chord[None, :] / 2 # Nlayers, Nr, ranging from TRAILING EDGE to LEADING EDGE
-        self.axial_offsets = self.chord_discretization * np.sin(self.seg_twist)[None, :] 
-        self.azimuthal_offsets = self.chord_discretization * np.cos(self.seg_twist)[None, :] 
+        theta_outer = np.linspace(0, np.pi, self.Nlayers+1) # dummy variable for discretizing the chord
+        theta_inner = (theta_outer[1:] + theta_outer[:-1]) / 2
+        self.chord_discretization = -np.cos(theta_inner)[:, None] * self.seg_chord[None, :] / 2 # Nlayers, Nr, ranging from TRAILING EDGE to LEADING EDGE
+        self.chord_discretization_edges = -np.cos(theta_outer)[:, None] * self.seg_chord[None, :] / 2 # Nlayers+1, Nr
+        self.axial_offsets = self.chord_discretization * np.sin(self.seg_twist)[None, :]  # Nlayers, Nr
+        self.normal_offsets = self.chord_discretization * np.cos(self.seg_twist)[None, :] 
+        self.azimuthal_offsets = np.arctan(self.normal_offsets/self.seg_radius[None, :]) # shape Nlayers, Nr - change in azimuth between layers, should default to zero for 1 layer
 
+# np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius)
         # distribute BLH along the chord: assume sears?
         self.BLH_distributed = self.distributeBLH() # shape (3, Nk, Nr, Nlayers)
 
@@ -641,7 +649,7 @@ class SourceModeArray():
         for index_r, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, np.transpose(self.BLH, axes=(2, 0, 1)))):
 
             # create child source-modes, each at a given radial station
-            for layer, offset in enumerate(self.axial_offsets):
+            for layer, offset in enumerate(self.axial_offsets[:, index_r]):
 
                 origin_offset = self.origin + offset * self.axis # new attachment point: offset along the prop axis, shape 3
 
@@ -649,14 +657,19 @@ class SourceModeArray():
                     
                     # BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
 
+                    BLH = self.BLH_distributed[:, :, index_r, layer], # shape (3, Nk), in units of NEWTON
+
                     B=self.B, gamma=twst,
                     axis=self.axis,
                     origin=origin_offset,
                     radius=rad, green=self.green, radial=self.radial,
-                    numerics=self.numerics, dr = self.dr[index], dt = self.dt[index] if dt is not None else None,
-                    chord = self.chord[index] if self.chord is not None else None,
-                    airfoil = self.airfoil[index],
-                    c0 = c0, Omega=Omega, nu=nu, rho0=rho0
+                    numerics=self.numerics, dr = self.dr[index_r], dt = self.dt[index_r] if dt is not None else None,
+                    chord = self.chord[index_r] if self.chord is not None else None,
+                    airfoil = self.airfoil[index_r],
+                    c0 = c0, Omega=Omega, nu=nu, rho0=rho0,
+                    azimuth_offset = self.azimuthal_offsets[layer, index_r],
+                    chord_extent = (self.chord_discretization_edges[layer, index_r],
+                                    self.chord_discretization_edges[layer+1, index_r]) # fraction of the chord covered by this source-mode, used for compactness corrections
 
                 ) # construct source modes at each radial station
 
@@ -667,9 +680,13 @@ class SourceModeArray():
 
     def distributeBLH(self):
         """
-        distribute BLH along the chord:
-        assume a Sears distribution for a flat plate for the harmonics,
-        assume mean loading from neuralfoil
+        distribute BLH along the layers:
+        - assume a Sears distribution for a flat plate for the harmonics,
+        - assume mean loading from neuralfoil
+        - account for
+
+        return: BLH_distributed of shape (3, Nk, Nr, Nlayers) in units of NEWTON,
+        the distributed fields should be such that summing along the layers, the total loading is recovered
         """
 
         x_c = 2 * self.chord_discretization / self.seg_chord # -1 to 1, shape Nlayers, Nr
@@ -680,15 +697,22 @@ class SourceModeArray():
         # define loading distribution, could be improved by a better model for harmonics
         ftotal = np.zeros((self.Nlayers, self.Nr, self.Nk)) 
         ftotal[:, :, 0] = f0
-        ftotal[:, :, 1:] = fsears
+        ftotal[:, :, 1:] = fsears[:, :, None]
 
         # BLH_distributed = np.zeros((3, self.Nk, self.Nr, self.Nlayers))
         BLH_distributed = np.einsum(
-            'dkr,rl->dkrl',
-            self.BLH, ftotal
-        )
+            'dkr,lrk, r ->dkrl',
+            self.BLH, ftotal, self.dr
+        ) # in units NEWTON
 
-        return
+        mask = np.abs(self.BLH) > 1e-12
+
+        num = np.sum(BLH_distributed, axis=3, keepdims=True)
+        den = self.BLH[..., None] * self.dr[None, None, :, None]
+
+        BLH_distributed[mask, :] *= (num / den)[mask, :]
+
+        return BLH_distributed
     
     def _getMeanLoadingChordDistribution(self, ):
         """
@@ -706,13 +730,13 @@ class SourceModeArray():
 
         Lnet = np.sqrt(BLH[0, 0]**2 + BLH[1, 0]**2 + BLH[2, 0]**2) # Nr?
         CL = Lnet / 0.5 / rho0 / Omega**2 / self.seg_radius**2 / self.dr / self.seg_chord # Nr
-        Re = self.seg_chord * Omega * self.radius / nu if nu is not None else np.ones_like(CL) * 5e6 # Nr
+        Re = self.seg_chord * Omega * self.seg_radius / nu if nu is not None else np.ones_like(CL) * 5e6 # Nr
 
         # find parameters corresponding to this CL
 
         fs = np.zeros((self.Nlayers, self.Nr)) # Nlayers, Nr
         for index, CL_val in enumerate(CL):
-            alpha, aero = find_alpha(CL, Re, self.airfoil[index]) # Nr?
+            alpha, aero = find_alpha(CL[index], Re[index], self.airfoil[index]) # Nr?
 
             # compute the pressure distribution (assumption: incompressible flow)
             ue_upper = np.array([aero[f'upper_bl_ue/vinf_{ind}'] for ind in range(0, 32, 1)]) # hard-coded discretization... (im not fixing it)
@@ -733,11 +757,11 @@ class SourceModeArray():
             # interpolate at the physical chord stations, whatever the x=0 position is
             # f_interp = np.interp(self.chord_stations, x_c / 2, f)
 
-            f_interp = np.interp((self.chord_discretization-self.chord_discretization[0])/self.chord, x_c, f) # shape Nlayers, Nr - should work out the shapes?
+            f_interp = np.interp((self.chord_discretization-self.chord_discretization[0, :])/self.seg_chord, x_c, f) # shape Nlayers, Nr - should work out the shapes?
 
             f_interp *= CL[None, :] / (np.sum(f_interp, axis=0) / self.Nlayers) # rescale to preserve CL!
 
-            fs[index] = f_interp
+            fs[:, index] = f_interp[:, 0] # ignore the rest
 
         return self.chord_discretization, f_interp
 
@@ -1059,7 +1083,7 @@ class SourceModeArray():
         
         return BLH, BLH_S, BLH_US, PIN
     
-    def getPIN(self, Fzprime, Fphiprime, numerics=None):
+    def getPIN(self, Fzprime, Fphiprime, D=0.02, L=0.02, numerics=None):
         """
         interface with PIN module, computing the loading and setting self.BLH to that loading
         """
@@ -1072,8 +1096,9 @@ class SourceModeArray():
         Fzprime_Npm=Fzprime,
         Fphiprime_Npm=Fphiprime,
         B=self.B,
-        Dcylinder_m=self.green.radius * 2,
-        Lcylinder_m=-1 * self.green.origin[2],
+        # Dcylinder_m=self.green.radius * 2,
+        # Lcylinder_m=-1 * self.green.origin[2],
+        Dcylinder_m= D, Lcylinder_m=L,
         Omega_rads=self.Omega,
         rho_kgm3=self.rho0,
         c_mps=self.SoS,

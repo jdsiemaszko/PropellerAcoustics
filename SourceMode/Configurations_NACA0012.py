@@ -76,7 +76,7 @@ numerics_cyl_highres = {
 
 # ------------------- Varying Inputs -----------------------------
 
-Ndipoles = 180    
+Nsources = 180    
 
 # Cylinder Green module
 cg_midres_D20L20W00 =  HalfCylinderGreen(radius=20/1000/2, axis=caxis, origin=np.array([0.0, -0/1000, -20/1000]), dim=3, numerics= numerics_cyl_midres)
@@ -107,7 +107,7 @@ D20L20W00_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W00,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -121,7 +121,7 @@ D20L20W00_D360 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_highres_D20L20W00,
-                        numerics={'Ndipoles' : 360},
+                        numerics={'Nsources' : 360},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -135,7 +135,7 @@ D20L20W00_D90 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_lowres_D20L20W00,
-                        numerics={'Ndipoles' : 90},
+                        numerics={'Nsources' : 90},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -149,7 +149,7 @@ D20L20W10_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W10,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -163,7 +163,7 @@ D20L20W20_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W20,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -177,7 +177,7 @@ D20L20W40_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W40,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -191,7 +191,7 @@ D20L20W60_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W60,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -205,7 +205,7 @@ D20L20W80_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W80,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -219,7 +219,7 @@ D20L20W100_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W100,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -233,7 +233,7 @@ D10L20W00_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D10L20W00,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -247,7 +247,7 @@ D15L20W00_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D15L20W00,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
                         chord = chord,
@@ -271,7 +271,7 @@ PARROT_D20L20W00_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L20W00,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord_parrot[:, None], # Nr, Nc
                         chord = chord_parrot,
@@ -287,7 +287,7 @@ PARROT_D20L21W00_D180 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_midres_D20L21W00,
-                        numerics={'Ndipoles' : 180},
+                        numerics={'Nsources' : 180},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord_parrot[:, None], # Nr, Nc
                         chord = chord_parrot,
@@ -302,7 +302,7 @@ PARROT_D20L20W00_D360 = SourceModeArray(
                         axis=axis_prop, origin=origin_prop,
                         radius=r_outer,
                         green = cg_highres_D20L20W00,
-                        numerics={'Ndipoles' : 360},
+                        numerics={'Nsources' : 360},
                         c0 = c0,
                         dt = t_c_uniform[None, :] * chord_parrot[:, None], # Nr, Nc
                         chord = chord_parrot,
