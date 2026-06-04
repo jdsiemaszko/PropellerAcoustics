@@ -233,6 +233,9 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
 
 # scattering total
+
+for element in [p_direct_s, p_direct_us, p_scattered_s, p_scattered_us, p_direct_thickness, p_scattered_thickness]:
+    element[np.isnan(element)] = 0.0
 p_total_scattering = p_direct_s + p_direct_us + p_scattered_s + p_scattered_us + p_direct_thickness + p_scattered_thickness
 
 # pin total

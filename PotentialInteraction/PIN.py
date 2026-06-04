@@ -176,7 +176,8 @@ class PotentialInteraction:
         """
 
         # source strength such that the oval extends t/c in the axis normal
-        Ur = np.sqrt((self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2) # Nr
+        # Ur = np.sqrt((self.Omega * self.seg_radius - self.Ui[0])**2 + self.Ui[1]**2) # Nr
+        Ur = self.Ur
         Lambda = Ur * self.seg_t_c * self.seg_chord # Nr
 
         # source spacing that sets the axial extent of the oval to self.seg_chord
@@ -187,6 +188,19 @@ class PotentialInteraction:
         b *= np.exp(1j * (np.angle((self.Omega * self.seg_radius - self.Ui[0]) - 1j * self.Ui[1]))) # source: i made it up: b such that relative inflow is parallel to the oval axis
 
         return Lambda, b
+
+    def getDoubletParams(self):
+        """
+        parameters of a doublet flow corresponding to a cylinder of radius t/c/2
+        """
+
+        Ur = self.Ur # Nr
+        radius_doublet = self.seg_t_c * self.seg_chord / 2 # Nr,  half of mean thickness: radius of the doublet in inflow!
+        # mu = radius_doublet ** 2 * np.abs(Ur) # Nr
+        Ucomplex = self.Ui[0] + self.Ui[1] * 1j # Nr
+        mu = radius_doublet**2 * Ucomplex # Nr, doublet strength, accounting for orientation of the inflow
+
+        return mu
 
     def getStrutPressure(self,):
         """
@@ -224,7 +238,8 @@ class PotentialInteraction:
                     ) * zprime[:, None, None] / z[:, None, None]) 
         
         # thickness variables
-        Lambda, b = self.getRankineParams()
+        # Lambda, b = self.getRankineParams()
+        mu = self.getDoubletParams()
 
         for vortex_index in range(-10, 10, 1): # sum an arbitrary amount of vortices, further ones should be negligible
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
@@ -268,26 +283,40 @@ class PotentialInteraction:
             # thickness contribution
             # source: i made it up 
             if include_thickness_sources:
-                zsp = zv + b # source location
-                zsn = zv - b # sink location
-                zspbar = np.conj(zsp)
-                zsnbar = np.conj(zsn)
 
-                # dfdz due to a sum of source at zsp and sink at zsn of strength Lambda
-                dfdz_sourcesink = Lambda[None, None, :] / 2 / np.pi * ( 1 / (z[:, None, None] - zsp[None, :, :]) - 1 / (z[:, None, None] - zsn[None, :, :])
-                ) + Lambda[None, None, :] / 2 / np.pi * (1 / (zprime[:, None, None] - zspbar[None, :, :]) - 1 / (zprime[:, None, None] - zsnbar[None, :, :])
-                ) * (-zprime[:, None, None] / z[:, None, None])
+                # source-sink
+                # zsp = zv + b # source location
+                # zsn = zv - b # sink location
+                # zspbar = np.conj(zsp)
+                # zsnbar = np.conj(zsn)
 
-                dfdz += dfdz_sourcesink
+                # # dfdz due to a sum of source at zsp and sink at zsn of strength Lambda
+                # dfdz_sourcesink = Lambda[None, None, :] / 2 / np.pi * ( 1 / (z[:, None, None] - zsp[None, :, :]) - 1 / (z[:, None, None] - zsn[None, :, :])
+                # ) + Lambda[None, None, :] / 2 / np.pi * (1 / (zprime[:, None, None] - zspbar[None, :, :]) - 1 / (zprime[:, None, None] - zsnbar[None, :, :])
+                # ) * (-zprime[:, None, None] / z[:, None, None])
 
-                pressure_sourcesink = self.Omega * self.seg_radius[None, None, :] * Lambda[None, None, :] / 2 / np.pi * (
-                    1 / zsp[None, :, :] - 1 / zsn[None, :, :] - 1 / (zsp[None, :, :] - z[:, None, None]) + 1 / (zsn[None, :, :] - z[:, None, None])
-                     - 1 / (zspbar[None, :, :] - zprime[:, None, None]) + 1 / (zsnbar[None, :, :] - zprime[:, None, None])
-                )
-                pressure += pressure_sourcesink
+                # dfdz += dfdz_sourcesink
 
+                # pressure_sourcesink = self.Omega * self.seg_radius[None, None, :] * Lambda[None, None, :] / 2 / np.pi * np.real(
+                #     1 / zsp[None, :, :] - 1 / zsn[None, :, :] - 1 / (zsp[None, :, :] - z[:, None, None]) + 1 / (zsn[None, :, :] - z[:, None, None])
+                #      - 1 / (zspbar[None, :, :] - zprime[:, None, None]) + 1 / (zsnbar[None, :, :] - zprime[:, None, None])
+                # )
+                # pressure += pressure_sourcesink
 
-        
+                #doublet
+                zd = zv
+                zdbar = np.conj(zd)
+
+                dfdz_doublet = -mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 - ( zprime[:, None, None] / z[:, None, None] ) * ( 
+                                np.conj( mu[None, None, :] ) / ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 )
+
+                dfdz += dfdz_doublet
+
+                pressure_doublet = self.Omega * self.seg_radius[None, None, :] * ( mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
+                     mu[None, None, :] ) / ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2)
+
+                pressure += pressure_doublet
+
         u, v = np.real(dfdz), -np.imag(dfdz)
         U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
         pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!

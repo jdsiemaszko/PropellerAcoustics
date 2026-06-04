@@ -50,8 +50,8 @@ sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
 
-NDIPOLES = sourceArray.Ndipoles
-ms = np.array([3])
+NDIPOLES = sourceArray.Nsources
+ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
@@ -70,10 +70,11 @@ if shape == "PARROT":
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
 
-BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
-PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
+BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, D=D_bras, L=g, steady_only=False) # compute loading on the fly, return PIN for reuse
+PIN = sourceArray.PIN
+
 B = sourceArray.B
 c = sourceArray.chord
 Omega = sourceArray.Omega
@@ -149,11 +150,19 @@ BLH_US = np.zeros_like(BLH)
 BLH_US[:, 1:, :] = BLH[:, 1:, :]
 # BLH_US[1, 1:, :] = BLH[1, 1:, :]
 
-p_scattered_loading_S = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
-p_direct_loading_S = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
+# p_scattered_loading_S = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
+# p_direct_loading_S = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))
 
-p_scattered_loading_US = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))
-p_direct_loading_US = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))
+# p_scattered_loading_US = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))
+# p_direct_loading_US = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))
+
+sourceArray.updateBLH(BLH_S)
+p_direct_loading_S = sourceArray.getDirectPressure(x_cart, ms)
+p_scattered_loading_S = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
+
+sourceArray.updateBLH(BLH_US)
+p_direct_loading_US = sourceArray.getDirectPressure(x_cart, ms)
+p_scattered_loading_US = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
 
 # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
 # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')

@@ -426,10 +426,10 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
             ax.set_title(title)
         ax.set_aspect('equal')
         ax.set_box_aspect([1, 1, 1])
-        RR = np.max(r0) * 1.1
-        ax.set_xlim([-RR, RR])
-        ax.set_ylim([-RR, RR])    
-        ax.set_zlim([-RR, RR])
+        # RR = np.max(r0) * 1.1
+        # ax.set_xlim([-RR, RR])
+        # ax.set_ylim([-RR, RR])    
+        # ax.set_zlim([-RR, RR])
         ax.set_axis_off()
 
         extra_script(fig, ax)
@@ -540,10 +540,10 @@ def plot_3D_phase_directivity(
     ax.set_aspect('equal')
     ax.set_box_aspect([1, 1, 1])
 
-    RR = np.max(r0) * 1.1
-    ax.set_xlim([-RR, RR])
-    ax.set_ylim([-RR, RR])
-    ax.set_zlim([-RR, RR])
+    # RR = np.max(r0) * 1.1
+    # ax.set_xlim([-RR, RR])
+    # ax.set_ylim([-RR, RR])
+    # ax.set_zlim([-RR, RR])
     ax.set_axis_off()
 
     extra_script(fig, ax)

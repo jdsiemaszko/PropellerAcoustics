@@ -44,9 +44,9 @@ shape='D'
 # SUFFIX = 'D15L20_D180'
 # shape='D'
 
-# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = 'PARROT_D20L20_D180'
-# shape = 'PARROT'
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D180'
+shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D36_1_10'

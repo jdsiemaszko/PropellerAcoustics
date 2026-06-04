@@ -789,12 +789,24 @@ class SourceModeArray():
             self.BLH, ftotal, self.dr
         ) # in units NEWTON
 
+        # mask = np.abs(self.BLH) > 1e-12
+
+        # num = self.BLH[..., None] * self.dr[None, None, :, None]
+        # den = np.sum(BLH_distributed, axis=3, keepdims=True)
+
+        # BLH_distributed[mask, :] *= (num / den)[mask, :]
+
         mask = np.abs(self.BLH) > 1e-12
 
         num = self.BLH[..., None] * self.dr[None, None, :, None]
         den = np.sum(BLH_distributed, axis=3, keepdims=True)
 
-        BLH_distributed[mask, :] *= (num / den)[mask, :]
+        ratio = np.zeros_like(num)
+        np.divide(num, den, out=ratio, where=np.abs(den) > 1e-12) # safe divide
+
+        BLH_distributed[mask, :] *= ratio[mask, :]
+
+        BLH_distributed[np.isnan(BLH_distributed)] = 0.0 # final correction if all above failed :(
 
         return BLH_distributed
     
