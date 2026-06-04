@@ -68,7 +68,7 @@ shape='D'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
-ms = np.array([3])
+ms = np.array([5])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
@@ -365,7 +365,7 @@ for comp in components:
     fig.savefig(
         os.path.join(
             folder_name,
-            f"directivity_spl_{comp['name']}.png",
+            f"directivity_spl_{comp['name']}.pdf",
         ),
         dpi=300,
         bbox_inches="tight",
@@ -397,7 +397,7 @@ for comp in components:
     fig.savefig(
         os.path.join(
             folder_name,
-            f"directivity_phase_{comp['name']}.png",
+            f"directivity_phase_{comp['name']}.pdf",
         ),
         dpi=300,
         bbox_inches="tight",
@@ -418,7 +418,7 @@ cbar = fig.colorbar(
 cbar.set_label("SPL [dB]")
 
 fig.savefig(
-    os.path.join(folder_name, "colorbar_spl.png"),
+    os.path.join(folder_name, "colorbar_spl.pdf"),
     dpi=300,
     bbox_inches="tight",
 )
@@ -438,7 +438,7 @@ cbar = fig.colorbar(
 cbar.set_label("Phase [rad]")
 
 fig.savefig(
-    os.path.join(folder_name, "colorbar_phase.png"),
+    os.path.join(folder_name, "colorbar_phase.pdf"),
     dpi=300,
     bbox_inches="tight",
 )
