@@ -203,7 +203,7 @@ class PotentialInteraction:
         #     - (1 / np.pi * self.seg_t_c)
         # ) * self.seg_t_c * self.seg_chord # consistent with the source-sink pair!
 
-        radius_doublet_squared = 2 * self.seg_t_c * self.seg_chord ** 2 # ???????
+        radius_doublet_squared = 2 * self.seg_t_c * self.seg_chord ** 2 # ??????? TODO: factor of 2, sign?
 
         # mu = radius_doublet ** 2 * np.abs(Ur) # Nr
         Ucomplex = self.Ui[0] + self.Ui[1] * 1j # Nr
@@ -301,6 +301,7 @@ class PotentialInteraction:
                 # zspbar = np.conj(zsp)
                 # zsnbar = np.conj(zsn)
 
+                # TODO: Lambda conj?
                 # # dfdz due to a sum of source at zsp and sink at zsn of strength Lambda
                 # dfdz_sourcesink = Lambda[None, None, :] / 2 / np.pi * ( 1 / (z[:, None, None] - zsp[None, :, :]) - 1 / (z[:, None, None] - zsn[None, :, :])
                 # ) + Lambda[None, None, :] / 2 / np.pi * (1 / (zprime[:, None, None] - zspbar[None, :, :]) - 1 / (zprime[:, None, None] - zsnbar[None, :, :])
@@ -318,13 +319,13 @@ class PotentialInteraction:
                 zd = zv
                 zdbar = np.conj(zd)
 
-                dfdz_doublet = - mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 - ( zprime[:, None, None] / z[:, None, None] ) * ( 
-                                np.conj( mu[None, None, :] ) / ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 )
+                dfdz_doublet = - mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + ( zprime[:, None, None] / z[:, None, None] ) * ( 
+                                np.conj( mu[None, None, :] ) / (( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2) )
 
                 dfdz += dfdz_doublet
 
                 pressure_doublet = np.real( self.Omega * self.seg_radius[None, None, :] * ( mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
-                     mu[None, None, :] ) / ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2) )
+                     mu[None, None, :] ) / ( ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 ) ) )
 
                 pressure += pressure_doublet
 
