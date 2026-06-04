@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 # sourceArray = D15L20W00_D180
 # SUFFIX = 'D15L20_D180'
 
-# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray
-# SUFFIX = 'PARROT_D20L20_D180_10_37'
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray
+SUFFIX = 'PARROT_D20L20_D180_10_37'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180_10_37 as sourceArray
-SUFFIX = 'D20L20_D180_10_37'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_10_37 as sourceArray
+# SUFFIX = 'D20L20_D180_10_37'
 
 ms = np.arange(1, 11, 1)
 MODE = 'half'
@@ -130,32 +130,32 @@ if not proceed:
 
 # ------------------- Green's function ---------------------------
 
-start_total = time.time()
+# start_total = time.time()
 
-# save green on the surface (run once per m)
-for index, sm in enumerate(sourceArray.children):
-    start_loop = time.time()
+# # save green on the surface (run once per m)
+# for index, sm in enumerate(sourceArray.children):
+#     start_loop = time.time()
 
-    print(f'pre-computing surface Greens functions: {index+1} of {len(sourceArray.children)}')
-    source_positions = sm.dipole_positions
+#     print(f'pre-computing surface Greens functions: {index+1} of {len(sourceArray.children)}')
+#     source_positions = sm.dipole_positions
 
-    start_compute = time.time()
-    G_surface = sm.green.getGreenAtSurface( source_positions, ms*
-                                            sourceArray.B * 
-                                            sourceArray.Omega / 
-                                            sourceArray.SoS
-                                            )  # shape (Nm, Nz, Ny)
-    end_compute = time.time()
+#     start_compute = time.time()
+#     G_surface = sm.green.getGreenAtSurface( source_positions, ms*
+#                                             sourceArray.B * 
+#                                             sourceArray.Omega / 
+#                                             sourceArray.SoS
+#                                             )  # shape (Nm, Nz, Ny)
+#     end_compute = time.time()
 
-    np.save(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
+#     np.save(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
 
-    end_loop = time.time()
+#     end_loop = time.time()
 
-    print(f'  -> compute time: {end_compute - start_compute:.3f} s')
-    print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
+#     print(f'  -> compute time: {end_compute - start_compute:.3f} s')
+#     print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
 
-end_total = time.time()
-print(f'Total time (Green): {end_total - start_total:.3f} s')
+# end_total = time.time()
+# print(f'Total time (Green): {end_total - start_total:.3f} s')
 
 
 # ------------------- Green's function gradient ---------------------------
