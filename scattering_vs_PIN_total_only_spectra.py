@@ -102,8 +102,8 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 7     # 60 to -60 in 10
-ind_phi = 0          # 0 to 350 in 10
+ind_theta = 6+4     # 60 to -60 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -304,21 +304,9 @@ fig, ax = plt.subplots(figsize=(12, 5))
 
 
 # --- plotting ---
-ax.plot(ms, SPL_rotor_S, color='r', marker='^')
-ax.plot(ms, SPL_rotor_US, color='g', marker='^')
-ax.plot(ms, SPL_rotor_thickness, color='b', marker='^')
-ax.plot(ms, SPL_rotor_total, color='y', marker='^')
-ax.plot(ms, SPL_beam_loading, color='m', marker='^')
-ax.plot(ms, SPL_beam_thickness, color='c', marker='^')
-ax.plot(ms, SPL_total_PIN, color='k', marker='^')
+ax.plot(ms, SPL_total_PIN, color='r', marker='^')
 
-ax.plot(ms, SPL_direct_s, color='r', marker='s', linestyle='--')
-ax.plot(ms, SPL_direct_us, color='g', marker='s', linestyle='--')
-ax.plot(ms, SPL_direct_thickness, color='b', marker='s', linestyle='--')
-ax.plot(ms, SPL_SM_rotor_total, color='y', marker='s', linestyle='--')
-ax.plot(ms, SPL_scattered, color='m', marker='s', linestyle='--')
-ax.plot(ms, SPL_scattered_thickness, color='c', marker='s', linestyle='--')
-ax.plot(ms, SPL_total_scattering, color='k', marker='s', linestyle='--')
+ax.plot(ms, SPL_total_scattering, color='b', marker='s', linestyle='--')
 
 ax.plot(freq[0]/BPF,
         spl_from_autopower(data),
@@ -333,34 +321,21 @@ fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1,
                              'linewidth': 2
                          })
 
-component_handles = [
-    Line2D([0], [0], color='r', lw=2, label='Steady Loading'),
-    Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
-    Line2D([0], [0], color='b', lw=2, label='Thickness'),
-    Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
-    Line2D([0], [0], color='m', lw=2, label='Beam Noise due to Loading'),
-    Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
-    Line2D([0], [0], color='k', lw=2, label='Total'),
-]
-
 model_handles = [
-    Line2D([0], [0], color='k', marker='^', linestyle='-',
+    Line2D([0], [0], color='r', marker='^', linestyle='-',
            label='PIN'),
-    Line2D([0], [0], color='k', marker='s', linestyle='--',
+    Line2D([0], [0], color='b', marker='s', linestyle='--',
            label='SM'),
     Line2D([0], [0], color='0.3', lw=3,
            label='Experiment'),
 ]
 
-leg1 = ax.legend(handles=component_handles,
-                 title='Noise Component',
-                 loc='upper left')
 
 leg2 = ax.legend(handles=model_handles,
                 #  title='Model',
-                 loc='lower left')
+                 loc='upper left')
 
-ax.add_artist(leg1)
+# ax.add_artist(leg1)
 ax.add_artist(leg2)
 
 
@@ -377,6 +352,7 @@ ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
 # ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
 # plt.xlim(0.03333, 100)
 plt.xlim(0.1, 100)
+print(theta, phi)
 
 plt.ylim(0, 75)
 plt.tight_layout()
