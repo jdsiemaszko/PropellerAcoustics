@@ -352,6 +352,25 @@ class PotentialInteraction:
 
         return Fblade
 
+    def getBladeLoading(self, QS=False):
+        
+        BLH = self.getBladeLoadingHarmonics(QS=QS) # 3, Nk, Nr
+
+        period = 2 * np.pi / self.Omega
+        time = np.linspace(-period/2, period/2, 1000)
+
+        Nt = len(time)
+        Nr = len(self.seg_radius)
+        BL = np.zeros((3, Nt, Nr))
+        for i in range(3):
+            BLH_twoside, k_twoside = twoside_spectrum(BLH[i], self.k)
+            BLH_twoside = BLH_twoside
+            BLi, time = ifft_periodic(BLH_twoside, period, time, k_twoside)
+
+            BL[i, :, :] = BLi
+
+        return BL, time
+
     def getBladeLoadingHarmonicsAmiet(self, chord_stations=None, dc=None):
         """
         return Amiet's prediction of US loading of a flat plate, assuming a spanwise gust k2 = 0, and thus THETA = infinity and the gust is supercritical
@@ -495,8 +514,10 @@ class PotentialInteraction:
         u, v = np.real(dfdz), -np.imag(dfdz)
 
         w_vec = np.stack([
-            u - Uimag[:, None] * np.sin(alpha0)[:, None], # u should approach Uimag * sin(alpha0) at infinity
-            v + Uimag[:, None] * np.cos(alpha0)[:, None]  # v sgould approach -Uimag * sin(alpha0) at infinity
+            # u - Uimag[:, None] * np.sin(alpha0)[:, None], # u should approach Uimag * sin(alpha0) at infinity
+            # v + Uimag[:, None] * np.cos(alpha0)[:, None]  # v sgould approach -Uimag * sin(alpha0) at infinity
+            u - self.Ui[0, :, None], 
+            v - self.Ui[1, :, None] 
         ])
 
         # sum periodically to extract the periodic downwash!

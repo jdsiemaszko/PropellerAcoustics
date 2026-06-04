@@ -102,8 +102,8 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 7     # 60 to -60 in 10
-ind_phi = 0          # 0 to 350 in 10
+ind_theta = 6     # 60 to -60 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 

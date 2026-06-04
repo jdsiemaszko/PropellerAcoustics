@@ -47,7 +47,7 @@ dtype=[('Fz', 'O'), ('Fr', 'O'), ('Ftheta', 'O'), ('dSi', 'O'), ('Fz_span', 'O')
 """
 dFzdA = data['ISAE2_L20_D20'][0, 0][7] # shape Nt, Nr, Nc
 dFrdA = data['ISAE2_L20_D20'][0, 0][8]
-dFthetadA = data['ISAE2_L20_D20'][0, 0][9]
+dFphidA = data['ISAE2_L20_D20'][0, 0][9]
 dA = data['ISAE2_L20_D20'][0, 0][10]
 
 Nt, Nr, Nc = dFzdA.shape
@@ -65,8 +65,14 @@ r = np.arange(rr + dr/2, rt, dr) # Nr
 c = np.arange(-chord/2+dc/2, chord/2, dc) # Nc
 
 Fz_reconstruct = np.sum(np.mean(dFzdA, axis=0)[:, :] * dA[0, :, :], axis=-1) / dr
+Fphi_reconstruct = np.sum(np.mean(dFphidA, axis=0)[:, :] * dA[0, :, :], axis=-1) / dr
 
+
+Fz_in_time_reconstruct = np.sum(dFzdA* dA[:, :, :], axis=-1) / dr
 rot_freq = 8000 / 60 # Hz
+
+period = 1/rot_freq
+time_reconstruct = np.linspace(0, 5 * period, Fz_in_time_reconstruct.shape[0])
 BPF = 2 * rot_freq # blade passing frequency (2 blades)
 dt = 1/(rot_freq)/400 # 8000 RPM, 400 timesteps per rev
 harmonics = np.arange(0, 41, 1) # 0-40 harmonics of rot_freq to plot
@@ -399,18 +405,23 @@ Fz_harmonics_reconstruct = np.sum(harmonic_amplitudes * dA[0, :, :], axis=-1) / 
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180
 from Constants.helpers import read_force_file
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+
+Fz = np.interp(r_inner, r, Fz_reconstruct)
+Fphi = np.interp(r_inner, r, Fphi_reconstruct)
+
 PIN = D20L20W00_D180.getPIN(Fz, Fphi, D=0.02, L=0.02)
 
-r = np.load('./Data/Vella2026/r.npy')
+rv = np.load('./Data/Vella2026/r.npy')
 Uinf = np.load('./Data/Vella2026/Uinf.npy')
 
-Uinf = np.interp(r_inner, r, Uinf)
+Uinf = np.interp(r_inner, rv, Uinf)
 Ui = np.zeros((2, len(r_inner)))
-Ui[1, :] = -Uinf # only axial flow, at Uinf downwards
+Ui[1, :] = -abs(Uinf) # only axial flow, at Uinf downwards
 PIN.updateUi(Ui)
 
 
 BLH = PIN.getBladeLoadingHarmonics() # 3, Nk, Nr
+BL, time = PIN.getBladeLoading()
 r_inner = D20L20W00_D180.seg_radius
 ks = PIN.k
 ks = ks[ks<=10]
