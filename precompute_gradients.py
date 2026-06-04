@@ -12,8 +12,11 @@ import matplotlib.pyplot as plt
 # sourceArray = D15L20W00_D180
 # SUFFIX = 'D15L20_D180'
 
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray
-SUFFIX = 'PARROT_D20L20_D180_10_37'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray
+# SUFFIX = 'PARROT_D20L20_D180_10_37'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_10_37 as sourceArray
+SUFFIX = 'D20L20_D180_10_37'
 
 ms = np.arange(1, 11, 1)
 MODE = 'half'

@@ -1224,6 +1224,83 @@ class SourceModeArray():
     def getGreen(self):
         return self.green
 
+    def computeSurfaceSolution(self, m:np.ndarray, MODE='half', SUFFIX='', ROTOR='NACA0012_rotor'):
+        """
+        compute the green's function over the scatterer surface, for a set of harmonics m
+        solution is returned and saved as a npy array
+        """
+
+        import time
+        print(f'using suffix {SUFFIX}, existing files will be overwritten.')
+        print(f'proceed? (y/n)')
+        proceed = input().lower() == 'y'
+        if not proceed:
+            print('aborting')
+            exit()
+
+        # ------------------- Green's function ---------------------------
+
+        start_total = time.time()
+
+        # save green on the surface (run once per m)
+        for index, sm in enumerate(self.children):
+            start_loop = time.time()
+
+            print(f'pre-computing surface Greens functions: {index+1} of {len(self.children)}')
+            source_positions = sm.dipole_positions
+
+            start_compute = time.time()
+            G_surface = sm.green.getGreenAtSurface( source_positions, m*
+                                                    self.B * 
+                                                    self.Omega / 
+                                                    self.SoS
+                                                    )  # shape (Nm, Nz, Ny)
+            end_compute = time.time()
+
+            np.save(f'./Data/current/{ROTOR}/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
+
+            end_loop = time.time()
+
+            print(f'  -> compute time: {end_compute - start_compute:.3f} s')
+            print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
+
+        end_total = time.time()
+        print(f'Total time (Green): {end_total - start_total:.3f} s')
+
+
+        # ------------------- Green's function gradient ---------------------------
+
+        start_total = time.time()
+
+        # save gradients on the surface (run once per m)
+        for index, sm in enumerate(self.children):
+            start_loop = time.time()
+
+            print(f'pre-computing surface gradients of G_t: {index+1} of {len(self.children)}')
+
+            source_positions = sm.dipole_positions
+
+            start_compute = time.time()
+            gradG_surface = sm.green.getGreenGradAtSurface(source_positions,
+        m*
+        self.B * 
+        self.Omega / 
+        self.SoS)  # shape (3, Nm, Nz, Ny)
+            end_compute = time.time()
+
+            np.save(f'./Data/current/{ROTOR}/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy', gradG_surface)
+
+            end_loop = time.time()
+
+            print(f'  -> compute time: {end_compute - start_compute:.3f} s')
+            print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
+
+        end_total = time.time()
+        print(f'Total time (Gradient): {end_total - start_total:.3f} s')
+
+        return G_surface, gradG_surface
+
+
 if __name__ == "__main__":
     from TailoredGreen.CylinderGreen import CylinderGreen
     
