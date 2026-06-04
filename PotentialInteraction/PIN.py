@@ -203,10 +203,11 @@ class PotentialInteraction:
         #     - (1 / np.pi * self.seg_t_c)
         # ) * self.seg_t_c * self.seg_chord # consistent with the source-sink pair!
 
-        radius_doublet_squared = 2 * self.seg_t_c * self.seg_chord ** 2 # ??????? TODO: factor of 2, sign?
+        radius_doublet_squared = self.seg_t_c * self.seg_chord ** 2 / 2 / np.pi # ??????? TODO: factor of 2, sign?
 
         # mu = radius_doublet ** 2 * np.abs(Ur) # Nr
-        Ucomplex = self.Ui[0] + self.Ui[1] * 1j # Nr
+        # Ucomplex = self.Omega * self.seg_radius - self.Ui[0] - 1j * self.Ui[1]
+        Ucomplex = self.Omega * self.seg_radius
         mu = radius_doublet_squared * Ucomplex # Nr, doublet strength, accounting for orientation of the inflow
 
         return mu
@@ -301,7 +302,7 @@ class PotentialInteraction:
                 # zspbar = np.conj(zsp)
                 # zsnbar = np.conj(zsn)
 
-                # TODO: Lambda conj?
+                # ##### TODO: Lambda conj?
                 # # dfdz due to a sum of source at zsp and sink at zsn of strength Lambda
                 # dfdz_sourcesink = Lambda[None, None, :] / 2 / np.pi * ( 1 / (z[:, None, None] - zsp[None, :, :]) - 1 / (z[:, None, None] - zsn[None, :, :])
                 # ) + Lambda[None, None, :] / 2 / np.pi * (1 / (zprime[:, None, None] - zspbar[None, :, :]) - 1 / (zprime[:, None, None] - zsnbar[None, :, :])

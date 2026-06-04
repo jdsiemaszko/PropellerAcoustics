@@ -32,9 +32,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
@@ -48,9 +48,9 @@ shape='D'
 # SUFFIX = 'PARROT_D20L20_D180'
 # shape = 'PARROT'
 
-# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
-# SUFFIX = 'PARROT_D20L20_D36_1_10'
-# shape = 'PARROT'
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D36_1_10'
+shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_5_10 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D36_5_10'
