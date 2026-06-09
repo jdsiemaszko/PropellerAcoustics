@@ -203,7 +203,7 @@ class PotentialInteraction:
         #     - (1 / np.pi * self.seg_t_c)
         # ) * self.seg_t_c * self.seg_chord # consistent with the source-sink pair!
 
-        radius_doublet_squared = self.seg_t_c * self.seg_chord ** 2 / 2 / np.pi # ??????? TODO: factor of 2, sign?
+        radius_doublet_squared = self.seg_t_c * self.seg_chord ** 2 / 2 / np.pi #
 
         # mu = radius_doublet ** 2 * np.abs(Ur) # Nr
         # Ucomplex = self.Omega * self.seg_radius - self.Ui[0] - 1j * self.Ui[1]
@@ -332,10 +332,21 @@ class PotentialInteraction:
 
         u, v = np.real(dfdz), -np.imag(dfdz)
         U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
-        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!
-        pressure += pressure_dynamic # add the nonlinear contribution
 
-        return pressure # Nthetab, Nphi, Nr
+
+        only_linear = self._numerics.get('only_linear', False)
+        only_nonlinear = self._numerics.get('only_nonlinear', False)
+        
+        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!
+
+        if only_linear:
+            output = pressure
+        elif only_nonlinear:
+            output = pressure_dynamic
+        else:
+            output = pressure + pressure_dynamic
+
+        return output # Nthetab, Nphi, Nr
 
     def getBladeLoadingHarmonics(self, QS=False):
         """
@@ -869,7 +880,7 @@ class PotentialInteraction:
 
         return pressure_k_global
     
-    def plotSurfacePressureContour(self, m:int, fig=None, ax=None):
+    def plotSurfacePressureContour(self, m:int, fig=None, ax=None, show_discretization=False, levels=21):
         p = self.getStrutPressureHarmonics() # p_k of shape (Ntheta, Nk, Nr)
 
         thetab = self.theta_beam
@@ -894,12 +905,14 @@ class PotentialInteraction:
 
         TH, PHI = np.meshgrid(th_sorted, radius, indexing='ij')
 
-        fig, ax = plot_directivity_contour(Theta=np.rad2deg(TH), Phi=PHI, magnitudes=pk, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]', xlabel='$z$ [m]', title=f'Surface Pressure $p_{{{m}}}$ (dB)')
+        fig, ax, mappable = plot_directivity_contour(Theta=np.rad2deg(TH), Phi=PHI, magnitudes=pk, fig=fig, ax=ax, ylabel=r'$\theta$ [deg]',
+                                            xlabel='$z$ [m]', title=f'Surface Pressure $p_{{{m}}}$ (dB)', levels=levels)
         
-        ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
+        if show_discretization:
+            ax.scatter(PHI, np.rad2deg(TH), color='k', marker='x',alpha=0.25)
         
         print(f'maximum surface SPL: {np.max(p_to_SPL(pk))} dB')
-        return fig, ax
+        return fig, ax, mappable
 
     def plotBladeLoadingPerUnitArea(self, m, fig=None, ax=None, chord_stations=None, dc=None):
         """

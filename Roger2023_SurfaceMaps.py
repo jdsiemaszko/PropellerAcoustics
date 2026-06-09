@@ -51,6 +51,10 @@ radius_array = np.linspace(R0, R1, NSEG+1)
 
 radius_c = (radius_array[1:] + radius_array[:-1]) / 2
 if setup:
+
+
+    # TODO: thickness noise?
+
     # ASSUMPTIONS
     
 

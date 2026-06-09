@@ -594,7 +594,7 @@ def plot_2D_directivity(
 
     return fig, ax
 
-def plot_directivity_contour(Theta, Phi, magnitudes, levels=20, cmap='viridis', title=None, xlabel="Phi [deg]", ylabel="Theta [deg]", fig=None, ax=None,):
+def plot_directivity_contour(Theta, Phi, magnitudes, levels=21, cmap='viridis', title=None, xlabel="Phi [deg]", ylabel="Theta [deg]", fig=None, ax=None,):
     """
     Plot a 2D contour map of directivity (in dB) vs theta and phi.
 
@@ -620,8 +620,8 @@ def plot_directivity_contour(Theta, Phi, magnitudes, levels=20, cmap='viridis', 
     # 2D filled contour plot
     cf = ax.contourf(Phi, Theta, magnitudes_db, levels=levels, cmap=cmap, extend='both')
     # cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
-    cbar = fig.colorbar(cf, ax=ax, extend='both')
-    cbar.set_label("Directivity [dB]")
+    # cbar = fig.colorbar(cf, ax=ax, extend='both')
+    # cbar.set_label("Directivity [dB]")
 
     if xlabel is not None:
         ax.set_xlabel(xlabel)
@@ -632,7 +632,7 @@ def plot_directivity_contour(Theta, Phi, magnitudes, levels=20, cmap='viridis', 
     if title is not None:
         ax.set_title(title)
 
-    return fig, ax
+    return fig, ax, cf
 
 def get_spl_at_harmonic(fplus, spls, harmonic: int, alpha=0.01):
     """

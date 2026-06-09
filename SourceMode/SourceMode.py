@@ -92,7 +92,7 @@ class SourceMode():
 
         # TODO: shift chord stations by c/4?
         if isinstance(dt, float): # float: assume constant dt across the chord :(
-            self.dt = dt 
+            self.dt = dt / np.cos(self.gamma)
 
             # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, self.numerics.get('Nchordstations', 1000))
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
@@ -109,7 +109,7 @@ class SourceMode():
 
             # mean thickness of the section -  need to account for the size of the element!
             # self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
-            self.dt = 1/self.chord_extent * np.trapezoid(dt[self.where_extent], self.chord_stations[self.where_extent])
+            self.dt = 1/self.chord_extent * np.trapezoid(dt[self.where_extent], self.chord_stations[self.where_extent]) / np.cos(self.gamma)
             self.t_c_distribution = dt / self.chord
 
 
@@ -309,8 +309,8 @@ class SourceMode():
 
         phase = np.exp(
             1j * (m[None, None, :] * self.B - s[None, :, None])
-            # * (self.chord / 2 * u[:, None, None]) / self.radius
-            * np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius) # near the root, the approximation phi ~= x/r may fail!
+            * (self.chord / 2 * u[:, None, None]) / self.radius
+            # * np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius) # near the root, the approximation phi ~= x/r may fail!
         ) # shape Nchord stations, 2Ns-1, Nm, symmetric in s?
 
         where_extent = self.where_extent
@@ -424,8 +424,8 @@ class SourceMode():
         chord_stations = self.chord_stations # Nchord
 
         phase = np.exp(1j * m[None, :] * self.B 
-                    #  * chord_stations[:, None] / self.radius
-            * np.arctan(chord_stations[:, None] / self.radius * np.cos(self.gamma)) # near the root, the approximation phi ~= x/r may fail!
+                     * chord_stations[:, None] / self.radius
+            # * np.arctan(chord_stations[:, None] / self.radius * np.cos(self.gamma)) # near the root, the approximation phi ~= x/r may fail!
         )
         # apply the integral
 
@@ -966,15 +966,18 @@ class SourceModeArray():
             pmB += child.getThicknessPressureScattered(x, self.Omega, m, c=self.SoS, rho0=self.rho0, G=G[index])
         return pmB
     
-    def getThicknessPressure(self, x:np.ndarray, m:np.ndarray):
+    def getThicknessPressure(self, x:np.ndarray, m:np.ndarray, G):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
 
-        print('computing thickness acoustic pressure')
-        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
-        for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
-            pmB += child.getThicknessPressure(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+        # print('computing thickness acoustic pressure')
+        # pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        # for index, child in enumerate(self.children):
+        #     print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+        #     pmB += child.getThicknessPressure(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+
+        pmB = self.getThicknessPressureDirect(x, m)
+        pmB += self.getThicknessPressureScattered(x, m, G)
         return pmB
 
     # def _getSurfacePressure(self, x:np.ndarray, m:np.ndarray, gradG_surface=None, BLH=None):
