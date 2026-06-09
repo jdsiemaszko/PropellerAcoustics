@@ -19,18 +19,43 @@ def getCylindricalBasis(azimuth:np.ndarray, axis:np.ndarray, radial:np.ndarray, 
 
     return radial_loc, tangential_loc, axis_rep
 
+def getSearsFunction(x_c):
+    return np.sqrt((1-x_c) / (1+x_c))
+
+def _sears_antiderivative(x):
+    ans = np.sqrt(1.0 - x**2) - 2.0 * np.arctan(np.sqrt((1.0 - x) / (1.0 + x))) + np.pi
+    ans[x<=-1] = 0.0 # truncate for x<=-1
+    ans[x>=1] = np.pi # truncate for x>=1
+    return ans
+
+
+def getSearsFunctionHistograms(x_c, x_c_outer):
+    """
+    Return the integral of the Sears function over bins whose
+    edges are given by x_c_outer.
+    """
+    F = _sears_antiderivative(x_c_outer)
+    return F[1:] - F[:-1]
+
+
 class SourceMode():
 
     def __init__(self, BLH:np.ndarray, B:int, gamma:float, axis:np.ndarray, origin:np.ndarray, radius:float, green:TailoredGreen,
                  airfoil,
                  Omega, rho0, c0, nu,
+                dr,
+                  dt,
+                  chord ,
+                  chord_extent,
+                  azimuth_offset,
+                  CL,
+                    parent,
+                  index_r, index_layer,
                   radial:np.ndarray=None,
                   numerics={
-                      'Ndipoles':36
+                      'Nsources':36
                   },
-                  dr = None,
-                  dt = None,
-                  chord = None,
+
 
                   ):
         self.numerics = numerics
@@ -38,6 +63,8 @@ class SourceMode():
         self.green = green
         self.BLH = BLH # blade loading harmonics, shape (3, Nharmonics), unit of NEWTONS!, convention: radial, axial, tangential loadings!
         Nk = BLH.shape[1]
+        self.CL = CL # lift coefficient of the RADIAL section, which may comprise of multiple segments/source-modes
+
         self.s = np.arange(0, Nk, 1) # helper array, running from 0 to len(self.BLH) - 1
         self.B = B
         self.gamma = gamma
@@ -47,6 +74,10 @@ class SourceMode():
         self.dr = dr # radial segment length of the element, used to compute thickness noise
         # self.dt = dt # thickness of the element, used to compute thickness noise
 
+        self.index_radius = index_r
+        self.index_layer = index_layer
+        self.parent = parent
+
         self.chord = chord # chord used in thickness noise (Glegg)
         self.airfoil = airfoil
         self.Omega = Omega
@@ -54,22 +85,35 @@ class SourceMode():
         self.rho0 = rho0
         self.SoS = c0
 
+        self.chord_0, self.chord_1 = chord_extent
+        self.chord_extent = self.chord_1 - self.chord_0
+        self.azimuth_offset = azimuth_offset # loading w.r.t. this azimuth, we will need to shift it later to match the dipole positions
+
+
         # TODO: shift chord stations by c/4?
-        if isinstance(dt, float):
-            self.dt = dt
+        if isinstance(dt, float): # float: assume constant dt across the chord :(
+            self.dt = dt / np.cos(self.gamma)
 
             # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, self.numerics.get('Nchordstations', 1000))
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
 
+            # mind the chord in the parent frame is in opposite convention: here we go from LEADING EDGE to TRAILING EDGE
+            # transformation is x -> -x to the local frame, so (c0, c1) corresponds to (-c1, -c0)
+            self.where_extent = np.where(np.logical_and(self.chord_stations >= -self.chord_1, self.chord_stations < -self.chord_0))[0] # only pick the extent of this segment
+
             self.t_c_distribution = np.ones_like(self.chord_stations) * self.dt / self.chord
-        elif isinstance(dt, np.ndarray):
+        elif isinstance(dt, np.ndarray): # array: assume a known dt distribution
             # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, dt.shape[0])
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, dt.shape[0]) # assume equidistant thickness stations over the chord length
+            self.where_extent = np.where(np.logical_and(self.chord_stations >= -self.chord_1, self.chord_stations < -self.chord_0))[0] # only pick the extent of this segment
 
-            self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
+            # mean thickness of the section -  need to account for the size of the element!
+            # self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
+            self.dt = 1/self.chord_extent * np.trapezoid(dt[self.where_extent], self.chord_stations[self.where_extent]) / np.cos(self.gamma)
             self.t_c_distribution = dt / self.chord
 
-        self.Ndipoles = numerics.get('Ndipoles', 36)
+
+        self.Nsources = numerics.get('Nsources', 36)
 
         if radial is None:
             # choose an arbitrary radial direction perpendicular to the axis
@@ -84,30 +128,30 @@ class SourceMode():
 
 
         self.tangential= np.cross(self.axis, self.radial) # assuming counterclockwise rotation?
-        self.dipole_positions, self.dipole_angles, self.dalpha = self.getDipoleGeometry() # shape (Ndipoles, 3)
+        self.dipole_positions, self.dipole_angles, self.dalpha = self.getDipoleGeometry() # shape (Nsources, 3)
         self.NBLH = len(self.BLH)
 
-        rad, norm, ax = getCylindricalBasis(self.dipole_angles, self.axis, self.radial, self.tangential) # shape (Ndipoles, 3)
+        rad, norm, ax = getCylindricalBasis(self.dipole_angles, self.axis, self.radial, self.tangential) # shape (Nsources, 3)
 
-        self.force_unit = +ax * np.cos(self.gamma) - norm * np.sin(self.gamma) # shape (Ndipoles, 3) # TODO:sign?
-        self.force_unit = self.force_unit.T # (3, Ndipoles)
+        self.force_unit = +ax * np.cos(self.gamma) - norm * np.sin(self.gamma) # shape (Nsources, 3) # TODO:sign?
+        self.force_unit = self.force_unit.T # (3, Nsources)
 
     def getDipoleGeometry(self):
-        Ndipoles = self.numerics['Ndipoles']
-        dipole_angles = np.linspace(0, 2*np.pi, Ndipoles, endpoint=False)
+        Nsources = self.numerics.get('Nsources', 180)
+        dipole_angles = np.linspace(0, 2*np.pi, Nsources, endpoint=False)
         dipole_positions = self.origin[:, None] + self.radius * (np.cos(dipole_angles[None, :]) *
                          self.radial[:, None] + np.sin(dipole_angles[None, :]) *
-                           self.tangential[:, None]) # shape (3, Ndipoles)
-        dalpha = 2 * np.pi / Ndipoles
+                           self.tangential[:, None]) # shape (3, Nsources)
+        dalpha = 2 * np.pi / Nsources
         return dipole_positions, dipole_angles, dalpha
     
     def _rotate_loadings(self, BLH=None):
         """
         rotate loading harmonics along the rotation axis
         BLH - array of size (3, Nk), in blade-centered coordinates, optionally overwriting self.BLH
-        output: array of size (3, Nk, Ndipoles) in global coordinates
+        output: array of size (3, Nk, Nsources) in global coordinates
         """
-        angles = self.dipole_angles              # (Ndipoles,)
+        angles = self.dipole_angles              # (Nsources,)
         axis = self.axis / np.linalg.norm(self.axis)  # ensure unit vector
 
         BLH = self.BLH if BLH is None else BLH  # (3, Nk)
@@ -133,7 +177,7 @@ class SourceMode():
 
         I = np.eye(3)
 
-        # Allocate rotation matrices (Ndipoles, 3, 3)
+        # Allocate rotation matrices (Nsources, 3, 3)
         R = np.zeros((Nd, 3, 3))
 
         for i, theta in enumerate(angles):
@@ -143,10 +187,10 @@ class SourceMode():
                 + np.sin(theta) * K
             )
 
-        # Apply rotations: result (Ndipoles, 3, Nk)
+        # Apply rotations: result (Nsources, 3, Nk)
         BLH_rotated = np.einsum('nij,jk->nik', R, BLH_global)
 
-        # Reorder to (Nk, Ndipoles, 3)
+        # Reorder to (Nk, Nsources, 3)
         BLH_rotated = np.transpose(BLH_rotated, (2, 0, 1))
 
         return BLH_rotated
@@ -159,13 +203,13 @@ class SourceMode():
 
         BLH = self.BLH if BLH is None else BLH
 
-        expterm = np.exp(+1j *  (m[None, :, None] * self.B  - self.s[:, None, None]) * self.dipole_angles[None, None, :])   # shape (Ns, Nm, Ndipoles)
-        expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns-1, Nm, Ndipoles)
+        expterm = np.exp(+1j *  (m[None, :, None] * self.B  - self.s[:, None, None]) * self.dipole_angles[None, None, :])   # shape (Ns, Nm, Nsources)
+        expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns-1, Nm, Nsources)
         
         # UPDATE (3D loading)
 
         # TODO: fix!
-        BLH_rotated = self._rotate_loadings(BLH=BLH) # shape (Ns, Ndipoles, 3)
+        BLH_rotated = self._rotate_loadings(BLH=BLH) # shape (Ns, Nsources, 3)
 
         loadings_positive = expterm[:, :, :, None] * BLH_rotated[:, None, :, :]
         loadings_negative = np.conjugate(BLH_rotated[:, None, :, :]) * expterm_negative[:, :, :, None]
@@ -176,7 +220,7 @@ class SourceMode():
 
         # 4) append negative harmonics along the first dimension
         # to achieve s ranging from -Ns+1, ..., 0, ..., Ns-1
-        loadings = np.concatenate([loadings_negative, loadings_positive], axis=0)  # shape (2*Ns-1, Nm, Ndipoles, 3)
+        loadings = np.concatenate([loadings_negative, loadings_positive], axis=0)  # shape (2*Ns-1, Nm, Nsources, 3)
 
         loadings *= self.dalpha / 2. / np.pi # normalize
 
@@ -198,9 +242,9 @@ class SourceMode():
         nu = nu if nu is not None else self.nu
         rho0 = rho0 if rho0 is not None else self.rho0
 
-        Lnet = np.sqrt(BLH[0, 0]**2 + BLH[1, 0]**2 + BLH[2, 0]**2)
+        # Lnet = np.sqrt(BLH[0, 0]**2 + BLH[1, 0]**2 + BLH[2, 0]**2)
 
-        CL = Lnet / 0.5 / rho0 / Omega**2 / self.radius**2 / self.dr / self.chord
+        CL = self.CL
         Re = self.chord * Omega * self.radius / nu if nu is not None else 5e6 # pick high Re if not provided
 
         # find parameters corresponding to this CL
@@ -243,7 +287,7 @@ class SourceMode():
         # weight = 2 * np.cos(theta / 2)**2  # comes from transformation, integrand * du/dtheta
 
 
-        weight = (1-np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)?
+        weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)?
         # weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)? 
 
         # Roger et al. (2006):
@@ -255,7 +299,7 @@ class SourceMode():
         transmission shaft.
         """
 
-        # TODO: implement REVERESED SEARS or PARRY with LEADING EDGE BACKSCATTERING
+        # TODO: implement PARRY with LEADING EDGE BACKSCATTERING
 
         # weight = np.sqrt((1-u) / (1+u)) * np.sin(theta) #integrand * du/dtheta
         # weight = np.sin(theta) * 1 / np.tan(theta/2) #integrand * du/dtheta
@@ -265,15 +309,26 @@ class SourceMode():
 
         phase = np.exp(
             1j * (m[None, None, :] * self.B - s[None, :, None])
-            # * (self.chord / 2 * u[:, None, None]) / self.radius
-            * np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius) # near the root, the approximation phi ~= x/r may fail!
+            * (self.chord / 2 * u[:, None, None]) / self.radius
+            # * np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius) # near the root, the approximation phi ~= x/r may fail!
         ) # shape Nchord stations, 2Ns-1, Nm, symmetric in s?
 
-        factor = 1 / np.pi * np.trapezoid(
+        where_extent = self.where_extent
+        weight = weight[where_extent]
+        phase = phase[where_extent, :, :]
+        theta = theta[where_extent]
+
+        factor = np.trapezoid(
             weight[:, None, None] * phase,
             theta,
             axis=0
-        ) # shape 2*Ns-1, Nm
+        ) / np.trapezoid(
+            weight[:, None, None],
+            theta,
+            axis=0
+        )
+        
+        # shape 2*Ns-1, Nm
 
 
         # OVERWRITE THE MEAN LOADING FACTOR! - mean lift behaves different from unsteady gust responses!
@@ -285,6 +340,10 @@ class SourceMode():
         ) # shape Nchord stations, Nm
 
         dx = np.diff(chord_stations)[0] # assumed uniform
+
+        phase0 = phase0[where_extent, :]
+        f0 = f0[where_extent]
+
         factor[Ns-1, :] = np.sum(
             f0[:, None] * phase0 * dx,
             axis=0
@@ -347,9 +406,14 @@ class SourceMode():
         # sources = -1j * rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
                 # * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
 
-        sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord * np.exp(1j
-                * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+        # total clumped at c/2
+        # sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord * np.exp(1j
+        #         * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
         
+        # accounting for chordwise extent!
+        sources = -rho0 * m[:, None]**2 * self.B**2 * Omega**2 * self.dr * self.dt * self.chord_extent * np.exp(1j
+            * self.dipole_angles[None, :] * (m * self.B)[:, None]  ) * self.dalpha / 2 / np.pi
+
         if self.numerics.get('CompactnessCorrection', False):
             sources = self._getCompactnessCorrectionThickness(sources, m)
 
@@ -357,17 +421,26 @@ class SourceMode():
 
     def _getCompactnessCorrectionThickness(self, sources, m):
 
-        chord_stations = self.chord_stations
+        chord_stations = self.chord_stations # Nchord
 
-        # TODO: figure out the sign!
         phase = np.exp(1j * m[None, :] * self.B 
-                    #  * chord_stations[:, None] / self.radius
-            * np.arctan(chord_stations[:, None] / self.radius * np.cos(self.gamma)) # near the root, the approximation phi ~= x/r may fail!
+                     * chord_stations[:, None] / self.radius
+            # * np.arctan(chord_stations[:, None] / self.radius * np.cos(self.gamma)) # near the root, the approximation phi ~= x/r may fail!
         )
         # apply the integral
-        t_c_effective = 1 / self.chord * np.trapezoid(self.t_c_distribution[:, None] * phase, chord_stations, axis=0) # shape Nm
+
+        where_extent = self.where_extent
+        chord_stations = chord_stations[where_extent]
+        phase = phase[where_extent, :]
+        t_c_dist = self.t_c_distribution[where_extent]
+
+        # TODO: triple check
+        factor = np.trapezoid(t_c_dist[:, None] * phase,
+                        chord_stations, axis=0) / np.trapezoid(t_c_dist[:, None],
+                        chord_stations, axis=0)  
+                                             # shape Nm, should add up to t_c_mean if summed over the layers
             
-        return sources * (t_c_effective / self.dt * self.chord)[:, None] # Nm, Ny
+        return sources * factor[:, None] # Nm, Ny
 
     def _getMonopolePressure(self,x:np.ndarray, m:np.ndarray, G:np.ndarray, Omega:float, rho0:float):
         # G is of shape (Nm, Nx, Ny)
@@ -504,10 +577,18 @@ class SourceMode():
             x, y, z,
             color="r",
             linewidth=3.0,
-            alpha=0.5,
+            alpha=0.1,
+            # marker='x',
+            zorder=10
+        )
+
+        ax.scatter(
+            x, y, z,
+            color="r",
+            linewidth=3.0,
+            # alpha=0.1,
             marker='x',
             zorder=10
-
         )
 
     def plotNormals(self, fig, ax):
@@ -541,7 +622,7 @@ class SourceModeArray():
                   rho0 = 1.2,
                   nu = 14.61e-6, # m^2/s, 
                 numerics={
-                    'Ndipoles':36,
+                    'Nsources':180,
                     'Nlayers':1
                 },
                 dt = None,
@@ -601,8 +682,27 @@ class SourceModeArray():
 
 
 
-        self.Ndipoles = numerics.get('Ndipoles', 36) # number of dipoles in EACH source mode
+        self.Nsources = numerics.get('Nsources', 180) # number of dipoles in EACH source mode
         self.Nlayers = numerics.get('Nlayers', 1) # number of layers in the axial direction
+        # total number of sources: Nr * Nsources * Nlayers
+
+        # shape (Nlayers, Nr), axial offsets of each layer: ranging from -0.5 to 0.5 of c * sin(gamma): DATUM IS THE MIDCHORD
+        # should default to zero with a single layer
+
+        theta_outer = np.linspace(0, np.pi, self.Nlayers+1) # dummy variable for discretizing the chord
+        theta_inner = (theta_outer[1:] + theta_outer[:-1]) / 2
+        self.chord_discretization = -np.cos(theta_inner)[:, None] * self.seg_chord[None, :] / 2 # Nlayers, Nr, ranging from TRAILING EDGE to LEADING EDGE
+        self.chord_discretization_edges = -np.cos(theta_outer)[:, None] * self.seg_chord[None, :] / 2 # Nlayers+1, Nr
+        self.axial_offsets = self.chord_discretization * np.sin(self.seg_twist)[None, :]  # Nlayers, Nr
+        self.normal_offsets = self.chord_discretization * np.cos(self.seg_twist)[None, :] 
+        self.azimuthal_offsets = np.arctan(self.normal_offsets/self.seg_radius[None, :]) # shape Nlayers, Nr - change in azimuth between layers, should default to zero for 1 layer
+
+        # np.arctan((self.chord / 2 * u[:, None, None] * np.cos(self.gamma)) / self.radius)
+
+        # distribute BLH along the chord: assume neuralfoil + sears?
+        Lnet = np.sqrt(BLH[0, 0]**2 + BLH[1, 0]**2 + BLH[2, 0]**2) # Nr
+        self.CL = Lnet / 0.5 / rho0 / Omega**2 / self.seg_radius**2 / self.seg_chord # Nr, sectional CL, used to interface with neuralfoil.
+        self.BLH_distributed = self.distributeBLH() # shape (3, Nk, Nr, Nlayers)
 
         self.axis = axis
         self.origin = origin
@@ -619,34 +719,169 @@ class SourceModeArray():
             self.radial = radial # radial vector of the cylinder, taken as the zero azimuth direction
         self.tangential= np.cross(self.axis, self.radial)
 
-        self.children = [None] * self.Nr # individual source modes!
-        for index, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, np.transpose(self.BLH, axes=(2, 0, 1)))):
+        self.children = [None] * self.Nr * self.Nlayers # individual source modes!
+
+        index = 0
+        for index_r, (rad, twst, deltar, BLH_seg) in enumerate(zip(self.seg_radius, self.seg_twist, self.dr, np.transpose(self.BLH, axes=(2, 0, 1)))):
 
             # create child source-modes, each at a given radial station
-            self.children[index] = SourceMode(
-                BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
-                        B=self.B, gamma=twst, axis=self.axis, origin=self.origin, radius=rad, green=self.green, radial=self.radial,
-                numerics=self.numerics, dr = self.dr[index], dt = self.dt[index] if dt is not None else None,
-                chord = self.chord[index] if self.chord is not None else None,
-                airfoil = self.airfoil[index],
-                c0 = c0, Omega=Omega, nu=nu, rho0=rho0
+            for layer, offset in enumerate(self.axial_offsets[:, index_r]):
 
-            ) # construct source modes at each radial station
+                origin_offset = self.origin + offset * self.axis # new attachment point: offset along the prop axis, shape 3
 
+                self.children[index] = SourceMode(
+                    
+                    # BLH = BLH_seg * deltar, # shape (3, Nk) - RESCALING TO NEWTONS!
+
+                    BLH = self.BLH_distributed[:, :, index_r, layer], # shape (3, Nk), in units of NEWTON
+
+                    B=self.B, gamma=twst,
+                    axis=self.axis,
+                    origin=origin_offset,
+                    radius=rad, green=self.green, radial=self.radial,
+                    numerics=self.numerics, dr = self.dr[index_r], dt = self.dt[index_r] if dt is not None else None,
+                    chord = self.seg_chord[index_r] if self.seg_chord is not None else None,
+                    airfoil = self.airfoil[index_r],
+                    c0 = c0, Omega=Omega, nu=nu, rho0=rho0,
+                    azimuth_offset = self.azimuthal_offsets[layer, index_r],
+                    chord_extent = (self.chord_discretization_edges[layer, index_r],
+                                    self.chord_discretization_edges[layer+1, index_r]), # fraction of the chord covered by this source-mode, used for compactness corrections
+                    CL = self.CL[index_r], # only for interface with neuralfoil
+                    index_r = index_r, index_layer = layer, # for ordering purposes
+                    parent = self
+                ) # construct source modes at each radial station
+
+                index += 1
+
+        self.Nchildren = len(self.children)
 
         self.Hanson = self.getHanson()
         self.PIN = self.getPIN(self.BLH[1, 0, :], self.BLH[2, 0, :])
+
+    def distributeBLH(self):
+        """
+        distribute BLH along the layers:
+        - assume a Sears distribution for a flat plate for the harmonics,
+        - assume mean loading from neuralfoil
+        - account for
+
+        return: BLH_distributed of shape (3, Nk, Nr, Nlayers) in units of NEWTON,
+        the distributed fields should be such that summing along the layers, the total loading is recovered
+        """
+
+        # TODO: distribute with histograms rather than interpolation
+
+        x_c = 2 * self.chord_discretization / self.seg_chord # -1 to 1, shape Nlayers, Nr
+        x_c_outer = 2 * self.chord_discretization_edges / self.seg_chord # shape Nlayers+1, Nr
+        # fsears = getSearsFunction(x_c) # Nlayers, Nr
+        fsears = getSearsFunctionHistograms(x_c, x_c_outer)# Nlayers, Nr
+
+        _, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nlayers, Nr
+
+        # define loading distribution, could be improved by a better model for harmonics
+        ftotal = np.zeros((self.Nlayers, self.Nr, self.Nk)) 
+        ftotal[:, :, 0] = f0
+        ftotal[:, :, 1:] = fsears[:, :, None]
+
+        # BLH_distributed = np.zeros((3, self.Nk, self.Nr, self.Nlayers))
+        BLH_distributed = np.einsum(
+            'dkr,lrk, r ->dkrl',
+            self.BLH, ftotal, self.dr
+        ) # in units NEWTON
+
+        # mask = np.abs(self.BLH) > 1e-12
+
+        # num = self.BLH[..., None] * self.dr[None, None, :, None]
+        # den = np.sum(BLH_distributed, axis=3, keepdims=True)
+
+        # BLH_distributed[mask, :] *= (num / den)[mask, :]
+
+        mask = np.abs(self.BLH) > 1e-12
+
+        num = self.BLH[..., None] * self.dr[None, None, :, None]
+        den = np.sum(BLH_distributed, axis=3, keepdims=True)
+
+        ratio = np.zeros_like(num)
+        np.divide(num, den, out=ratio, where=np.abs(den) > 1e-12) # safe divide
+
+        BLH_distributed[mask, :] *= ratio[mask, :]
+
+        BLH_distributed[np.isnan(BLH_distributed)] = 0.0 # final correction if all above failed :(
+
+        return BLH_distributed
+    
+    def _getMeanLoadingChordDistribution(self, ):
+        """
+        get mean loading distribution by interfacing with neuralfoil,
+        assume net sectional loading Lprime is known
+        nu - kinematic viscosity, used to compute Re
+
+        Note: use np.sum(f_interp) / c to get CL, not np.trapezoid() due to singularity at the LE
+        """
+
+        BLH = self.BLH # shape 3, Nk, Nr
+        Omega = self.Omega
+        nu = self.nu
+        rho0 = self.rho0
+
+        # Lnet = np.sqrt(BLH[0, 0]**2 + BLH[1, 0]**2 + BLH[2, 0]**2) # Nr?
+        # CL = Lnet / 0.5 / rho0 / Omega**2 / self.seg_radius**2 / self.dr / self.seg_chord # Nr
+        CL = self.CL
+        Re = self.seg_chord * Omega * self.seg_radius / nu if nu is not None else np.ones_like(CL) * 5e6 # Nr
+
+        # find parameters corresponding to this CL
+
+        fs = np.zeros((self.Nlayers, self.Nr)) # Nlayers, Nr
+        for index, CL_val in enumerate(CL):
+            alpha, aero = find_alpha(CL[index], Re[index], self.airfoil[index]) # Nr?
+
+            # compute the pressure distribution (assumption: incompressible flow)
+            ue_upper = np.array([aero[f'upper_bl_ue/vinf_{ind}'] for ind in range(0, 32, 1)]) # hard-coded discretization... (im not fixing it)
+            ue_lower = np.array([aero[f'lower_bl_ue/vinf_{ind}'] for ind in range(0, 32, 1)])
+
+            # chord stations (hard-coded in nf)
+            x_c_outer = np.linspace(0, 1, 32 + 1)
+            x_c = (x_c_outer[1:] + x_c_outer[:-1]) * 0.5
+
+            cp_upper = 1 - ue_upper**2
+            cp_lower = 1 - ue_lower**2
+
+            f = cp_lower - cp_upper # pressure distribution (arbitrary scale)
+            # we should have np.sum(f) * 1/32 = CL
+
+            f = f.reshape(32)
+
+            # interpolate at the physical chord stations, whatever the x=0 position is
+            # f_interp = np.interp(self.chord_stations, x_c / 2, f)
+
+            f_interp = np.interp((self.chord_discretization-self.chord_discretization[0, :])/self.seg_chord, x_c, f) # shape Nlayers, Nr - should work out the shapes?
+
+            f_interp *= np.real(CL[None, :] / (np.sum(f_interp, axis=0) / self.Nlayers) ) # rescale to preserve CL!
+
+            fs[:, index] = f_interp[:, 0] # ignore the rest
+
+        return self.chord_discretization, f_interp
 
     def updateBLH(self, BLH):
         """
         update the BLH value and propagate it to self.children (couldn't be bothered with setters)
         """
         self.BLH = BLH # change in parent, of size 3, Nk, Nr
-        for index, (child, BLH_seg) in enumerate(zip(self.children, np.transpose(self.BLH, axes=(2, 0, 1)))):
-            # IN NEWTONS!
-            child.BLH = BLH_seg * self.dr[index] # propagate change to children, result of shape 3, Nk
 
-        PIN = self.getPIN(BLH[1, 0, :], BLH[2, 0, :])
+        # update CL
+        Lnet = np.abs(np.sqrt(BLH[0, 0]**2 + BLH[1, 0]**2 + BLH[2, 0]**2)) # Nr
+        self.CL = Lnet / 0.5 / self.rho0 / self.Omega**2 / self.seg_radius**2 / self.seg_chord # Nr, sectional CL, used to interface with neuralfoil.
+        # update the distributed loads
+        self.BLH_distributed = self.distributeBLH() # shape (3, Nk, Nr, Nlayers)
+
+        for index, child  in enumerate(self.children):
+            # IN NEWTONS!
+            # child.BLH = BLH_seg * self.dr[index] # propagate change to children, result of shape 3, Nk
+            index_r, layer = child.index_radius, child.index_layer
+            child.BLH = self.BLH_distributed[:, :, index_r, layer]
+            child.CL = self.CL[index_r] # update CL as well, used for neuralfoil interface
+
+        PIN = self.getPIN(BLH[1, 0, :], BLH[2, 0, :], self.PIN.Dcylinder, self.PIN.Lcylinder)
         self.PIN = PIN # overwrite PIN as well!
 
         return
@@ -655,15 +890,16 @@ class SourceModeArray():
         if not isinstance(m, np.ndarray):
             m = np.array([m])
         if gradG is None:
-            gradG = [None] * self.Nr # 
+            gradG = [None] * self.Nchildren # 
         if BLH is None:
-            BLH = [None] * self.Nr # 
+            BLH = [None] * self.Nchildren # 
 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index] if BLH[index] is not None else None)
+            index_r = child.index_radius
+            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+            pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index] if BLH[index_r] is not None else None)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
@@ -675,17 +911,18 @@ class SourceModeArray():
         if not isinstance(m, np.ndarray):
             m = np.array([m])
         if gradG is None:
-            gradG = [None] * self.Nr # 
+            gradG = [None] * self.Nchildren # 
         if BLH is None:
-            BLH = [None] * self.Nr # 
+            BLH = [None] * self.Nchildren # 
         if gradG_surface is None:
-            gradG_surface = [None] * self.Nr # 
+            gradG_surface = [None] * self.Nchildren # 
 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index] if BLH[index] is not None else None, gradG_surface=gradG_surface[index])
+            index_r = child.index_radius
+            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+            pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index_r] if BLH[index] is not None else None, gradG_surface=gradG_surface[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
@@ -693,12 +930,14 @@ class SourceModeArray():
         if not isinstance(m, np.ndarray):
             m = np.array([m])
         if BLH is None:
-            BLH = [None] * self.Nr # 
+            BLH = [None] * self.Nchildren # 
         print('computing pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+
         for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS, BLH= BLH[index]  * self.dr[index] if BLH[index] is not None else None)
+            index_r = child.index_radius
+            pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS, BLH= BLH[index]  * self.dr[index_r] if BLH[index] is not None else None)
+            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
@@ -709,7 +948,7 @@ class SourceModeArray():
         print('computing direct thickness acoustic  pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             pmB += child.getThicknessPressureDirect(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
         return pmB
     
@@ -718,24 +957,27 @@ class SourceModeArray():
             m = np.array([m])
 
         if G is None:
-            G = [None] * self.Nr # 
+            G = [None] * self.Nchildren # 
 
         print('computing scattered thickness acoustic  pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nr}')
+            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             pmB += child.getThicknessPressureScattered(x, self.Omega, m, c=self.SoS, rho0=self.rho0, G=G[index])
         return pmB
     
-    def getThicknessPressure(self, x:np.ndarray, m:np.ndarray):
+    def getThicknessPressure(self, x:np.ndarray, m:np.ndarray, G):
         if not isinstance(m, np.ndarray):
             m = np.array([m])
 
-        print('computing thickness acoustic pressure')
-        pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
-        for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nr}')
-            pmB += child.getThicknessPressure(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+        # print('computing thickness acoustic pressure')
+        # pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
+        # for index, child in enumerate(self.children):
+        #     print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+        #     pmB += child.getThicknessPressure(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
+
+        pmB = self.getThicknessPressureDirect(x, m)
+        pmB += self.getThicknessPressureScattered(x, m, G)
         return pmB
 
     # def _getSurfacePressure(self, x:np.ndarray, m:np.ndarray, gradG_surface=None, BLH=None):
@@ -743,14 +985,14 @@ class SourceModeArray():
     #         m = np.array([m])
 
     #     if gradG_surface is None:
-    #         gradG_surface = [None] * self.Nr 
+    #         gradG_surface = [None] * self.Nchildren 
     #     if BLH is None:
-    #         BLH = [None] * self.Nr 
+    #         BLH = [None] * self.Nchildren 
 
     #     print('computing pressure')
     #     pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
     #     for index, child in enumerate(self.children):
-    #         print(f'computing contribution of source mode {index+1} of {self.Nr}')
+    #         print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
     #         pmB += child._getPressureFromGrad(x, m, gradG = gradG_surface[index], BLH=BLH[index]  * self.dr[index] if BLH[index] is not None else None)
     #     return pmB 
     
@@ -875,7 +1117,7 @@ class SourceModeArray():
     
     def plotSurfacePressure(self, m:float, valmin=None, valmax=None, fig=None, ax=None, extent_z=None, gradG_surface=None, BLH=None):
         """
-        gradG_surface should be of shape Nr, 3, 1, NevalPoints, Ndipoles
+        gradG_surface should be of shape Nr, 3, 1, NevalPoints, Nsources
 
         plotting harmonic m * B of Omega
         """
@@ -935,12 +1177,12 @@ class SourceModeArray():
         print(f'maximum surface SPL: {np.max(p_to_SPL(pmB))} dB')
         return fig, ax
       
-    def getLoading(self, Fzprime, Fphiprime, numerics=None, steady_only=False):
+    def getLoading(self, Fzprime, Fphiprime, D, L, numerics=None, steady_only=False):
         """
         interface with PIN module, computing the loading and setting self.BLH to that loading
         """
 
-        PIN = self.getPIN(Fzprime, Fphiprime, numerics)
+        PIN = self.getPIN(Fzprime, Fphiprime, D, L, numerics)
 
         BLH = PIN.getBladeLoadingHarmonics()
         BLH_US = np.zeros_like(BLH)
@@ -955,7 +1197,7 @@ class SourceModeArray():
         
         return BLH, BLH_S, BLH_US, PIN
     
-    def getPIN(self, Fzprime, Fphiprime, numerics=None):
+    def getPIN(self, Fzprime, Fphiprime, D=0.02, L=0.02, numerics=None):
         """
         interface with PIN module, computing the loading and setting self.BLH to that loading
         """
@@ -964,12 +1206,13 @@ class SourceModeArray():
         twist_rad=self.twist,
         chord_m=self.chord,
         radius_m=self.radius,
-        t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt * self.chord[:, None] ).mean(axis=1) / self.chord**2, # TODO: fix????
+        t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt).mean(axis=1) / self.chord, # TODO: fix????
         Fzprime_Npm=Fzprime,
         Fphiprime_Npm=Fphiprime,
         B=self.B,
-        Dcylinder_m=self.green.radius * 2,
-        Lcylinder_m=-1 * self.green.origin[2],
+        # Dcylinder_m=self.green.radius * 2,
+        # Lcylinder_m=-1 * self.green.origin[2],
+        Dcylinder_m= D, Lcylinder_m=L,
         Omega_rads=self.Omega,
         rho_kgm3=self.rho0,
         c_mps=self.SoS,
@@ -995,6 +1238,83 @@ class SourceModeArray():
         
     def getGreen(self):
         return self.green
+
+    def computeSurfaceSolution(self, m:np.ndarray, MODE='half', SUFFIX='', ROTOR='NACA0012_rotor'):
+        """
+        compute the green's function over the scatterer surface, for a set of harmonics m
+        solution is returned and saved as a npy array
+        """
+
+        import time
+        print(f'using suffix {SUFFIX}, existing files will be overwritten.')
+        print(f'proceed? (y/n)')
+        proceed = input().lower() == 'y'
+        if not proceed:
+            print('aborting')
+            exit()
+
+        # ------------------- Green's function ---------------------------
+
+        start_total = time.time()
+
+        # save green on the surface (run once per m)
+        for index, sm in enumerate(self.children):
+            start_loop = time.time()
+
+            print(f'pre-computing surface Greens functions: {index+1} of {len(self.children)}')
+            source_positions = sm.dipole_positions
+
+            start_compute = time.time()
+            G_surface = sm.green.getGreenAtSurface( source_positions, m*
+                                                    self.B * 
+                                                    self.Omega / 
+                                                    self.SoS
+                                                    )  # shape (Nm, Nz, Ny)
+            end_compute = time.time()
+
+            np.save(f'./Data/current/{ROTOR}/G_surface_sm_{index}_{MODE}{SUFFIX}.npy', G_surface)
+
+            end_loop = time.time()
+
+            print(f'  -> compute time: {end_compute - start_compute:.3f} s')
+            print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
+
+        end_total = time.time()
+        print(f'Total time (Green): {end_total - start_total:.3f} s')
+
+
+        # ------------------- Green's function gradient ---------------------------
+
+        start_total = time.time()
+
+        # save gradients on the surface (run once per m)
+        for index, sm in enumerate(self.children):
+            start_loop = time.time()
+
+            print(f'pre-computing surface gradients of G_t: {index+1} of {len(self.children)}')
+
+            source_positions = sm.dipole_positions
+
+            start_compute = time.time()
+            gradG_surface = sm.green.getGreenGradAtSurface(source_positions,
+        m*
+        self.B * 
+        self.Omega / 
+        self.SoS)  # shape (3, Nm, Nz, Ny)
+            end_compute = time.time()
+
+            np.save(f'./Data/current/{ROTOR}/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy', gradG_surface)
+
+            end_loop = time.time()
+
+            print(f'  -> compute time: {end_compute - start_compute:.3f} s')
+            print(f'  -> total loop time: {end_loop - start_loop:.3f} s')
+
+        end_total = time.time()
+        print(f'Total time (Gradient): {end_total - start_total:.3f} s')
+
+        return G_surface, gradG_surface
+
 
 if __name__ == "__main__":
     from TailoredGreen.CylinderGreen import CylinderGreen

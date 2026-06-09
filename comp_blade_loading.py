@@ -28,6 +28,8 @@ chord = 0.025 * np.ones_like(r_inner)
 Omega = 8000/60*2*np.pi
 CL = Fz / 0.5 / 1.2 / (Omega * r_inner)**2 / chord
 F = CL / 4 / np.pi * chord / r_inner
+c0 = 340
+B = 2
 
 Omega_p = 7250 / 60 * 2 * np.pi
 rc, c = np.loadtxt('./Data/Parrot2024/chord.csv', skiprows=1, delimiter=',').T # radius, chord in meters
@@ -39,13 +41,31 @@ pitch_parrot = np.interp(r_inner, rp, p)
 CL_p = Fz / 0.5 / 1.2 / (Omega_p * r_inner)**2 / chord_parrot
 F_p = CL / 4 / np.pi * chord_parrot / r_inner
 
+
+lambda0 = c0 / Omega * 2 * np.pi * B
+Mach_r  = Omega * r_inner / c0
+He_Mr = chord / lambda0 * 2 * np.pi / Mach_r
+
 fig, ax = plt.subplots()
 
-ax.plot(r_inner/r1, F, color='r', marker='s', label='$10^\circ$ pitch rotor')
-ax.plot(r_inner/r1, F_p, color='b', marker='^', label='Parrot rotor')
+# --- primary axis ---
+l1 = ax.plot(r_inner / r1, F, color='r', label='$F$')[0]
+
 ax.set_xlabel('$r/r_t$')
-ax.set_ylabel(r'$F=\frac{C_L}{4\pi}\frac{c}{r}$')
+ax.set_ylabel(r'$F = C_l c / 4\pi r$')
 ax.grid()
-ax.legend()
+
+# --- secondary axis ---
+ax2 = ax.twinx()
+l2 = ax2.plot(r_inner / r1, He_Mr, color='b', label=r'$He_0 / M_r$')[0]
+ax2.set_ylabel(r'$He_0 / M_r = B c / r$')
+
+# --- legend (IMPORTANT FIX) ---
+ax.legend(
+    handles=[l1, l2],
+    loc='best',          # keeps it inside automatically
+    frameon=True
+)
+
 plt.tight_layout()
 plt.show()

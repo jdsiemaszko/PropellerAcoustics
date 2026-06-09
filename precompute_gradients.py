@@ -5,15 +5,21 @@ save the results to external files with unique identifier for reuse
 import numpy as np
 from Constants.helpers import read_force_file
 import time
+import matplotlib.pyplot as plt
 
 # manually input everything, couldn't be bothered
 # from SourceMode.Configurations_NACA0012 import *
 # sourceArray = D15L20W00_D180
 # SUFFIX = 'D15L20_D180'
 
-from SourceMode.Configurations_NACA0012 import *
-sourceArray = PARROT_D20L20W00_D360
-SUFFIX = 'PARROT_D20L20_D360'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray
+# SUFFIX = 'PARROT_D20L20_D180_10_37'
+
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_10_37 as sourceArray
+# SUFFIX = 'D20L20_D180_10_37'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
+SUFFIX = 'D20L20_D180_6000RPM'
 
 ms = np.arange(1, 11, 1)
 MODE = 'half'
@@ -116,7 +122,8 @@ MODE = 'half'
 #                         chord = chord,
 #                         )
 
-
+sourceArray.plotSelf()
+plt.show()
 print(f'using suffix {SUFFIX}, existing files will be overwritten.')
 print(f'proceed? (y/n)')
 proceed = input().lower() == 'y'
@@ -132,7 +139,7 @@ start_total = time.time()
 for index, sm in enumerate(sourceArray.children):
     start_loop = time.time()
 
-    print(f'pre-computing surface Greens functions: {index+1} of {Nr}')
+    print(f'pre-computing surface Greens functions: {index+1} of {len(sourceArray.children)}')
     source_positions = sm.dipole_positions
 
     start_compute = time.time()
@@ -162,7 +169,8 @@ start_total = time.time()
 for index, sm in enumerate(sourceArray.children):
     start_loop = time.time()
 
-    print(f'pre-computing surface Greens functions: {index+1} of {Nr}')
+    print(f'pre-computing surface gradients of G_t: {index+1} of {len(sourceArray.children)}')
+
     source_positions = sm.dipole_positions
 
     start_compute = time.time()

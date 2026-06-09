@@ -37,9 +37,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
@@ -49,18 +49,26 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D15L20_D180'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'PARROT_D20L20_D180'
-shape = 'PARROT'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180'
+# shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L21W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180_v2'
 # shape = 'PARROT'
 
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D36_1_10'
+# shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_5_10 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D36_5_10'
+# shape = 'PARROT'
+
 sourceArray.numerics['CompactnessCorrection'] = True
 
-NDIPOLES = sourceArray.Ndipoles
-ms = np.array([4])
+NDIPOLES = sourceArray.Nsources
+ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
@@ -81,12 +89,10 @@ if shape == "PARROT":
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
 
-
-BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
-PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
-
 g = -1 * sourceArray.green.origin[2]
+BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, D_bras, g, steady_only=False) # compute loading on the fly, return PIN for reuse
+PIN = sourceArray.PIN
 # g=0.02
 B = sourceArray.B
 c = sourceArray.chord
@@ -98,6 +104,7 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
+sourceArray.updateBLH(BLH)
 
 
 datadir = './Experimental/dataverse_files'
@@ -170,7 +177,7 @@ beam_loading = PIN.getStrutLoadingHarmonics()
 
 
 # extract and rearrange
-gradG_arr = np.zeros((sourceArray.seg_radius.shape[0], 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+gradG_arr = np.zeros((len(sourceArray.children), 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 ind_m = np.where(m_surface == ms[0])[0][0]
 for index, sm in enumerate(sourceArray.children):
     gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
@@ -208,7 +215,7 @@ Nr = sourceArray.seg_radius.shape[0]
 
 # G_arr = np.zeros((Nr, m_surface.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 
-G_arr = np.zeros((Nr, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128) # pick only the ones we neeed
+G_arr = np.zeros((len(sourceArray.children), ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128) # pick only the ones we neeed
 ind_m = np.where(m_surface == ms[0])[0][0]
 for index, sm in enumerate(sourceArray.children):
     G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!

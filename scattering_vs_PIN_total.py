@@ -16,7 +16,7 @@ the last point seems significant at 2-3 x BPF:
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-
+from matplotlib.lines import Line2D
 
 # BEGINNING OF HEADER
 FILE='TOTAL'
@@ -48,15 +48,31 @@ from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceAr
 SUFFIX = 'PARROT_D20L20_D180'
 shape = 'PARROT'
 
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D36_1_10'
+# shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_5_10 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D36_5_10'
+# shape = 'PARROT'
+
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L21W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180_v2'
+# shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180_10_37'
+# shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D360 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D360'
 # shape = 'PARROT'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
 
-NDIPOLES = sourceArray.Ndipoles
+NDIPOLES = sourceArray.Nsources
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
@@ -78,10 +94,11 @@ if shape == "PARROT":
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
 
-BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
-PIN = sourceArray.PIN
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
+BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, D_bras, g, steady_only=False) # compute loading on the fly, return PIN for reuse
+PIN = sourceArray.PIN
+
 # g= 0.02
 B = sourceArray.B
 c = sourceArray.chord
@@ -93,8 +110,8 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 6      # 60 to -60 in 10
-ind_phi = 27          # 0 to 350 in 10
+ind_theta = 6     # 60 to -60 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -105,6 +122,8 @@ data = data[:, ind_theta, ind_phi]
 x_cart = x_cart_data[:, ind_theta, ind_phi].reshape((3, 1))
 theta = theta_data[ind_theta]
 phi = phi_data[ind_phi]
+
+print(theta, phi)
 
 Nr = len(r_inner)
 ms = np.arange(1, 11, 1) # harmonics to extract
@@ -162,7 +181,7 @@ pmB_model_total = pLSmB_model_rotor + pLUSmB_model_rotor + ptmB_model_rotor + pm
 
 
 
-
+Nchildren = len(sourceArray.children)
 # SUFFIX = '
 
 # -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
@@ -179,14 +198,22 @@ for index, sm in enumerate(sourceArray.children):
 
 # extract and rearrange
 
-gradG_arr = np.zeros((Nr, 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+gradG_arr = np.zeros((Nchildren, 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 for index, sm in enumerate(sourceArray.children):
     gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
 
-p_scattered = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
-p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
-p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
+
+# p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
+# p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
+
+sourceArray.updateBLH(BLH_S)
+p_direct_s = sourceArray.getDirectPressure(x_cart, ms)[0]
+p_scattered_s = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+
+sourceArray.updateBLH(BLH_US)
+p_direct_us = sourceArray.getDirectPressure(x_cart, ms)[0]
+p_scattered_us = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
 
 
 # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
@@ -205,7 +232,7 @@ for index, sm in enumerate(sourceArray.children):
     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
 
 
-G_arr = np.zeros((Nr, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+G_arr = np.zeros((Nchildren, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
 for index, sm in enumerate(sourceArray.children):
     G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
@@ -216,7 +243,10 @@ p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)[0]
 # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered_thickness)
 # p_scattered_thickness = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy')
 
-p_total_scattering = p_direct_s + p_direct_us + p_scattered + p_direct_thickness + p_scattered_thickness
+for element in [p_direct_s, p_direct_us, p_scattered_s, p_scattered_us, p_direct_thickness, p_scattered_thickness]:
+    element[np.isnan(element)] = 0.0
+
+p_total_scattering = p_direct_s + p_direct_us + p_scattered_s + p_scattered_us + p_direct_thickness + p_scattered_thickness
 p_rotor_total = p_direct_s + p_direct_us + p_direct_thickness
 p_total_minus_scattered_thickness = p_total_scattering - p_scattered_thickness
 
@@ -235,7 +265,9 @@ SPL_total_PIN = p_to_SPL(pmB_model_total)
 # SPLS TOTAL SCATTERING
 SPL_direct_s = p_to_SPL(p_direct_s)
 SPL_direct_us = p_to_SPL(p_direct_us)
-SPL_scattered = p_to_SPL(p_scattered)
+SPL_scattered_s = p_to_SPL(p_scattered_s)
+SPL_scattered_us = p_to_SPL(p_scattered_us)
+SPL_scattered = p_to_SPL(p_scattered_s + p_scattered_us)
 SPL_direct_thickness = p_to_SPL(p_direct_thickness)
 SPL_scattered_thickness = p_to_SPL(p_scattered_thickness)
 SPL_SM_rotor_total = p_to_SPL(p_rotor_total)
@@ -244,49 +276,116 @@ SPL_total_scattering_minus_scattered_thickness = p_to_SPL(p_total_minus_scattere
 
 # SPL_total = p_to_SPL(p_rms_total) # same computation
 
-fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = plt.subplots(figsize=(12, 5))
 
-# ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (Hanson)", color='r', marker='^')
-# ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (Hanson)", color='g', marker='^')
+# ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (PIN)", color='r', marker='^')
+# ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (PIN)", color='g', marker='^')
 
-ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (Hanson)", color='r', marker='^')
-ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (Hanson)", color='g', marker='^')
+# ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (PIN)", color='r', marker='^')
+# ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (PIN)", color='g', marker='^')
 
-ax.plot(ms, SPL_rotor_thickness, label=f"Thickness Noise (Hanson)", color='b', marker='^')
-ax.plot(ms, SPL_rotor_total, label=f"Rotor Total (Hanson)", color='y', marker='^')
-ax.plot(ms, SPL_beam_loading, label=f"Beam Loading due to Blade Loading", color='m', marker='^')
-ax.plot(ms, SPL_beam_thickness, label=f"Beam Loading due to Blade Thickness", color='c', marker='^')
-ax.plot(ms, SPL_total_PIN, label=f"Total (PIN)", color='k', marker='^')
-ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental, total", color='k', alpha=0.75)
+# ax.plot(ms, SPL_rotor_thickness, label=f"Thickness Noise (PIN)", color='b', marker='^')
+# ax.plot(ms, SPL_rotor_total, label=f"Rotor Total (PIN)", color='y', marker='^')
+# ax.plot(ms, SPL_beam_loading, label=f"Beam Loading due to Blade Loading", color='m', marker='^')
+# ax.plot(ms, SPL_beam_thickness, label=f"Beam Loading due to Blade Thickness", color='c', marker='^')
+# ax.plot(ms, SPL_total_PIN, label=f"Total (PIN)", color='k', marker='^')
+# ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental, total", color='k', alpha=0.75)
+# fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+#                          plot_kwargs={
+#                              'color':'k',
+#                              'linestyle':'dashed',
+#                              'alpha':0.75
+#                          })
+
+# ax.plot(ms, SPL_direct_s, label=f"Steady Loading Noise (SM)", color='r', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_direct_us, label=f"Unsteady Loading Noise (SM)", color='g', marker='s', linestyle='dashed')
+
+# ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM)", color='b', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_SM_rotor_total, label=f"Rotor Total (SM)", color='y', marker='s', linestyle='dashed')
+# # ax.plot(ms, SPL_scattered_s, label=f"Scattered Steady Loading Noise", color='m', marker='s', linestyle='dashed')
+# # ax.plot(ms, SPL_scattered_us, label=f"Scattered Unsteady Loading Noise", color='tab:pink', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise", color='c', marker='s', linestyle='dashed')
+# ax.plot(ms, SPL_total_scattering, label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
+
+
+
+
+# --- plotting ---
+ax.plot(ms, SPL_rotor_S, color='r', marker='^')
+ax.plot(ms, SPL_rotor_US, color='g', marker='^')
+ax.plot(ms, SPL_rotor_thickness, color='b', marker='^')
+ax.plot(ms, SPL_rotor_total, color='y', marker='^')
+ax.plot(ms, SPL_beam_loading, color='m', marker='^')
+ax.plot(ms, SPL_beam_thickness, color='c', marker='^')
+ax.plot(ms, SPL_total_PIN, color='k', marker='^')
+
+ax.plot(ms, SPL_direct_s, color='r', marker='s', linestyle='--')
+ax.plot(ms, SPL_direct_us, color='g', marker='s', linestyle='--')
+ax.plot(ms, SPL_direct_thickness, color='b', marker='s', linestyle='--')
+ax.plot(ms, SPL_SM_rotor_total, color='y', marker='s', linestyle='--')
+ax.plot(ms, SPL_scattered, color='m', marker='s', linestyle='--')
+ax.plot(ms, SPL_scattered_thickness, color='c', marker='s', linestyle='--')
+ax.plot(ms, SPL_total_scattering, color='k', marker='s', linestyle='--')
+
+ax.plot(freq[0]/BPF,
+        spl_from_autopower(data),
+        color='0.3',
+        linewidth=2)
+
 fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
                          plot_kwargs={
                              'color':'k',
                              'linestyle':'dashed',
-                             'alpha':0.75
+                             'alpha':1.0,
+                             'linewidth': 2
                          })
 
-ax.plot(ms, SPL_direct_s, label=f"Steady Loading Noise (SM)", color='r', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_direct_us, label=f"Unsteady Loading Noise (SM)", color='g', marker='s', linestyle='dashed')
+component_handles = [
+    Line2D([0], [0], color='r', lw=2, label='Steady Loading'),
+    Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
+    Line2D([0], [0], color='b', lw=2, label='Thickness'),
+    Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
+    Line2D([0], [0], color='m', lw=2, label='Beam Noise due to Loading'),
+    Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
+    Line2D([0], [0], color='k', lw=2, label='Total'),
+]
 
-ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM)", color='b', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_SM_rotor_total, label=f"Rotor Total (SM)", color='y', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise", color='c', marker='s', linestyle='dashed')
-ax.plot(ms, SPL_total_scattering, label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
+model_handles = [
+    Line2D([0], [0], color='k', marker='^', linestyle='-',
+           label='PIN'),
+    Line2D([0], [0], color='k', marker='s', linestyle='--',
+           label='SM'),
+    Line2D([0], [0], color='0.3', lw=3,
+           label='Experiment'),
+]
+
+leg1 = ax.legend(handles=component_handles,
+                 title='Noise Component',
+                 loc='upper left')
+
+leg2 = ax.legend(handles=model_handles,
+                #  title='Model',
+                 loc='lower left')
+
+ax.add_artist(leg1)
+ax.add_artist(leg2)
 
 
 # ax.plot(ms, SPL_total_scattering_minus_scattered_thickness, label=f"Direct+Scattering (Minus Thickness)", color='g', marker='s', linestyle='dashed')
 
 
-ax.legend(ncol=2)
+# ax.legend(ncol=2, loc='upper left', fontsize=8)
 ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
 ax.set_ylabel("SPL (dB)")
 ax.set_xscale('log')
 
 ax.grid(visible=True, which='major', color='k', linestyle='-')
 ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
-ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
+# ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
+# plt.xlim(0.03333, 100)
 plt.xlim(0.1, 100)
-plt.ylim(0, 70)
+
+plt.ylim(0, 75)
 plt.tight_layout()
 plt.show()

@@ -115,6 +115,10 @@ Fphi_k = data['Fk_phi']
 # MY CODE +++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 
 
+np.save('./Data/Vella2026/Fzprime.npy', dT / dr)
+np.save('./Data/Vella2026/Fphiprime.npy', dQ / dr)
+
+
 beam_l = BeamLoadings(
     twist_rad=np.deg2rad(10)* np.ones(r_outer.shape),
     chord_m=c* np.ones(r_outer.shape),
