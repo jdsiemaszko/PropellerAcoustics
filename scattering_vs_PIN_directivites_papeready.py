@@ -65,13 +65,17 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'PARROT_D20L20_D36_5_10'
 # shape = 'PARROT'
 
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
+SUFFIX = 'D20L20_D180_6000RPM'
+shape='D'
+
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
-ms = np.array([2])
+ms = np.array([3])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
-
+Omega_ref = 8000/60*2*np.pi
 if shape == "PARROT":
     rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
     rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
@@ -88,6 +92,11 @@ if shape == "PARROT":
     QTARGET = 25 / 1000 / sourceArray.B # Newton-radian-meters
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
+
+elif shape == 'D' and sourceArray.Omega != Omega_ref:
+    print(f'rescaling the loading from {Omega_ref} to {sourceArray.Omega} rad/s')
+    Fz *= (sourceArray.Omega/Omega_ref)**2
+    Fphi *= (sourceArray.Omega/Omega_ref)**2
 
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]

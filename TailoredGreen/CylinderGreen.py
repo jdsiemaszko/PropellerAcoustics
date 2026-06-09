@@ -422,8 +422,8 @@ class CylinderGreen(TailoredGreen):
          # TODO: make this gooder?        
         if isinstance(impedance, float):
             self.impedance_func = lambda k: impedance * np.ones_like(k) # constant function
-        elif isinstance(impedance, function):
-            self.impedance_func = self.impedance_func
+        elif callable(impedance):
+            self.impedance_func = impedance
         else:
             raise ValueError(f'impedance type not recognized')
 
@@ -470,7 +470,7 @@ class CylinderGreen(TailoredGreen):
         Nq_evan  = self._numerics.get("Nq_evan",   128)
 
         k = np.atleast_1d(k)
-        Z = self.impedance_func(Z) # constant impedance, shape Nk
+        Z = self.impedance_func(k) # constant impedance, shape Nk
 
         if self.dim == 2: # in 2D, use the functions directly!
             obs_r, obs_phi = getPolarCoordinates(
@@ -519,7 +519,7 @@ class CylinderGreen(TailoredGreen):
         Nq_evan  = self._numerics.get("Nq_evan",   128)
 
         k = np.atleast_1d(k)
-        Z = self.impedance_func(Z) # constant impedance, shape Nk
+        Z = self.impedance_func(k) # constant impedance, shape Nk
 
 
         if self.dim == 2: # in 2D, use the functions directly!

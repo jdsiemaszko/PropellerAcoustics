@@ -44,9 +44,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D15L20_D180'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'PARROT_D20L20_D180'
-shape = 'PARROT'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180'
+# shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D36_1_10'
@@ -68,6 +68,10 @@ shape = 'PARROT'
 # SUFFIX = 'PARROT_D20L20_D360'
 # shape = 'PARROT'
 
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
+SUFFIX = 'D20L20_D180_6000RPM'
+shape='D'
+
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
@@ -75,7 +79,7 @@ sourceArray.numerics['CompactnessCorrection'] = True
 NDIPOLES = sourceArray.Nsources
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
-
+Omega_ref = 8000/60*2*np.pi
 if shape == "PARROT":
 
     rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
@@ -94,6 +98,13 @@ if shape == "PARROT":
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
 
+# rescale loading!
+elif shape == 'D' and sourceArray.Omega != Omega_ref:
+    print(f'rescaling the loading from {Omega_ref} to {sourceArray.Omega} rad/s')
+    Fz *= (sourceArray.Omega/Omega_ref)**2
+    Fphi *= (sourceArray.Omega/Omega_ref)**2
+
+    
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
 BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, D_bras, g, steady_only=False) # compute loading on the fly, return PIN for reuse

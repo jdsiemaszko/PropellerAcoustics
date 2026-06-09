@@ -554,13 +554,13 @@ class ImpedanceCylinderGreen(HalfCylinderGreen):
         super().__init__(radius, axis, origin, radial, dim, numerics)
         self.full_cylinder_green = CylinderGreen(
             radius, axis, origin, radial, dim=dim,
-                    numerics=numerics) # store the full cylinder module as a helper function!
+                    numerics=numerics, impedance=impedance) # include the impedance function in the helper
 
         # TODO: make this gooder?        
         if isinstance(impedance, float):
             self.impedance_func = lambda k: impedance * np.ones_like(k) # constant function
-        elif isinstance(impedance, function):
-            self.impedance_func = self.impedance_func
+        elif callable(impedance):
+            self.impedance_func = impedance
         else:
             raise ValueError(f'impedance type not recognized')
         
