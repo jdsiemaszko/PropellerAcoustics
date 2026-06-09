@@ -634,6 +634,62 @@ def plot_directivity_contour(Theta, Phi, magnitudes, levels=21, cmap='viridis', 
 
     return fig, ax, cf
 
+def plot_phase_directivity_contour(Theta, Phi, magnitudes, levels=21, cmap='twilight', title=None, xlabel="Phi [deg]", ylabel="Theta [deg]", fig=None, ax=None,):
+    """
+    Plot a 2D contour map of directivity (in dB) vs theta and phi.
+
+    Parameters
+    ----------
+    theta : array_like
+        Array of theta angles (radians) of shape (Ntheta,)
+    phi : array_like
+        Array of phi angles (radians) of shape (Nphi,)
+    magnitudes_db : array_like
+        2D array of directivity in dB, shape (Ntheta, Nphi)
+    levels : int
+        Number of contour levels
+    cmap : str
+        Colormap name
+    """
+
+    if fig is None or ax is None:   
+        fig, ax = plt.subplots(figsize=(7, 5))
+
+    phase = np.angle(magnitudes).reshape(Theta.shape)
+
+    phase_masked = np.ma.array(phase)
+
+    jump_x = np.abs(np.diff(phase, axis=1)) > np.pi
+    jump_y = np.abs(np.diff(phase, axis=0)) > np.pi
+
+    mask = np.zeros_like(phase, dtype=bool)
+    mask[:, 1:] |= jump_x
+    mask[1:, :] |= jump_y
+
+    phase_masked.mask = mask
+
+    cf = ax.contourf(
+        Phi,
+        Theta,
+        phase_masked,
+        levels=levels,
+        cmap=cmap
+    )
+    # cf = ax.imshow(magnitudes_db, extent=(phi.min(), phi.max(), theta.min(), theta.max()), origin='lower', aspect='auto', cmap=cmap)
+    # cbar = fig.colorbar(cf, ax=ax, extend='both')
+    # cbar.set_label("Directivity [dB]")
+
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+
+    if title is not None:
+        ax.set_title(title)
+
+    return fig, ax, cf
+
 def get_spl_at_harmonic(fplus, spls, harmonic: int, alpha=0.01):
     """
     Extract SPL at a given BPF harmonic.
@@ -810,7 +866,6 @@ def read_airfoil_table(filename, skip_lines=None):
         df.columns = clean_cols
 
     return df
-
 
 def fft_periodic(signal_t, period, time, k):
     """fft of a periodic signal

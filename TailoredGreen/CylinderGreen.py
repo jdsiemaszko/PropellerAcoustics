@@ -25,8 +25,10 @@ def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24, 
     x = np.array(x)
     y = np.array(y)
     k = np.array(k)
+    Z = np.array(Z)
 
     k = np.atleast_1d(k)
+    Z = np.atleast_1d(Z)
     Nk = k.size
     Nx = x.shape[1]
     Ny = y.shape[1]
@@ -106,8 +108,11 @@ def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float
     x = np.array(x)
     y = np.array(y)
     k = np.array(k)
+    Z = np.array(Z)
 
     k = np.atleast_1d(k)
+    Z = np.atleast_1d(Z)
+
     Nk = k.size
     Nx = x.shape[1]
     Ny = y.shape[1]
@@ -351,10 +356,10 @@ def beta_safe(m, x, Z=0.0):
     output of shape Nx, Nm
     """
     # TODO: make safe(r)?
-    Jm   = jv(m, x) # Nx, Nm
+
+
     Jm0 = jv(m - 1, x)
     Jm1 = jv(m + 1, x) 
-    Hm   = hankel1(m, x)
     Hm0 = hankel1(m - 1, x)
     Hm1 = hankel1(m + 1, x)
 
@@ -362,9 +367,16 @@ def beta_safe(m, x, Z=0.0):
     Jm_p = 0.5 * (Jm0 - Jm1)
     Hm_p = 0.5 * (Hm0 - Hm1)
 
+    num = Jm_p 
+    den = Hm_p
+
     # impedance numerator / denominator
-    num = Jm_p + Z * Jm
-    den = Hm_p + Z * Hm
+
+    if np.any(np.abs(Z)>0.0):
+        Jm   = jv(m, x) # Nx, Nm
+        Hm   = hankel1(m, x)
+        num += Z * Jm
+        den += Z * Hm
 
     safe  = np.logical_and(np.abs(den) > 1e-100, np.abs(den) < 1e100)
 
@@ -503,7 +515,7 @@ class CylinderGreen(TailoredGreen):
 
                 for kzval, wval, kkval in zip(kz, w, kk): # second loop, necessary for large arrays....
                     
-                    G_2D = self.G_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], kkval, self.radius, mmax=mmax, eps_radius=eps_radius, Z=Z) # shape 1, Nx, Ny
+                    G_2D = self.G_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], kkval, self.radius, mmax=mmax, eps_radius=eps_radius, Z=Z[ik]) # shape 1, Nx, Ny
                     cosz = np.cos(kzval * (obs_x[:, None] -src_x[None, :])) # Nx, Ny
 
                     G[ik, :, :] += G_2D[0, :, :] * cosz * wval # increment
@@ -567,7 +579,7 @@ class CylinderGreen(TailoredGreen):
                 for kzval, wval, kkval in zip(kz, w, kk): # second loop, necessary for large arrays....
                     
                     grad_2D_polar, G_2D = self.G_grad_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], kkval, self.radius,
-                                                                   mmax=mmax, eps_radius=eps_radius, return_G=True, Z=Z) # shapes 2, 1, Nx, Ny and 1, Nx, Ny
+                                                                   mmax=mmax, eps_radius=eps_radius, return_G=True, Z=Z[ik]) # shapes 2, 1, Nx, Ny and 1, Nx, Ny
                     cosz = np.cos(kzval * (obs_x[:, None] - src_x[None, :])) # Nx, Ny
                     dcosz_dz = kzval * np.sin(kzval * (obs_x[:, None] - src_x[None, :]))
 

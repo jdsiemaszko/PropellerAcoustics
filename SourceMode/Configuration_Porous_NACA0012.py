@@ -57,7 +57,34 @@ betaref = np.array([
     0.9117 + 1j * 0.1049
 ])
 kref = fref * 2 * np.pi / c0
-imp_func = lambda k: np.interp(k, kref, betaref) * 1j * k # set such that (d/dn + imp) p = 0 on the surface. Mind n is oriented inwards
+imp_func_data = lambda k: np.interp(k, kref, betaref) * 1j * k # set such that (d/dn + imp) p = 0 on the surface. Mind n is oriented inwards
+
+# Delany and Bazley model
+def Z_DB(omega, rho1, sigma1):
+    inp = omega / 2 / np.pi * rho1 / sigma1
+    res = 1.0 + 0.0571 * (inp)**(-0.754) - 1j * 0.087 * (inp)**(-0.732)
+    return res
+
+def sigma_davies(porosity, mu, Dfibre):
+    if porosity > 1 or porosity < 0:
+        raise ValueError(f'porosity must be a value between 0 and 1')
+
+    return 64 * mu * (1-porosity)**(1.5) / Dfibre**2 * (1+56 * (1-porosity)**3)
+
+def beta_DB(omega, rho, sigma):
+    Z = Z_DB(omega, rho, sigma)
+    beta = np.conj(Z) / np.abs(Z)
+    return beta
+
+
+# a = Z_DB(2 * Omega_ref, rho0, 4000)
+mu = 1.8e-5 # air dynamic viscosity
+# Dfibre = 1.7e-3
+Dfibre = 0.025e-3
+sigma = sigma_davies(0.4, mu, Dfibre)
+
+imp_func = lambda k: beta_DB(k * c0, rho0, sigma) * 1j * k
+
 
 # Cylinder Green module
 cg_midres_porous =  ImpedanceCylinderGreen(radius=20/1000/2, axis=caxis, origin=np.array([0.0, -0/1000, -20/1000]), dim=3, numerics= numerics_cyl_midres,

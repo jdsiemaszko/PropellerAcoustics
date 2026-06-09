@@ -393,9 +393,9 @@ class PotentialInteraction:
         )                                       # (Nk, Nr)
 
         # --- allocate blade forces ---
+        
         Fblade = np.zeros((3, Nk, Nr), dtype=np.complex128) # radial, axial, tangential
-
-        Fblade[1, :, :] = Lkprime * np.cos(self.seg_twist[None, :]) # positive upwards, but Lkprime is oriented downwards for positive wk!
+        Fblade[1, :, :] = Lkprime * np.cos(self.seg_twist[None, :]) # positive UPWARDS
         Fblade[2, :, :] = Lkprime * np.sin(self.seg_twist[None, :]) # DRAG, oriented BACKWARDS
 
 
@@ -422,7 +422,7 @@ class PotentialInteraction:
 
             BL[i, :, :] = BLi
 
-        return BL, time
+        return BL, time # 3, Nt, Nr and Nt
 
     def getBladeLoadingHarmonicsAmiet(self, chord_stations=None, dc=None):
         """
