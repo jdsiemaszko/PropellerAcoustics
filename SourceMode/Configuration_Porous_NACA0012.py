@@ -73,7 +73,7 @@ def sigma_davies(porosity, mu, Dfibre):
 
 def beta_DB(omega, rho, sigma):
     Z = Z_DB(omega, rho, sigma)
-    beta = np.conj(Z) / np.abs(Z)
+    beta = np.conj(Z) / np.abs(Z)**2
     return beta
 
 

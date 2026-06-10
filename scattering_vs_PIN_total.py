@@ -72,8 +72,12 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D20L20_D180_6000RPM'
 # shape='D'
 
+# from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
+# SUFFIX = 'D20L20_POROUS_v2'
+# shape='D'
+
 from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
-SUFFIX = 'D20L20_POROUS_v2'
+SUFFIX = 'D20L20_POROUS_v3'
 shape='D'
 
 sourceArray.numerics['CompactnessCorrection'] = True
@@ -125,7 +129,7 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 6     # 60 to -60 in 10
+ind_theta = 6+5     # 60 to -60 in 10
 ind_phi = 27          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
