@@ -71,9 +71,10 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
     rot_freq = 8000 / 60 # Hz
 
     period = 1/rot_freq
-    time_reconstruct = np.linspace(0, 5 * period, Fz_in_time_reconstruct.shape[0])
-    BPF = 2 * rot_freq # blade passing frequency (2 blades)
     dt = 1/(rot_freq)/400 # 8000 RPM, 400 timesteps per rev
+
+    time_reconstruct = np.arange(0, 2000 * dt, dt)
+    BPF = 2 * rot_freq # blade passing frequency (2 blades)
     harmonics = np.arange(0, 41, 1) # 0-40 harmonics of rot_freq to plot
 
     def extract_bpf_harmonics(signal, dt, f_fundamental, harmonics):
@@ -139,7 +140,6 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
             harmonics[i] = coeff
 
         return harmonics, harmonic_freqs
-
 
     def extract_bpf_harmonics_welch(signal, dt, f_fundamental, harmonics,
                                     nperseg=None, detrend='constant'):
@@ -344,9 +344,9 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
             color=color
         )
 
-        ax.set_xlabel(r'Chordwise coordinate $\overline{x} = \frac{2x}{c}$ [$m$]')
+        ax.set_xlabel(r'Chordwise coordinate $\overline{x} = \frac{2x}{c}$')
         # ax.set_ylabel('$\Delta p$ [$N/m^2$]')
-        ax.set_ylabel('$\Delta p / L\prime = C_p / C_l / c$ [$1/m$]')
+        ax.set_ylabel('$c \Delta p / L\prime = C_p / C_l$')
 
 
         ax.grid(True)
@@ -422,7 +422,7 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
 
 
     BLH = PIN.getBladeLoadingHarmonics() # 3, Nk, Nr
-    BL, time = PIN.getBladeLoading()
+    BL, time = PIN.getBladeLoading() # 3, Nt, Nr
     r_inner = D20L20W00_D180.seg_radius
     ks = PIN.k
     ks = ks[ks<=10]
@@ -460,7 +460,7 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
 
         fig, ax = plot_chordwise_distribution(
             c_dist / chord * 2,
-            (np.abs(harmonic_dist) * dA[0, -2, :] / dr / dc) / BLH_abs_reconstruct, # convert to right scale: area varies per chord, but not per radius
+            (np.abs(harmonic_dist) * dA[0, -2, :] / dr / dc) / BLH_abs_reconstruct * chord, # convert to right scale: area varies per chord, but not per radius
             r_query,
             harmonic_number=harmonics[i],
             harmonic_frequency=harmonic_freqs[i],
@@ -477,7 +477,7 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
         # ax.plot(c_sears, np.abs(f_sears), color=color, linestyle='--')
 
         # ax.plot(ybar, np.abs(f_sears / getBLHatRadius(BLH[1, :, :], r_inner, r_query)[i]), color=color, linestyle='--')
-        ax.plot(ybar, np.abs(f_sears / getBLHatRadius(BLH[1, :, :], r_inner, r_query)[i]), color='k', linestyle='--', linewidth=2)
+        ax.plot(ybar, np.abs(f_sears / getBLHatRadius(BLH[1, :, :], r_inner, r_query)[i]) * chord, color='k', linestyle='--', linewidth=2)
 
     leg1 = ax.legend(title=f'Hamonic number', ncols=2, loc='upper right', fontsize='8')
 
@@ -494,31 +494,85 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
     ax.add_artist(leg2)
 
     ax.set_xlim(-0.99, 0.99)
-    ax.set_ylim(0, 250)
+    ax.set_ylim(0, 5)
     # ax.set_yscale('log')
     plt.savefig(f'./Figures/iLES/chordwise_{r_query:.4f}.pdf')
 
-    ks = PIN.k
-    ks = ks[ks<=20]
+
+
+
     fig, ax = plt.subplots(figsize=(4, 3))
 
-    Fz_harmonics_reconstruct # Nk, Nr
+    Fz_at_r_PIN = np.array([
+        np.interp(r_query, r_inner, BL[1, k, :])
+        for k in range(len(time))
+    ])
+
+    Fz_at_r_iLES = np.array([
+        np.interp(r_query, r, 
+Fz_in_time_reconstruct[k, :])
+        for k in range(len(time_reconstruct))
+    ])
+
+    Fz_at_r_iLES_periodic_mean = np.array([
+        np.mean(Fz_at_r_iLES[i::400]) for i in range(400)
+    ])
+
+    shift = 1.0
+    mid = 200
+    time_mean_nondim = time_reconstruct[:400]/period - shift + 0.5
+    time_mean = time_mean_nondim * period
+    Fz_mean = np.roll(Fz_at_r_iLES_periodic_mean, -mid)
+    ax.plot(time_mean_nondim, Fz_mean, color='b', label='iLES', linewidth=2)
+    for i in range(0, 5):
+        ax.plot(time_reconstruct/period - shift  - i, Fz_at_r_iLES, color='b', alpha=0.3)
+
+    ax.plot(time/period, Fz_at_r_PIN, color='r', linestyle='--',  label='Model')
+    ax.legend()
+    # ax.set_ylim(0, 1.1 * max(np.max(abs(Fz_at_r[1:len(ks)])), np.max(abs(getBLHatRadius(BLH[1, :, :], r_inner, r_query)[1:len(ks)]))))
+    ax.set_xlim(-0.5, 0.5)
+    ax.set_ylim(0, 35)
+
+    ax.grid()
+
+    # ax.set_xticks(ks)
+    ax.set_xlabel(fr'$t\Omega / 2 / \pi$')
+    ax.set_ylabel(fr'${{F}} [N/m]$')
+    plt.tight_layout()
+    plt.savefig(f'./Figures/iLES/net_time_{r_query:.4f}.pdf')
+
+
+
+
+    ks = PIN.k
+    ks = ks[ks<=20]
+
+    F_k_explicit = rot_freq * np.sum(
+        Fz_mean[None, :] * np.exp(1j * ks[:, None] * 2 * np.pi * rot_freq * time_mean[None, :]) * dt 
+        , axis=1
+    )
+
+    fig, ax = plt.subplots(figsize=(4, 3))
 
     Fz_at_r = np.array([
         np.interp(r_query, r, Fz_harmonics_reconstruct[k, :])
         for k in range(Fz_harmonics_reconstruct.shape[0])
     ])
-    ax.plot(ks, abs(Fz_at_r[:len(ks)]), color='b', marker='s', label='iLES')
+
+    ax.plot(ks, abs(F_k_explicit), color='b', marker='s', label='iLES')
+
+    # ax.plot(ks, abs(Fz_at_r[:len(ks)]), color='b', marker='s', label='iLES')
     ax.plot(ks, abs(getBLHatRadius(BLH[1, :, :], r_inner, r_query)[:len(ks)]), color='r', linestyle='--', marker='s', label='Model')
+
     ax.legend()
     # ax.set_ylim(0, 1.1 * max(np.max(abs(Fz_at_r[1:len(ks)])), np.max(abs(getBLHatRadius(BLH[1, :, :], r_inner, r_query)[1:len(ks)]))))
     ax.set_ylim(0, 1.1)
     ax.grid()
 
-    ax.set_xticks(ks)
+    ax.set_xticks(ks[::2])
     ax.set_xlabel(fr'$k = f / B \Omega$')
-    ax.set_ylabel(fr'$|\hat{{F}}_k|$')
+    ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
     plt.tight_layout()
     plt.savefig(f'./Figures/iLES/net_{r_query:.4f}.pdf')
 
-    plt.show()
+    # plt.show()

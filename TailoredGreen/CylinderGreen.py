@@ -7,7 +7,7 @@ from Constants.const import PREF
 from Constants.helpers import p_to_SPL, getCylindricalCoordinates, getPolarCoordinates
 import matplotlib.pyplot as plt
 
-def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24):
+def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24, Z=0.0):
     """
     2D Cylinder Green's function 
     solving (nabla^2 + k^2)G(x|y) = -delta(x-y)
@@ -25,8 +25,10 @@ def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24):
     x = np.array(x)
     y = np.array(y)
     k = np.array(k)
+    Z = np.array(Z)
 
     k = np.atleast_1d(k)
+    Z = np.atleast_1d(Z)
     Nk = k.size
     Nx = x.shape[1]
     Ny = y.shape[1]
@@ -38,18 +40,19 @@ def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24):
     epsm = np.ones(mmax) 
     epsm[1:] = 2
 
-    # --- beta using recurrence Hankels ---
-    Hm_minus = hankel1(m[None,:] - 1, k[:, None] * radius) # shape Nk, Nm
-    Hm_plus  = hankel1(m[None,:] + 1, k[:, None] * radius)
+    # # --- beta using recurrence Hankels ---
+    # Hm_minus = hankel1(m[None,:] - 1, k[:, None] * radius) # shape Nk, Nm
+    # Hm_plus  = hankel1(m[None,:] + 1, k[:, None] * radius)
 
-    Jm_minus = jv(m[None,:] - 1, k[:, None] * radius)
-    Jm_plus  = jv(m[None,:] + 1, k[:, None] * radius)
+    # Jm_minus = jv(m[None,:] - 1, k[:, None] * radius)
+    # Jm_plus  = jv(m[None,:] + 1, k[:, None] * radius)
 
-    denom = Hm_minus - Hm_plus
-    num = Jm_minus - Jm_plus
-    # beta = (Jm_minus - Jm_plus) / (Hm_minus - Hm_plus)
-    safe  = np.logical_and(np.abs(denom) > 1e-100, np.abs(denom) < 1e100)
-    beta  = np.where(safe, num / np.where(safe, denom, 1.0), 0.0) # Nk, Nm
+    # denom = Hm_minus - Hm_plus
+    # num = Jm_minus - Jm_plus
+    # # beta = (Jm_minus - Jm_plus) / (Hm_minus - Hm_plus)
+    # safe  = np.logical_and(np.abs(denom) > 1e-100, np.abs(denom) < 1e100)
+    # beta  = np.where(safe, num / np.where(safe, denom, 1.0), 0.0) # Nk, Nm
+    beta = beta_safe(m[None,:], k[:, None] * radius, Z[:, None])
 
     # Nk, Nm, Ny
     H_src = hankel1(m[None, :, None], k[:, None, None] * src_r[None, None, :]) * (src_r[None, None, :] > radius * (1+eps_radius)) # ignore any part inside the cylinder!
@@ -87,7 +90,7 @@ def CylinderGreen2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24):
 
     return G
 
-def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24, return_G=True):
+def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float=1e-24, return_G=True, Z=0.0):
     """
     2D Cylinder Green's function's GRADIENT W.R.T SOURCE COORDINATES (y) 
     solving (nabla^2 + k^2)G(x|y) = -delta(x-y)
@@ -105,8 +108,11 @@ def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float
     x = np.array(x)
     y = np.array(y)
     k = np.array(k)
+    Z = np.array(Z)
 
     k = np.atleast_1d(k)
+    Z = np.atleast_1d(Z)
+
     Nk = k.size
     Nx = x.shape[1]
     Ny = y.shape[1]
@@ -118,18 +124,20 @@ def CylinderGreenGradient2D(x, y, k, radius:float, mmax:int=32, eps_radius:float
     epsm = np.ones(mmax) 
     epsm[1:] = 2
 
-    # --- beta using recurrence Hankels ---
-    Hm_minus = hankel1(m[None,:] - 1, k[:, None] * radius) # shape Nk, Nm
-    Hm_plus  = hankel1(m[None,:] + 1, k[:, None] * radius)
+    # # --- beta using recurrence Hankels ---
+    # Hm_minus = hankel1(m[None,:] - 1, k[:, None] * radius) # shape Nk, Nm
+    # Hm_plus  = hankel1(m[None,:] + 1, k[:, None] * radius)
 
-    Jm_minus = jv(m[None,:] - 1, k[:, None] * radius)
-    Jm_plus  = jv(m[None,:] + 1, k[:, None] * radius)
+    # Jm_minus = jv(m[None,:] - 1, k[:, None] * radius)
+    # Jm_plus  = jv(m[None,:] + 1, k[:, None] * radius)
 
-    denom = Hm_minus - Hm_plus
-    num = Jm_minus - Jm_plus
-    # beta = (Jm_minus - Jm_plus) / (Hm_minus - Hm_plus)
-    safe  = np.logical_and(np.abs(denom) > 1e-100, np.abs(denom) < 1e100)
-    beta  = np.where(safe, num / np.where(safe, denom, 1.0), 0.0) # Nk, Nm
+    # denom = Hm_minus - Hm_plus
+    # num = Jm_minus - Jm_plus
+    # # beta = (Jm_minus - Jm_plus) / (Hm_minus - Hm_plus)
+    # safe  = np.logical_and(np.abs(denom) > 1e-100, np.abs(denom) < 1e100)
+    # beta  = np.where(safe, num / np.where(safe, denom, 1.0), 0.0) # Nk, Nm
+
+    beta = beta_safe(m[None,:], k[:, None] * radius, Z[:, None])
 
     # Nk, Nm, Ny
     H_src = hankel1(m[None, :, None], k[:, None, None] * src_r[None, None, :]) * (src_r[None, None, :] > radius * (1+eps_radius)) # ignore any part inside the cylinder!
@@ -336,16 +344,44 @@ def gradPolarToCartesian(gradient, r, phi, origin, radial, normal):
 
     return grad_cart
 
-def beta_safe(m_qm, x):
+def beta_safe(m, x, Z=0.0):
+    """
+    compute the coefficients for the cylinder green's function in 2D
+
+    Z is the impedance meeting the BC:
+    (d/dn_x + Z(x)) G(x|y) = 0 for x on the boundary
+
+    x,shape (Nk, 1), m of shape (1, Nm),
+    Z - scalar (constant impedance) or (Nk, 1)
+    output of shape Nx, Nm
+    """
     # TODO: make safe(r)?
-    Jm0 = jv(m_qm - 1, x)
-    Jm1 = jv(m_qm + 1, x) 
-    Hm0 = hankel1(m_qm - 1, x)
-    Hm1 = hankel1(m_qm + 1, x)
 
-    beta = (Jm0 - Jm1) / (Hm0 - Hm1)             # (q, m)
 
-    return beta
+    Jm0 = jv(m - 1, x)
+    Jm1 = jv(m + 1, x) 
+    Hm0 = hankel1(m - 1, x)
+    Hm1 = hankel1(m + 1, x)
+
+    # derivatives via recurrence
+    Jm_p = 0.5 * (Jm0 - Jm1)
+    Hm_p = 0.5 * (Hm0 - Hm1)
+
+    num = Jm_p 
+    den = Hm_p
+
+    # impedance numerator / denominator
+
+    if np.any(np.abs(Z)>0.0):
+        Jm   = jv(m, x) # Nx, Nm
+        Hm   = hankel1(m, x)
+        num += Z * Jm
+        den += Z * Hm
+
+    safe  = np.logical_and(np.abs(den) > 1e-100, np.abs(den) < 1e100)
+
+    beta  = np.where(safe, num / np.where(safe, den, 1.0), 0.0) # Nx, Nm
+    return beta # shape
 
 def uniform_dist(N, eps=1e-6):
     """
@@ -387,13 +423,21 @@ class CylinderGreen(TailoredGreen):
                     'Nq_prop': 128,
                     'Nq_evan': 128,
                     'eps_radius':1e-24
-                 }
-                 
+                 },
+                 impedance = 0.0
                  ):
         super().__init__(dim=dim)
         self.radius = radius
         self._numerics = numerics
         self.origin = origin # a point on the cylinder axis, taken as the origin of the cylindrical coordinate system
+
+         # TODO: make this gooder?        
+        if isinstance(impedance, float):
+            self.impedance_func = lambda k: impedance * np.ones_like(k) # constant function
+        elif callable(impedance):
+            self.impedance_func = impedance
+        else:
+            raise ValueError(f'impedance type not recognized')
 
         if dim==3:
             self.axis = axis / np.linalg.norm(axis) # axis vector of the cylinder
@@ -438,6 +482,7 @@ class CylinderGreen(TailoredGreen):
         Nq_evan  = self._numerics.get("Nq_evan",   128)
 
         k = np.atleast_1d(k)
+        Z = self.impedance_func(k) # constant impedance, shape Nk
 
         if self.dim == 2: # in 2D, use the functions directly!
             obs_r, obs_phi = getPolarCoordinates(
@@ -447,7 +492,7 @@ class CylinderGreen(TailoredGreen):
             y, self.origin, self.radial, self.normal
             )
 
-            return self.G_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], k, self.radius, mmax=mmax, eps_radius=eps_radius)
+            return self.G_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], k, self.radius, mmax=mmax, eps_radius=eps_radius, Z=Z)
 
         elif self.dim == 3: # in 3D, integrate over the extrusion direction!
             obs_r, obs_phi, obs_x = getCylindricalCoordinates(
@@ -470,7 +515,7 @@ class CylinderGreen(TailoredGreen):
 
                 for kzval, wval, kkval in zip(kz, w, kk): # second loop, necessary for large arrays....
                     
-                    G_2D = self.G_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], kkval, self.radius, mmax=mmax, eps_radius=eps_radius) # shape 1, Nx, Ny
+                    G_2D = self.G_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], kkval, self.radius, mmax=mmax, eps_radius=eps_radius, Z=Z[ik]) # shape 1, Nx, Ny
                     cosz = np.cos(kzval * (obs_x[:, None] -src_x[None, :])) # Nx, Ny
 
                     G[ik, :, :] += G_2D[0, :, :] * cosz * wval # increment
@@ -486,6 +531,7 @@ class CylinderGreen(TailoredGreen):
         Nq_evan  = self._numerics.get("Nq_evan",   128)
 
         k = np.atleast_1d(k)
+        Z = self.impedance_func(k) # constant impedance, shape Nk
 
 
         if self.dim == 2: # in 2D, use the functions directly!
@@ -497,7 +543,7 @@ class CylinderGreen(TailoredGreen):
             y, self.origin, self.radial, self.normal
             )
 
-            gradG_polar = self.G_grad_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], k, self.radius, mmax=mmax, eps_radius=eps_radius, return_G=False) # shape 2, Nk, Nx, Ny
+            gradG_polar = self.G_grad_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], k, self.radius, mmax=mmax, eps_radius=eps_radius, return_G=False, Z=Z) # shape 2, Nk, Nx, Ny
             gradG_cart = gradPolarToCartesian(
                 gradG_cylindrical,
                 src_r,
@@ -533,7 +579,7 @@ class CylinderGreen(TailoredGreen):
                 for kzval, wval, kkval in zip(kz, w, kk): # second loop, necessary for large arrays....
                     
                     grad_2D_polar, G_2D = self.G_grad_cyl_base_2D([obs_r, obs_phi], [src_r, src_phi], kkval, self.radius,
-                                                                   mmax=mmax, eps_radius=eps_radius, return_G=True) # shapes 2, 1, Nx, Ny and 1, Nx, Ny
+                                                                   mmax=mmax, eps_radius=eps_radius, return_G=True, Z=Z[ik]) # shapes 2, 1, Nx, Ny and 1, Nx, Ny
                     cosz = np.cos(kzval * (obs_x[:, None] - src_x[None, :])) # Nx, Ny
                     dcosz_dz = kzval * np.sin(kzval * (obs_x[:, None] - src_x[None, :]))
 
@@ -667,3 +713,6 @@ class CylinderGreen(TailoredGreen):
         ax.set_box_aspect([1, 1, 1])
 
         return fig, ax
+    
+
+

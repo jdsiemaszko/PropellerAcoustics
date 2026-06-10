@@ -37,9 +37,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
@@ -65,12 +65,22 @@ shape='D'
 # SUFFIX = 'PARROT_D20L20_D36_5_10'
 # shape = 'PARROT'
 
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
+# SUFFIX = 'D20L20_D180_6000RPM'
+# shape='D'
+
+from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
+SUFFIX = 'D20L20_POROUS_v3'
+shape='D'
+
+
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
 ms = np.array([2])
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+Omega_ref = 8000/60*2*np.pi
 
 if shape == "PARROT":
     rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
@@ -88,6 +98,11 @@ if shape == "PARROT":
     QTARGET = 25 / 1000 / sourceArray.B # Newton-radian-meters
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
+
+elif shape == 'D' and sourceArray.Omega != Omega_ref:
+    print(f'rescaling the loading from {Omega_ref} to {sourceArray.Omega} rad/s')
+    Fz *= (sourceArray.Omega/Omega_ref)**2
+    Fphi *= (sourceArray.Omega/Omega_ref)**2
 
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
@@ -167,13 +182,13 @@ beam_loading = PIN.getStrutLoadingHarmonics()
 
 ##### -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
 #### save gradients in the far-field (run once per observer and m)
-# for index, sm in enumerate(sourceArray.children):
+for index, sm in enumerate(sourceArray.children):
 
-#     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
-#     print(f'pre-computing far-field gradients {index+1}')
+    gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
+    print(f'pre-computing far-field gradients {index+1}')
 
-#     gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
-#     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', gradG)
+    gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+    np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', gradG)
 
 
 # extract and rearrange
@@ -204,12 +219,12 @@ p_direct_loading = sourceArray.getDirectPressure(x_cart, ms)
 #### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
 ### save gradients in the far-field (run once per observer and m)
-# for index, sm in enumerate(sourceArray.children):
-#     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
-#     print(f'pre-computing far-field G {index+1}')
+for index, sm in enumerate(sourceArray.children):
+    G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
+    print(f'pre-computing far-field G {index+1}')
 
-#     G = sm.getScatteringGreen(x_cart, m_surface * B * np.abs(Omega) / c0, G_surface) # shape (Nm, Nx, Ny)
-#     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', G)
+    G = sm.getScatteringGreen(x_cart, m_surface * B * np.abs(Omega) / c0, G_surface) # shape (Nm, Nx, Ny)
+    np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', G)
 
 Nr = sourceArray.seg_radius.shape[0]
 

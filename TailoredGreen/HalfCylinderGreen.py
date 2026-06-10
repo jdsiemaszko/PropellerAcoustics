@@ -537,22 +537,120 @@ CG_NACA0012_T10 =  HalfCylinderGreen(radius=0.02/2, axis=caxis, origin=corigin, 
 
                         )
 
+class ImpedanceCylinderGreen(HalfCylinderGreen):
 
-class HalfCylinderGreem_Iterative(HalfCylinderGreen):
+    """
+    impedance cylinder class
+
+    impedance is a vectorised function of two variables: z and theta (in that order), describing the cylinder disc, see superclass for details
+    z is in unit meters, theta in degrees 
+    """
     def __init__(self, radius, axis, origin, radial = None, dim=3,
-                  numerics={ 'nmax': 16,'Nq_prop': 100,'Nazim': 18,'Nax': 64,
-                            'RMAX': 5,'mode': 'uniform','geom_factor': 1.01,'eps_eval': 0.001, 'iter_max':3, 'error_tol':1e-3}):
+                numerics={ 'nmax': 16,'Nq_prop': 100,'Nazim': 18,'Nax': 64,
+                        'RMAX': 5,'mode': 'uniform','geom_factor': 1.01,'eps_eval': 0.001 },
+                        impedance  = 0.0
+                        ):
+        
         super().__init__(radius, axis, origin, radial, dim, numerics)
+        self.full_cylinder_green = CylinderGreen(
+            radius, axis, origin, radial, dim=dim,
+                    numerics=numerics, impedance=impedance) # include the impedance function in the helper
 
-    def getScatteringGreen(self, x, y, k):
-        iter_green = self.full_cylinder_green.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k) # (Nk, Nz, Ny)
-        ITER_COUNT = self._numerics.get('MAXITER', 3)
-        for iter in range(ITER_COUNT):
-            print(f'Iteration {iter+1}/{ITER_COUNT}')
-            # iterate the boundary solution using the previous iteration as the surface solution (note: this is hypersingular in principle)
-            iter_green = self._getScatteringGreen(self.getBoundaryEvaluationPoints(), y, k, iter_green)
+        # TODO: make this gooder?        
+        if isinstance(impedance, float):
+            self.impedance_func = lambda k: impedance * np.ones_like(k) # constant function
+        elif callable(impedance):
+            self.impedance_func = impedance
+        else:
+            raise ValueError(f'impedance type not recognized')
+        
+
+    def _getScatteringGreen(self, x, y, k, green_at_surface):
+
+        """
+        modified function from superclass accounting for impedance BC
+        """
+
+        # eval_points = self.getBoundaryEvaluationPoints() # (3, Nz)
+        eval_points = self.panel_positions # 3, Nz
+
+        ff_green_gradient = self.free_field_green.getGradientGreenAnalytical(x, eval_points, k) # (3, Nk, Nx, Nz)
+        ff_green = self.free_field_green.getGreenFunction(x, eval_points, k) # (Nk, Nx, Nz)
+
+        eval_areas = self.panel_areas # Nz
+        panel_normals = self.panel_normals # (3, Nz)
+        Z = self.impedance_func(k) # 1 or Nk
+
+        ff_green_normal = -np.einsum(
+            'dz, dkxz -> kxz',
+            panel_normals,
+            ff_green_gradient
+        ) # reduce to normal derivative only
+
+        # full differential operator accounting for impedance
+        Del_green_ff = ff_green_normal + Z[:, None, None] * ff_green # Nk, Nx, Nz
+    
+        # reduce to (Nk, Nx, Ny) (integrating over the surface!)
+        Gs = -np.einsum(
+            'kzy, kxz, z -> kxy',  # Einstein summation
+            green_at_surface,
+            Del_green_ff,
+            eval_areas,
+        )
+
+        return Gs
+    
+    def _getScatteringGreenGradient(self, x, y, k, green_grad_at_surface):
+        """
+        modified function from superclass accounting for impedance BC
+        """
+
+        # eval_points = self.getBoundaryEvaluationPoints() # (3, Nz)
+        eval_points = self.panel_positions # 3, Nz
+
+        ff_green_gradient = self.free_field_green.getGradientGreenAnalytical(x, eval_points, k) # (3, Nk, Nx, Nz)
+        ff_green = self.free_field_green.getGreenFunction(x, eval_points, k) # (Nk, Nx, Nz)
+
+        eval_areas = self.panel_areas # Nz
+        panel_normals = self.panel_normals # (3, Nz)
+        Z = self.impedance_func(k) # 1 or Nk
+
+
+        ff_green_normal = -np.einsum(
+            'dz, dkxz -> kxz',
+            panel_normals,
+            ff_green_gradient
+        ) # reduce to normal derivative only
+
+        # full differential operator accounting for impedance
+        Del_green_ff = ff_green_normal + Z[:, None, None] * ff_green # Nk, Nx, Nz
+    
+        # reduce to (Nk, Nx, Ny) (integrating over the surface!)
+        nablaGs = -np.einsum(
+            'dkzy, kxz, z -> dkxy',  # Einstein summation
+            green_grad_at_surface,
+            Del_green_ff,
+            eval_areas,
+        ) 
+
+        return nablaGs #shape (3, Nk, Nx, Ny)
+
+
+# class HalfCylinderGreem_Iterative(HalfCylinderGreen):
+#     def __init__(self, radius, axis, origin, radial = None, dim=3,
+#                   numerics={ 'nmax': 16,'Nq_prop': 100,'Nazim': 18,'Nax': 64,
+#                             'RMAX': 5,'mode': 'uniform','geom_factor': 1.01,'eps_eval': 0.001, 'iter_max':3, 'error_tol':1e-3}):
+#         super().__init__(radius, axis, origin, radial, dim, numerics)
+
+#     def getScatteringGreen(self, x, y, k):
+#         iter_green = self.full_cylinder_green.getGreenFunction(self.getBoundaryEvaluationPoints(), y, k) # (Nk, Nz, Ny)
+#         ITER_COUNT = self._numerics.get('MAXITER', 3)
+#         for iter in range(ITER_COUNT):
+#             print(f'Iteration {iter+1}/{ITER_COUNT}')
+#             # iterate the boundary solution using the previous iteration as the surface solution (note: this is hypersingular in principle)
+#             iter_green = self._getScatteringGreen(self.getBoundaryEvaluationPoints(), y, k, iter_green)
             
-            norm_L_infty = np.max(np.abs(iter_green))
-            error_rel = np.linalg.norm
-        return self._getScatteringGreen(x, y, k, iter_green)
+#             norm_L_infty = np.max(np.abs(iter_green))
+#             error_rel = np.linalg.norm
+#         return self._getScatteringGreen(x, y, k, iter_green)
     
