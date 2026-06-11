@@ -30,11 +30,12 @@ from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous
 
 fig, ax = plt.subplots(figsize=(12, 5))
 
-for sourceArray, SUFFIX,  shape, COLOR in zip(
-    [D20L20W00_D180, D20L20_porous], # rigid, porous
-    ['_D180_MR', 'D20L20_POROUS_v3'],
-    ['D', 'D'],
-    ['r', 'g']
+for sourceArray, SUFFIX,  shape, COLOR, LABEL in zip(
+    [D20L20W00_D180, D20L20_porous, D20L20_porous, D20L20_porous], # rigid, porous
+    ['_D180_MR', 'D20L20_POROUS_40mm', 'D20L20_POROUS_30mm', 'D20L20_POROUS_RIGID_v2'],
+    ['D', 'D', 'D', 'D'],
+    ['r', 'g', 'b', 'k'],
+    ['Rigid', '40mm', '30mm', r'$|Z|\rightarrow \infty$ (control)']
 ):
     sourceArray.numerics['CompactnessCorrection'] = True
     # sourceArray.numerics['CompactnessCorrection'] = False
@@ -213,8 +214,8 @@ for sourceArray, SUFFIX,  shape, COLOR in zip(
     # ax.plot(ms, SPL_beam_loading, color='m', marker='^')
     # ax.plot(ms, SPL_beam_thickness, color='c', marker='^')
 
-    if COLOR is not 'g': # PIN only works for a rigid beam
-        ax.plot(ms, SPL_total_PIN, color=COLOR, marker='^')
+    # if 'POROUS' not in SUFFIX: # PIN only works for a rigid beam
+    #     ax.plot(ms, SPL_total_PIN, color=COLOR, marker='^')
 
     # ax.plot(ms, SPL_direct_s, color='r', marker='s', linestyle='--')
     # ax.plot(ms, SPL_direct_us, color='g', marker='s', linestyle='--')
@@ -222,7 +223,9 @@ for sourceArray, SUFFIX,  shape, COLOR in zip(
     # ax.plot(ms, SPL_SM_rotor_total, color='y', marker='s', linestyle='--')
     # ax.plot(ms, SPL_scattered, color='m', marker='s', linestyle='--')
     # ax.plot(ms, SPL_scattered_thickness, color='c', marker='s', linestyle='--')
-    ax.plot(ms, SPL_total_scattering, color=COLOR, marker='s', linestyle='--')
+    ax.plot(ms, SPL_total_scattering, color=COLOR, marker='s', linestyle='--',
+            #  label=LABEL
+             )
 
 ax.plot(freq[0]/BPF,
         spl_from_autopower(data),
@@ -261,8 +264,8 @@ component_handles = [
 ]
 
 model_handles = [
-    Line2D([0], [0], color='k', marker='^', linestyle='-',
-           label='PIN'),
+    # Line2D([0], [0], color='k', marker='^', linestyle='-',
+    #        label='PIN'),
     Line2D([0], [0], color='k', marker='s', linestyle='--',
            label='Source-Modes'),
     Line2D([0], [0], color='0.3', lw=3,
@@ -276,6 +279,17 @@ case_handles = [
            label='Porous'),
 ]
 
+case_handles_SM = [
+    Line2D([0], [0], color='r',
+        label='Rigid', marker='s'),
+    Line2D([0], [0], color='g', 
+           label='Porous, h=40mm', marker='s'),
+    Line2D([0], [0], color='b', 
+           label='Porous, h=30mm', marker='s'),
+    Line2D([0], [0], color='k', 
+        label=r'Porous, $Z\rightarrow \infty$', marker='s'),
+]
+
 leg1 = ax.legend(handles=component_handles,
                  title='Noise Component',
                  loc='upper left')
@@ -284,10 +298,12 @@ leg2 = ax.legend(handles=model_handles,
                 #  title='Model',
                  loc='lower left')
 leg3 = ax.legend(handles=case_handles, loc='upper left')
+leg4 = ax.legend(handles=case_handles_SM, loc='upper right')
 
 # ax.add_artist(leg1)
 ax.add_artist(leg2)
 ax.add_artist(leg3)
+ax.add_artist(leg4)
 
 
 

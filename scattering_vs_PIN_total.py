@@ -32,9 +32,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
@@ -64,6 +64,10 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'PARROT_D20L20_D180_10_37'
 # shape = 'PARROT'
 
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180_10_37'
+# shape = 'PARROT'
+
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D360 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D360'
 # shape = 'PARROT'
@@ -76,12 +80,12 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D20L20_POROUS_v2'
 # shape='D'
 
-from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
-SUFFIX = 'D20L20_POROUS_v3'
-shape='D'
+# from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
+# SUFFIX = 'D20L20_POROUS_v3'
+# shape='D'
 
-sourceArray.numerics['CompactnessCorrection'] = True
-# sourceArray.numerics['CompactnessCorrection'] = False
+# sourceArray.numerics['CompactnessCorrection'] = True
+sourceArray.numerics['CompactnessCorrection'] = False
 
 
 NDIPOLES = sourceArray.Nsources
@@ -129,8 +133,8 @@ c0 = sourceArray.SoS
 han = sourceArray.getHanson()
 # END OF HEADER
 
-ind_theta = 6+5     # 60 to -60 in 10
-ind_phi = 27          # 0 to 350 in 10
+ind_theta = 6     # 60 to -60 in 10
+ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
 
@@ -162,19 +166,27 @@ ms = np.arange(1, 11, 1) # harmonics to extract
 # SPL_rotor_S = p_to_SPL(pSmB_model_rotor)
 # SPL_rotor_US = p_to_SPL(pUSmB_model_rotor)
 
-pLSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
-                                    #    blade_l.getBladeLoadingHarmonics()
-                                    BLH_S
-                                       )[0][0]
+# BLH_S[2, :, :] = 0
+# BLH_US[2, :, :] = 0
 
 pLUSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
                                     #    blade_l.getBladeLoadingHarmonics()
                                     BLH_US
                                        )[0][0]
 
-ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, sourceArray.seg_chord, 0.082 * np.ones_like(r_inner))[0][0] # NACA0012
+pLSmB_model_rotor = han.getPressureRotor(x_cart, ms, 
+                                    #    blade_l.getBladeLoadingHarmonics()
+                                    BLH_S
+                                       )[0][0]
+
+
+
+ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, sourceArray.seg_chord, 0.0822 * np.ones_like(r_inner))[0][0] # NACA0012
 # BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
 
+
+PIN._numerics['only_linear'] = True 
+PIN._numerics['only_nonlinear'] = False
 
 
 PIN._numerics['include_vortex_sources'] = True
@@ -226,13 +238,15 @@ for index, sm in enumerate(sourceArray.children):
 # p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
 # p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
 
-sourceArray.updateBLH(BLH_S)
-p_direct_s = sourceArray.getDirectPressure(x_cart, ms)[0]
-p_scattered_s = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
-
 sourceArray.updateBLH(BLH_US)
-p_direct_us = sourceArray.getDirectPressure(x_cart, ms)[0]
 p_scattered_us = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+p_direct_us = sourceArray.getDirectPressure(x_cart, ms)[0]
+
+sourceArray.updateBLH(BLH_S)
+p_scattered_s = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+p_direct_s = sourceArray.getDirectPressure(x_cart, ms)[0]
+
+
 
 
 # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)

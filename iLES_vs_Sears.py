@@ -523,9 +523,9 @@ Fz_in_time_reconstruct[k, :])
     time_mean_nondim = time_reconstruct[:400]/period - shift + 0.5
     time_mean = time_mean_nondim * period
     Fz_mean = np.roll(Fz_at_r_iLES_periodic_mean, -mid)
-    ax.plot(time_mean_nondim, Fz_mean, color='b', label='iLES', linewidth=2)
+    ax.plot(time_mean_nondim, Fz_mean, color='k', label='iLES', linewidth=2)
     for i in range(0, 5):
-        ax.plot(time_reconstruct/period - shift  - i, Fz_at_r_iLES, color='b', alpha=0.3)
+        ax.plot(time_reconstruct/period - shift  - i, Fz_at_r_iLES, color='k', alpha=0.3)
 
     ax.plot(time/period, Fz_at_r_PIN, color='r', linestyle='--',  label='Model')
     ax.legend()
@@ -559,7 +559,7 @@ Fz_in_time_reconstruct[k, :])
         for k in range(Fz_harmonics_reconstruct.shape[0])
     ])
 
-    ax.plot(ks, abs(F_k_explicit), color='b', marker='s', label='iLES')
+    ax.plot(ks, abs(F_k_explicit), color='k', marker='o', label='iLES')
 
     # ax.plot(ks, abs(Fz_at_r[:len(ks)]), color='b', marker='s', label='iLES')
     ax.plot(ks, abs(getBLHatRadius(BLH[1, :, :], r_inner, r_query)[:len(ks)]), color='r', linestyle='--', marker='s', label='Model')
@@ -570,7 +570,7 @@ Fz_in_time_reconstruct[k, :])
     ax.grid()
 
     ax.set_xticks(ks[::2])
-    ax.set_xlabel(fr'$k = f / B \Omega$')
+    ax.set_xlabel(fr'$k = f / \Omega$')
     ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
     plt.tight_layout()
     plt.savefig(f'./Figures/iLES/net_{r_query:.4f}.pdf')

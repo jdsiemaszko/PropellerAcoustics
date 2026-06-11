@@ -223,8 +223,6 @@ class PotentialInteraction:
         
         gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
 
-
-
         thetab = self.theta_beam
         deltathetab = np.diff(thetab)[0]
 
@@ -317,11 +315,13 @@ class PotentialInteraction:
                 # pressure += pressure_sourcesink
 
                 #doublet
+
                 zd = zv
+                # + self.seg_chord[None, :]/2
                 zdbar = np.conj(zd)
 
                 dfdz_doublet = - mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + ( zprime[:, None, None] / z[:, None, None] ) * ( 
-                                np.conj( mu[None, None, :] ) / (( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2) )
+                                np.conj( mu[None, None, :] ) / (( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2))
 
                 dfdz += dfdz_doublet
 

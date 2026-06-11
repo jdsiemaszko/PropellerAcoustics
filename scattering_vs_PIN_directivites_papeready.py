@@ -156,6 +156,10 @@ for ms in mss:
 
     x_cart = np.array([X, Y, Z])
 
+
+    PIN._numerics['only_linear'] = True 
+    PIN._numerics['only_nonlinear'] = False
+
     PIN._numerics['include_vortex_sources'] = True
     PIN._numerics['include_thickness_sources'] = False
     beam_loading = PIN.getStrutLoadingHarmonics() 
@@ -175,6 +179,15 @@ for ms in mss:
     PIN._numerics['include_vortex_sources'] = True
     PIN._numerics['include_thickness_sources'] = True
     beam_loading = PIN.getStrutLoadingHarmonics()
+
+
+
+    # Non-linear only!
+    PIN._numerics['only_linear'] = False 
+    PIN._numerics['only_nonlinear'] = True
+    PIN._numerics['include_vortex_sources'] = True
+    PIN._numerics['include_thickness_sources'] = True
+    beam_loading_nonlinear_only = PIN.getStrutLoadingHarmonics() 
 
 
 
@@ -239,7 +252,8 @@ for ms in mss:
         G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
 
 
-    p_beam_total , _ = han.getPressureStator(x_cart, ms*B, beam_loading)
+    p_beam_total_linear , _ = han.getPressureStator(x_cart, ms*B, beam_loading)
+    p_beam_nonlinear, _ = han.getPressureStator(x_cart, ms*B, beam_loading_nonlinear_only)
 
     p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)
     p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
@@ -252,7 +266,7 @@ for ms in mss:
     p_total_scattering = p_direct_s + p_direct_us + p_scattered_s + p_scattered_us + p_direct_thickness + p_scattered_thickness
 
     # pin total
-    p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
+    p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total_linear + p_beam_nonlinear
     p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
 
     # shift to relative phase w.r.t. mic one at phi=0
@@ -276,12 +290,14 @@ for ms in mss:
 
     components = [
         {
-            "name": "pin_loading",
+            "name": "pin_total_loading",
             "title": "PIN Model (vortex only)",
             "data": p_total_pin_loading[:, 0],
             "theta": theta_m,
             "phi": phi_m,
         },
+
+
         {
             "name": "scattering",
             "title": "Scattering Model",
@@ -344,6 +360,30 @@ for ms in mss:
             "name": "scattered_loading_unsteady",
             "title": r"$-\sum_{k>0}\langle \boldsymbol{\nabla} G_s \circ \boldsymbol{F}_k\rangle_\Omega$",
             "data": p_scattered_us[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+
+            {
+            "name": "pin_nonlinear",
+            "title": r"1/2rhov^2",
+            "data": p_beam_nonlinear[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+
+                    {
+            "name": "pin_beam_loading_only",
+            "title": r"1/2rhov^2",
+            "data": p_beam_loading[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+
+                        {
+        "name": "pin_beam_thickness_only",
+            "title": r"1/2rhov^2",
+            "data": p_beam_thickness[:, 0],
             "theta": theta_m,
             "phi": phi_m,
         },

@@ -14,16 +14,24 @@ from SourceMode.Configurations_NACA0012 import m_surface
 from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray
 SUFFIX = '_D360_HR'
 
-# sourceArray.numerics['CompactnessCorrection'] = True
-sourceArray.numerics['CompactnessCorrection'] = False
+sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
 
 
 MODE = 'half'
 FILE = 'TOTAL_DIR'
 
-mss = np.arange(1, 6, 1)
+mss = np.arange(1, 11, 1)
 
-for m in mss:
+
+Nm = len(mss)
+Ncomp = 8
+r_query = np.array([0.5, 0.8, 0.9]) * 0.1
+Nr_query = len(r_query)
+Fms = np.zeros((3, Nm, Nr_query, Ncomp), dtype=np.complex128) # store loading harmonics!
+
+
+for index_m, m in enumerate(mss):
     print(f'saving diagrams for m={m}')
     ms = np.array([m])
 
@@ -44,8 +52,8 @@ for m in mss:
     ind_m = np.where(m_surface == ms[0])[0][0]
 
 
-    gradG_surface = np.zeros((sourceArray.Nchildren, 3, m_surface.shape[0], sourceArray.green.getBoundaryPoints().shape[1] ,NDIPOLES,))
-    G_surface = np.zeros((sourceArray.Nchildren, m_surface.shape[0], sourceArray.green.getBoundaryPoints().shape[1] ,NDIPOLES,))
+    gradG_surface = np.zeros((sourceArray.Nchildren, 3, m_surface.shape[0], sourceArray.green.getBoundaryPoints().shape[1] ,NDIPOLES,), dtype=np.complex128)
+    G_surface = np.zeros((sourceArray.Nchildren, m_surface.shape[0], sourceArray.green.getBoundaryPoints().shape[1] ,NDIPOLES,), dtype=np.complex128)
 
     for index, sm in enumerate(sourceArray.children):
 
@@ -116,13 +124,13 @@ for m in mss:
 
     thetab = PIN.theta_beam
     radius = PIN.seg_radius
-    TH_PIN, PHI_PIN = np.meshgrid(thetab, radius, indexing='ij')
+    PHI_PIN, TH_PIN = np.meshgrid(radius, thetab, indexing='ij')
 
     import os
     import numpy as np
     import matplotlib.pyplot as plt
 
-    folder_name = f"./Figures/SurfacePressureComponents_M{mplot}"
+    folder_name = f"./Figures/SurfacePressureComponents_M{mplot}_NONCOMPACT"
     os.makedirs(folder_name, exist_ok=True)
 
 
@@ -136,6 +144,10 @@ for m in mss:
             "data": pmB_loading[:, 0],
             'theta' : TH,
             'phi' : PHI,
+            'color' : 'r',
+            'linestyle': 'dashed',
+            'marker' : 's',
+            # 'label' : ''
         },
 
         # ==========================================================
@@ -147,6 +159,9 @@ for m in mss:
             "data": pmB_thickness[:, 0],
             'theta' : TH,
             'phi' : PHI,
+            'color' : 'b',
+            'linestyle': 'dashed',
+            'marker' : 's',
         },
 
         {
@@ -155,37 +170,55 @@ for m in mss:
             "data": pmB_total[:, 0],
                     'theta' : TH,
             'phi' : PHI,
+            'color' : 'k',
+            'linestyle': 'dashed',
+            'marker' : 's',
         },
 
             {
             "name": "loading_PIN",
-            "data": p_PIN_loading,
+            "data": p_PIN_loading.T,
                     'theta' : TH_PIN,
             'phi' : PHI_PIN,
+        'color' : 'r',
+            'linestyle': 'solid',
+            'marker' : '^',
         },        {
             "name": "thickness_PIN",
-            "data": p_PIN_thickness,
+            "data": p_PIN_thickness.T,
             'theta' : TH_PIN,
             'phi' : PHI_PIN,
+                    'color' : 'b',
+            'linestyle': 'solid',
+            'marker' : '^',
         },
         {
             "name": "nonlinear_PIN",
-            "data": p_PIN_nonlinear,
+            "data": p_PIN_nonlinear.T,
             'theta' : TH_PIN,
             'phi' : PHI_PIN,
+                'color' : 'm',
+            'linestyle': 'solid',
+            'marker' : '^',
         },
         {
             "name": "total_PIN",
-            "data": p_PIN_total,
+            "data": p_PIN_total.T,
             'theta' : TH_PIN,
             'phi' : PHI_PIN,
+                    'color' : 'k',
+            'linestyle': 'solid',
+            'marker' : '^',
         },
 
             {
             "name": "total_plus_nolinear_PIN",
-            "data": p_PIN_total_incl_nonlinear,
+            "data": p_PIN_total_incl_nonlinear.T,
             'theta' : TH_PIN,
             'phi' : PHI_PIN,
+            'color' : 'c',
+            'linestyle': 'solid',
+            'marker' : '^',
         },
 
 
@@ -203,8 +236,12 @@ for m in mss:
     reference_xrange = rtip - rroot
     reference_width = 6.0
     reference_height = 4.0
+    reference_width_long = reference_width * 2 * rtip / reference_xrange
+    RADIUS = 0.01
+    fig3, ax3 = plt.subplots(figsize=(reference_width_long, reference_height)) # common radial plot!
+    fig4, ax4 = plt.subplots(figsize=(reference_width_long, reference_height)) # common radial plot!
 
-    for comp in components:
+    for index_comp, comp in enumerate(components):
 
         Z = comp['data']
         TH = comp['theta']
@@ -274,6 +311,29 @@ for m in mss:
         )
         plt.close(fig2)
 
+        # TODO: plot sectional loading!
+        Z = Z.reshape(TH.shape) # of shape Nphi, Ntheta
+        dtheta = TH[0, 1] - TH[0, 0]
+        F_sectional_z = -RADIUS * np.sum(Z * np.sin(TH) * dtheta, axis=1, dtype=np.complex128) # of shape Nphi
+        F_sectional_phi = RADIUS * np.sum(Z * np.cos(TH) * dtheta, axis=1, dtype=np.complex128) # of shape Nphi
+
+        print(f'saving sectional loading at r_query={r_query}')
+        Fms[1, index_m, :, index_comp] = (
+            np.interp(r_query, PHI[:, 0], F_sectional_z.real)
+            + 1j * np.interp(r_query, PHI[:, 0], F_sectional_z.imag)
+        )
+
+        Fms[2, index_m, :, index_comp] = (
+            np.interp(r_query, PHI[:, 0], F_sectional_phi.real)
+            + 1j * np.interp(r_query, PHI[:, 0], F_sectional_phi.imag)
+)
+
+        COLOR, MARKER, LINESTYLE = comp['color'], comp['marker'], comp['linestyle']
+        MARKER=None
+        ax3.plot(PHI[:, 0], np.abs(F_sectional_z), color=COLOR, marker=MARKER, linestyle=LINESTYLE)
+        ax4.plot(PHI[:, 0], np.abs(F_sectional_phi), color=COLOR, marker=MARKER, linestyle=LINESTYLE)
+
+
     fig = plt.figure(figsize=(1.5, 5))
 
     cax = fig.add_axes([0.35, 0.05, 0.3, 0.9])
@@ -309,3 +369,79 @@ for m in mss:
         bbox_inches="tight",
     )
     plt.close(fig)
+
+    from matplotlib.lines import Line2D
+    component_handles = [
+        Line2D([0], [0], color='r', lw=2, label='Rotor Loading'),
+        # Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
+        Line2D([0], [0], color='b', lw=2, label='Rotor Thickness'),
+        # Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
+        Line2D([0], [0], color='m', lw=2, label='Non-linear'),
+        Line2D([0], [0], color='c', lw=2, label='Loading+Thickness+Non-linear'),
+
+        # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
+        Line2D([0], [0], color='k', lw=2, label='Loading + Thickness'),
+    ]
+
+    model_handles = [
+    Line2D([0], [0], color='k',  linestyle='-',
+           label='PIN'),
+    Line2D([0], [0], color='k',  linestyle='--',
+           label='SM'),
+    ]
+
+    ax3.grid()
+    ax3.set_xlim((0, 2*rtip))
+    
+    ax3.axvline(rroot, color='k', alpha=0.7)
+    ax3.axvline(rtip, color='k', alpha=0.7)
+
+    leg = ax3.legend(handles=component_handles, loc='upper right')
+    leg2 = ax3.legend(handles=model_handles,
+                #  title='Model',
+                 loc='upper left')
+    ax3.add_artist(leg)
+    ax3.add_artist(leg2)
+
+    ax3.set_xlabel(fr'Radial Position $r$ $[m]$')
+    ax3.set_ylabel(fr'Net Axial Loading $|\hat{{\boldsymbol{{F}}^z_k}}| [m]$')
+
+    fig3.savefig(
+        os.path.join(folder_name, "sectional_loading.pdf"),
+        dpi=300,
+        bbox_inches="tight",
+    )
+    plt.close(fig3)
+
+    ax4.grid()
+    ax4.set_xlim((0, 2*rtip))
+    
+    ax4.axvline(rroot, color='k', alpha=0.7)
+    ax4.axvline(rtip, color='k', alpha=0.7)
+
+    leg = ax4.legend(handles=component_handles, loc='upper right')
+    leg2 = ax4.legend(handles=model_handles,
+                #  title='Model',
+                 loc='upper left')
+    ax4.add_artist(leg)
+    ax4.add_artist(leg2)
+
+    ax4.set_xlabel(fr'Radial Position $r$ $[m]$')
+    ax4.set_ylabel(fr'Net Tangential Loading $|\hat{{\boldsymbol{{F}}^\phi_k}}| [m]$')
+
+    fig4.savefig(
+        os.path.join(folder_name, "sectional_loading_tan.pdf"),
+        dpi=300,
+        bbox_inches="tight",
+    )
+    plt.close(fig4)
+
+destination = './Data/current/surface_pressure/loading_harmonics_NONCOMPACT.npy'
+destination_r = './Data/current/surface_pressure/r_query_NONCOMPACT.npy'
+destination_m = './Data/current/surface_pressure/m_query_NONCOMPACT.npy'
+
+print(f'saving results of sectional loading at r_query={r_query} to {destination}')
+np.save(destination, Fms)
+np.save(destination_r, r_query)
+np.save(destination_m, mss)
+

@@ -21,7 +21,7 @@ class HansonModel():
         self.B = B
         self.Omega=Omega_rads
         self.rho = rho_kgm3
-        self.c = c_mps # speed of sound
+        self.SoS = c_mps # speed of sound
         self.nbeam = nb
 
 
@@ -78,7 +78,7 @@ class HansonModel():
         if multiplier is None:
             multiplier = self.B
 
-        c0 = self.c # SoS
+        c0 = self.SoS # SoS
         Omega = self.Omega
         B = self.B
         nb = self.nbeam
@@ -151,7 +151,7 @@ class HansonModel():
 
         return pmb, x
     
-    def getThicknessNoiseRotor(self, x:np.ndarray, m:np.ndarray, chord:np.ndarray, thickness_to_chord:np.ndarray, multiplier:float=None, c0=340, rho0=1.2):
+    def getThicknessNoiseRotor(self, x:np.ndarray, m:np.ndarray, chord:np.ndarray, thickness_to_chord:np.ndarray, multiplier:float=None):
         """
         thickness noise pressure, as per Hanson & Patrzych 1993
         computed at frequency mBOmega!!!
@@ -199,7 +199,7 @@ class HansonModel():
         #         * m * self.B * self.Omega / c0 * R) / 4 / np.pi / R
 
         
-        matrix = jv(m[None, :, None] * self.B, m[None, :, None] * self.B * self.Omega / c0 * self.radius_c[None, None, :]
+        matrix = jv(m[None, :, None] * self.B, m[None, :, None] * self.B * self.Omega / self.SoS * self.radius_c[None, None, :]
                     * np.sin(theta[:, None, None])) * np.exp(1j
                     * (m[None, :, None]  * self.B) * (phi[:, None, None]  - np.pi/2))  # shape Nx, Nm, Nr
 
@@ -211,7 +211,7 @@ class HansonModel():
         )
 
         pt_mb *= -m**2 * self.B**2 * multiplier * self.Omega**2 * self.rho * np.exp(1j
-                * m * self.B * self.Omega / c0 * R[:, None]) / 4 / np.pi / R[:, None]
+                * m * self.B * self.Omega / self.SoS * R[:, None]) / 4 / np.pi / R[:, None]
         return pt_mb, x
 
     def getPressureStator(self, x:np.ndarray, m:np.ndarray, Fstator:np.ndarray, multiplier:float=None):
@@ -238,7 +238,7 @@ class HansonModel():
         if multiplier is None:
             multiplier = self.nbeam
 
-        c0 = self.c # SoS
+        c0 = self.SoS # SoS
         Omega = self.Omega
 
         # convert observation point to cylidrical relative to the prop

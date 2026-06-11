@@ -363,20 +363,20 @@ PARROT_D20L20W00_D36_1_10 = SourceModeArray(
 #                         airfoil = 'naca0012'
 #                         )
 
-# PARROT_D20L20W00_D180_10_37 = SourceModeArray(
-#                         BLH=np.zeros((3, Nk, Nr)), 
-#                         B = NBLADES,
-#                         Omega = 7250 / 60 * 2 * np.pi, # parrot rotor RPM!
-#                         gamma = np.deg2rad(pitch_parrot),
-#                         axis=axis_prop, origin=origin_prop,
-#                         radius=r_outer,
-#                         green = cg_midres_D20L20W00,
-#                         numerics={'Nsources' : 180, 'Nlayers' : 10},
-#                         c0 = c0,
-#                         dt = t_c_uniform[None, :] * chord_parrot[:, None], # Nr, Nc
-#                         chord = chord_parrot,
-#                         airfoil = 'naca0012'
-#                         )
+PARROT_D20L20W00_D180_10_37 = SourceModeArray(
+                        BLH=np.zeros((3, Nk, Nr)), 
+                        B = NBLADES,
+                        Omega = 7250 / 60 * 2 * np.pi, # parrot rotor RPM!
+                        gamma = np.deg2rad(pitch_parrot),
+                        axis=axis_prop, origin=origin_prop,
+                        radius=r_outer,
+                        green = cg_midres_D20L20W00,
+                        numerics={'Nsources' : 180, 'Nlayers' : 10},
+                        c0 = c0,
+                        dt = t_c_uniform[None, :] * chord_parrot[:, None], # Nr, Nc
+                        chord = chord_parrot,
+                        airfoil = 'naca0012'
+                        )
 
 # D20L20W00_D180_10_37 = SourceModeArray(
 #                         BLH=np.zeros((3, Nk, Nr)), 

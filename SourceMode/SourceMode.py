@@ -33,6 +33,8 @@ def getSearsFunctionHistograms(x_c, x_c_outer):
     """
     Return the integral of the Sears function over bins whose
     edges are given by x_c_outer.
+
+    NOTE: assuming x_c and x_c_outer are ORDERED!
     """
     F = _sears_antiderivative(x_c_outer)
     return F[1:] - F[:-1]
@@ -92,7 +94,7 @@ class SourceMode():
 
         # TODO: shift chord stations by c/4?
         if isinstance(dt, float): # float: assume constant dt across the chord :(
-            self.dt = dt / np.cos(self.gamma)
+            self.dt = dt
 
             # self.chord_stations = np.linspace(-3 * self.chord / 4, self.chord / 4, self.numerics.get('Nchordstations', 1000))
             self.chord_stations = np.linspace(-self.chord/2, self.chord/2, self.numerics.get('Nchordstations', 1000))
@@ -109,7 +111,7 @@ class SourceMode():
 
             # mean thickness of the section -  need to account for the size of the element!
             # self.dt = 1 / self.chord * np.trapezoid(dt, self.chord_stations) # mean thickness
-            self.dt = 1/self.chord_extent * np.trapezoid(dt[self.where_extent], self.chord_stations[self.where_extent]) / np.cos(self.gamma)
+            self.dt = 1/self.chord_extent * np.trapezoid(dt[self.where_extent], self.chord_stations[self.where_extent])
             self.t_c_distribution = dt / self.chord
 
 
@@ -287,8 +289,8 @@ class SourceMode():
         # weight = 2 * np.cos(theta / 2)**2  # comes from transformation, integrand * du/dtheta
 
 
-        weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)?
-        # weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (+) or leading edge (-)? 
+        # weight = (1-np.cos(theta)) # loading concentrated around the trailing edge (-) or leading edge (+)?
+        weight = (1+np.cos(theta)) # loading concentrated around the trailing edge (-) or leading edge (+)? 
 
         # Roger et al. (2006):
         """
@@ -344,10 +346,13 @@ class SourceMode():
         phase0 = phase0[where_extent, :]
         f0 = f0[where_extent]
 
-        factor[Ns-1, :] = np.sum(
-            f0[:, None] * phase0 * dx,
-            axis=0
-        ) / np.sum(f0 * dx) # shape Nm, mind the normalization
+        denom = np.sum(f0 * dx)
+        num = np.sum(f0[:, None] * phase0 * dx, axis=0)
+
+        if np.isclose(denom, 0.0):
+            factor[Ns-1, :] = 1.0 # shoudnt matter since BLH is zero!
+        else:
+            factor[Ns-1, :] = num / denom
 
         # phase = np.exp(
         #     1j * (m[None, None, :] * self.B - s[None, :, None])
@@ -361,6 +366,9 @@ class SourceMode():
         # ) / np.sum(f0 * dx) # shape 2*Ns-1, Nm
 
         loading *= factor[:, :, None, None]
+
+        if np.any(np.isnan(loading)):
+            print('WARNING: NaN values detected in loading')
 
         return loading
     
@@ -400,7 +408,7 @@ class SourceMode():
     def getScatteringGreen(self, x:np.ndarray, k:np.ndarray, G_surface=None):
         return self.green.getScatteringGreen(x, self.dipole_positions, k, green_at_surface=G_surface)
 
-    def getThicknessSources(self, m, Omega,  rho0=1.2):
+    def getThicknessSources(self, m, Omega, rho0=1.2):
         # compute equivalent mass terms, shape (Nm, Ny), units of Pa * m = N / m
 
         # sources = -1j * rho0 * m[:, None] * self.B * Omega * Omega * self.radius * self.dr * self.dt * np.exp(1j
@@ -771,17 +779,27 @@ class SourceModeArray():
 
         # TODO: distribute with histograms rather than interpolation
 
-        x_c = 2 * self.chord_discretization / self.seg_chord # -1 to 1, shape Nlayers, Nr
-        x_c_outer = 2 * self.chord_discretization_edges / self.seg_chord # shape Nlayers+1, Nr
+        # mind x/c is -1 at LE and 1 at TE
+        x_c = -2 * self.chord_discretization / self.seg_chord # -1 to 1, shape Nlayers, Nr
+        x_c_outer = -2 * self.chord_discretization_edges / self.seg_chord # shape Nlayers+1, Nr
         # fsears = getSearsFunction(x_c) # Nlayers, Nr
-        fsears = getSearsFunctionHistograms(x_c, x_c_outer)# Nlayers, Nr
+
+
+        # idx = np.argsort(x_c_outer)
+        # x_c_outer = x_c_outer[idx]
+        # idx = np.argsort(x_c)
+        # x_c = x_c[idx]
+        
+        #TODO: fix!
+        fsears = getSearsFunctionHistograms(x_c[::-1, :], x_c_outer[::-1, :])# Nlayers, Nr, mind that x_c and x_c_outer should be increasing
 
         _, f0 = self._getMeanLoadingChordDistribution() # f0 of shape Nlayers, Nr
 
         # define loading distribution, could be improved by a better model for harmonics
         ftotal = np.zeros((self.Nlayers, self.Nr, self.Nk)) 
-        ftotal[:, :, 0] = f0
-        ftotal[:, :, 1:] = fsears[:, :, None]
+        ftotal[:, :, 0] = f0[::-1] # from TRAILING EDGE to LEADING EDGE
+        ftotal[:, :, 1:] = fsears[::-1, :, None] # fill entries with sorted values!
+
 
         # BLH_distributed = np.zeros((3, self.Nk, self.Nr, self.Nlayers))
         BLH_distributed = np.einsum(
@@ -924,6 +942,9 @@ class SourceModeArray():
             print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index_r] if BLH[index] is not None else None, gradG_surface=gradG_surface[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
+
+            if np.any(np.isnan(pmB)):
+                print('WARNING: NaN values detected in p')
         return pmB
     
     def getDirectPressure(self, x:np.ndarray, m:np.ndarray, BLH=None):

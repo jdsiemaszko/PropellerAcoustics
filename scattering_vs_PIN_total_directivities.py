@@ -69,9 +69,13 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D20L20_D180_6000RPM'
 # shape='D'
 
-from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
-SUFFIX = 'D20L20_POROUS_v3'
-shape='D'
+# from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
+# SUFFIX = 'D20L20_POROUS_v3'
+# shape='D'
+
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_10_37 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D180_10_37'
+shape = 'PARROT'
 
 
 sourceArray.numerics['CompactnessCorrection'] = True
@@ -177,6 +181,8 @@ p_beam_thickness, _ = han.getPressureStator(x_cart, ms * B, beam_loading) # load
 PIN._numerics['include_vortex_sources'] = True
 PIN._numerics['include_thickness_sources'] = True
 beam_loading = PIN.getStrutLoadingHarmonics()
+
+
 
 
 
