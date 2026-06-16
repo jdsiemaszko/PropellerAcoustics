@@ -54,8 +54,9 @@ components = [
     },
 
         {
-        "name": "loading_PIN",
-    'color' : 'r',
+        # "name": "loading_PIN",
+        "name" : "total Vella",
+    'color' : 'y',
         'linestyle': ':',
         'marker' : '^',
     },        {
@@ -71,7 +72,7 @@ components = [
         'marker' : '^',
     },
     {
-        "name": "total_PIN",
+        "name": "tota_PIN",
                         'color' : 'b',
 
         'linestyle': ':',
@@ -79,8 +80,8 @@ components = [
     },
 
         {
-        "name": "tota_plus_nolinear_PIN",
-        'color' : 'c',
+        "name": "total_plus_nolinear_PIN",
+        'color' : 'b',
         'linestyle': ':',
         'marker' : '^',
     },
@@ -98,7 +99,7 @@ for index_r, r in enumerate(rs):
         ax.plot(ks, abs(Fms[1, :, index_r, index_comp]), label=comp['name'], color=comp['color'], marker=comp['marker'], linestyle=comp['linestyle'])
 
         if comp['marker'] == 's':
-            ax.plot(ks, abs(Fms_NC[1, :, index_r, index_comp]), label=comp['name'], color='g', marker='*', linestyle='dashdot')
+            ax.plot(ks, abs(Fms_NC[1, :, index_r, index_comp]), label=comp['name'], color='g', marker='s', linestyle='--')
  
     ax.plot(ks, data_vella[index_r, :], color='k', linewidth=2, marker='o')
 
@@ -118,11 +119,15 @@ for index_r, r in enumerate(rs):
 
     model_handles = [
     Line2D([0], [0], color='b',  linestyle=':', marker='^',
-           label='PIN'),
+           label='PIN (current)'),
+    # Line2D([0], [0], color='m',  linestyle=(0, (1, 1)), marker='^',
+    #        label='PIN (incl. nonlinear)'),
     Line2D([0], [0], color='r',  linestyle='--', marker='s',
-           label='SM (c)'),
-        Line2D([0], [0], color='g',  linestyle='dashdot', marker='*',
-           label='SM (nc)'),
+           label='SM (compact)'),
+        Line2D([0], [0], color='g',  linestyle='--', marker='s',
+           label='SM (non-compact)'),
+    Line2D([0], [0], color='y',  linestyle=':', marker='^',
+           label='PIN (Vella et al. 2026)'),
     Line2D([0], [0], color='k',  linestyle='-', marker='o',
            label='iLES'),
     ]

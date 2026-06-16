@@ -22,8 +22,8 @@ import matplotlib.pyplot as plt
 # SUFFIX = 'D20L20_D180_6000RPM'
 
 from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
-SUFFIX = 'D20L20_POROUS_RIGID_v2'
-# SUFFIX = 'D20L20_POROUS_30mm'
+# SUFFIX = 'D20L20_POROUS_RIGID_v2'
+SUFFIX = 'D20L20_POROUS_40mm_w_tape'
 ms = np.arange(1, 11, 1)
 MODE = 'half'
 

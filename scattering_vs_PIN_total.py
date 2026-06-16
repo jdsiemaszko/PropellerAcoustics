@@ -18,6 +18,10 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from matplotlib.lines import Line2D
 
+import os
+folder_name = f'./Figures/Spectra'
+os.makedirs(folder_name, exist_ok=True)
+
 # BEGINNING OF HEADER
 FILE='TOTAL'
 MODE = 'half'
@@ -32,9 +36,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
@@ -44,9 +48,9 @@ shape='D'
 # SUFFIX = 'D15L20_D180'
 # shape='D'
 
-# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = 'PARROT_D20L20_D180'
-# shape = 'PARROT'
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D180'
+shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D36_1_10'
@@ -84,8 +88,8 @@ shape='D'
 # SUFFIX = 'D20L20_POROUS_v3'
 # shape='D'
 
-# sourceArray.numerics['CompactnessCorrection'] = True
-sourceArray.numerics['CompactnessCorrection'] = False
+sourceArray.numerics['CompactnessCorrection'] = True
+# sourceArray.numerics['CompactnessCorrection'] = False
 
 
 NDIPOLES = sourceArray.Nsources
@@ -199,6 +203,8 @@ PIN._numerics['include_thickness_sources'] = True
 BL = PIN.getStrutLoadingHarmonics()
 pmB_model_beam_thickness = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
+PIN._numerics['only_linear'] = False
+PIN._numerics['only_nonlinear'] = False
 PIN._numerics['include_vortex_sources'] = True
 PIN._numerics['include_thickness_sources'] = True
 BL = PIN.getStrutLoadingHarmonics()
@@ -281,7 +287,7 @@ for element in [p_direct_s, p_direct_us, p_scattered_s, p_scattered_us, p_direct
 
 p_total_scattering = p_direct_s + p_direct_us + p_scattered_s + p_scattered_us + p_direct_thickness + p_scattered_thickness
 p_rotor_total = p_direct_s + p_direct_us + p_direct_thickness
-p_total_minus_scattered_thickness = p_total_scattering - p_scattered_thickness
+# p_total_minus_scattered_thickness = p_total_scattering - p_scattered_thickness
 
 # SPLS PIN MODEL
 SPL_rotor_loading = p_to_SPL(pmB_model_rotor_loading)
@@ -294,6 +300,7 @@ SPL_beam_loading = p_to_SPL(pmB_model_beam_loading)
 SPL_beam_thickness = p_to_SPL(pmB_model_beam_thickness)
 
 SPL_total_PIN = p_to_SPL(pmB_model_total)
+SPL_PIN_beam_total = p_to_SPL(pmB_model_beam_total)
 
 # SPLS TOTAL SCATTERING
 SPL_direct_s = p_to_SPL(p_direct_s)
@@ -303,9 +310,10 @@ SPL_scattered_us = p_to_SPL(p_scattered_us)
 SPL_scattered = p_to_SPL(p_scattered_s + p_scattered_us)
 SPL_direct_thickness = p_to_SPL(p_direct_thickness)
 SPL_scattered_thickness = p_to_SPL(p_scattered_thickness)
+SPL_scattered_total = p_to_SPL(p_scattered_s + p_scattered_us + p_scattered_thickness)
 SPL_SM_rotor_total = p_to_SPL(p_rotor_total)
 SPL_total_scattering = p_to_SPL(p_total_scattering)
-SPL_total_scattering_minus_scattered_thickness = p_to_SPL(p_total_minus_scattered_thickness)
+# SPL_total_scattering_minus_scattered_thickness = p_to_SPL(p_total_minus_scattered_thickness)
 
 # SPL_total = p_to_SPL(p_rms_total) # same computation
 
@@ -352,13 +360,17 @@ ax.plot(ms, SPL_rotor_total, color='y', marker='^')
 ax.plot(ms, SPL_beam_loading, color='m', marker='^')
 ax.plot(ms, SPL_beam_thickness, color='c', marker='^')
 ax.plot(ms, SPL_total_PIN, color='k', marker='^')
+ax.plot(ms, SPL_PIN_beam_total, color='pink', marker='^')
+
 
 ax.plot(ms, SPL_direct_s, color='r', marker='s', linestyle='--')
 ax.plot(ms, SPL_direct_us, color='g', marker='s', linestyle='--')
 ax.plot(ms, SPL_direct_thickness, color='b', marker='s', linestyle='--')
 ax.plot(ms, SPL_SM_rotor_total, color='y', marker='s', linestyle='--')
-ax.plot(ms, SPL_scattered, color='m', marker='s', linestyle='--')
+ax.plot(ms, SPL_scattered_s, color='m', marker='s', linestyle='--')
+ax.plot(ms, SPL_scattered_us, color='saddlebrown', marker='s', linestyle='--')
 ax.plot(ms, SPL_scattered_thickness, color='c', marker='s', linestyle='--')
+ax.plot(ms, SPL_scattered_total, color='pink', marker='s', linestyle='--')
 ax.plot(ms, SPL_total_scattering, color='k', marker='s', linestyle='--')
 
 ax.plot(freq[0]/BPF,
@@ -375,12 +387,14 @@ fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1,
                          })
 
 component_handles = [
-    Line2D([0], [0], color='r', lw=2, label='Steady Loading'),
-    Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
-    Line2D([0], [0], color='b', lw=2, label='Thickness'),
-    Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
-    Line2D([0], [0], color='m', lw=2, label='Beam Noise due to Loading'),
-    Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
+    Line2D([0], [0], color='r', lw=2, label='DSL'),
+    Line2D([0], [0], color='g', lw=2, label='DUSL'),
+    Line2D([0], [0], color='b', lw=2, label='DT'),
+    Line2D([0], [0], color='y', lw=2, label='D Total'),
+    Line2D([0], [0], color='m', lw=2, label='SSL'),
+    Line2D([0], [0], color='saddlebrown', lw=2, label='SUSL'),
+    Line2D([0], [0], color='c', lw=2, label='ST'),
+    Line2D([0], [0], color='pink', lw=2, label='S Total'),
     Line2D([0], [0], color='k', lw=2, label='Total'),
 ]
 
@@ -422,3 +436,8 @@ plt.xlim(0.1, 100)
 plt.ylim(0, 75)
 plt.tight_layout()
 plt.show()
+fig.savefig(
+    os.path.join(folder_name, f"spectrum_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
+    dpi=300,
+    bbox_inches="tight",
+)

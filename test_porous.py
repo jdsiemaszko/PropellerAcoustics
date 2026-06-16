@@ -31,11 +31,11 @@ from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous
 fig, ax = plt.subplots(figsize=(12, 5))
 
 for sourceArray, SUFFIX,  shape, COLOR, LABEL in zip(
-    [D20L20W00_D180, D20L20_porous, D20L20_porous, D20L20_porous], # rigid, porous
-    ['_D180_MR', 'D20L20_POROUS_40mm', 'D20L20_POROUS_30mm', 'D20L20_POROUS_RIGID_v2'],
-    ['D', 'D', 'D', 'D'],
-    ['r', 'g', 'b', 'k'],
-    ['Rigid', '40mm', '30mm', r'$|Z|\rightarrow \infty$ (control)']
+    [D20L20W00_D180, D20L20_porous, D20L20_porous, D20L20_porous, D20L20_porous, D20L20_porous], # rigid, porous
+    ['_D180_MR', 'D20L20_POROUS_40mm_w_tape', 'D20L20_POROUS_30mm_w_tape','D20L20_POROUS_20mm_w_tape','D20L20_POROUS_10mm_w_tape', 'D20L20_POROUS_RIGID_v2'],
+    ['D', 'D', 'D', 'D', 'D', 'D'],
+    ['r', 'g', 'b', 'c', 'm', 'k'],
+    ['Rigid', '40mm w. tape', '30mm w. tape', '20mm w. tape', '10mm w. tape', r'$|Z|\rightarrow \infty$ (control)']
 ):
     sourceArray.numerics['CompactnessCorrection'] = True
     # sourceArray.numerics['CompactnessCorrection'] = False
@@ -286,6 +286,10 @@ case_handles_SM = [
            label='Porous, h=40mm', marker='s'),
     Line2D([0], [0], color='b', 
            label='Porous, h=30mm', marker='s'),
+               Line2D([0], [0], color='c', 
+           label='Porous, h=20mm', marker='s'),
+               Line2D([0], [0], color='m', 
+           label='Porous, h=10mm', marker='s'),
     Line2D([0], [0], color='k', 
         label=r'Porous, $Z\rightarrow \infty$', marker='s'),
 ]

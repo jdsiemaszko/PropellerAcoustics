@@ -241,33 +241,33 @@ D20L20W00_D180_6000RPM = SourceModeArray(
 #                         airfoil = 'naca0012'
 #                         )
 
-# D10L20W00_D180 = SourceModeArray(
-#                         BLH=np.zeros((3, Nk, Nr)), 
-#                         B = NBLADES,
-#                         Omega=Omega_ref, gamma =twist,
-#                         axis=axis_prop, origin=origin_prop,
-#                         radius=r_outer,
-#                         green = cg_midres_D10L20W00,
-#                         numerics={'Nsources' : 180},
-#                         c0 = c0,
-#                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
-#                         chord = chord,
-#                         airfoil = 'naca0012'
-#                         )
+D10L20W00_D180 = SourceModeArray(
+                        BLH=np.zeros((3, Nk, Nr)), 
+                        B = NBLADES,
+                        Omega=Omega_ref, gamma =twist,
+                        axis=axis_prop, origin=origin_prop,
+                        radius=r_outer,
+                        green = cg_midres_D10L20W00,
+                        numerics={'Nsources' : 180},
+                        c0 = c0,
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
+                        chord = chord,
+                        airfoil = 'naca0012'
+                        )
 
-# D15L20W00_D180 = SourceModeArray(
-#                         BLH=np.zeros((3, Nk, Nr)), 
-#                         B = NBLADES,
-#                         Omega=Omega_ref, gamma =twist,
-#                         axis=axis_prop, origin=origin_prop,
-#                         radius=r_outer,
-#                         green = cg_midres_D15L20W00,
-#                         numerics={'Nsources' : 180},
-#                         c0 = c0,
-#                         dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
-#                         chord = chord,
-#                         airfoil = 'naca0012'
-#                         )
+D15L20W00_D180 = SourceModeArray(
+                        BLH=np.zeros((3, Nk, Nr)), 
+                        B = NBLADES,
+                        Omega=Omega_ref, gamma =twist,
+                        axis=axis_prop, origin=origin_prop,
+                        radius=r_outer,
+                        green = cg_midres_D15L20W00,
+                        numerics={'Nsources' : 180},
+                        c0 = c0,
+                        dt = t_c_uniform[None, :] * chord[:, None], # Nr, Nc
+                        chord = chord,
+                        airfoil = 'naca0012'
+                        )
 
 # Parrot rotor, see "Analysis of MAV Rotors Optimized for Low Noise and Aerodynamic Efficiency with Operational Constraints" by Volsi et al. (2024)
 # TODO: change pitch and chord distributions!

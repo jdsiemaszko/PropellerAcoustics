@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 filename = "./tests/test_propagator.h5"
 
@@ -110,4 +110,42 @@ BLH_s = np.zeros_like(BLH)
 BLH_s[:, 0, :] = BLH[:, 0, :]
 p_loading_steady, _ = han.getPressureRotor(x_cart, ms, BLH_s)
 
-pass
+
+fig = plt.figure(figsize=(7, 7))
+ax1 = fig.add_subplot(111, projection="3d")
+_, _ = han.plot3Ddirectivity(
+    fig=fig,
+    ax=ax1,
+    m=1, # harmonic to plot
+    R=1.62, # observation radius
+    Nphi=36*2, # plotting params
+    Ntheta=18*2,
+    valmin=10,
+    valmax=65,
+    title='far-field',
+    mode='rotor', # 'rotor' or 'stator'
+    loadings=BLH # blade loading harmonics
+)
+plt.tight_layout()
+plt.show()
+
+fig = plt.figure(figsize=(7, 7))
+ax1 = fig.add_subplot(111, projection="3d")
+_, _ = han.plot3Ddirectivity(
+    fig=fig,
+    ax=ax1,
+    m=5, # harmonic to plot
+    R=1.62, # observation radius
+    Nphi=36*2, # plotting params
+    Ntheta=18*2,
+    valmin=10,
+    valmax=65,
+    title='far-field',
+    mode='stator', # 'rotor' or 'stator'
+    loadings=beam_harmonics # blade loading harmonics
+)
+plt.tight_layout()
+plt.show()
+
+
+

@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
 from Hanson.far_field import HansonModel
 
 NSEG = 20 # number of radial prop segments
@@ -10,8 +9,8 @@ ROBS = 10. # observation radius, in meters
 rad = np.linspace(0.016, 0.1, NSEG+1, endpoint=True) # radial stations (segment edges)
 loadings = np.zeros((3, kmaxx, NSEG), dtype=np.complex128) # loadings of size (3, Nk, Nr) in order: radial, axial, tangential.
 # sign convention: axial positive towards upstream, tangential positive opposite to the direction of rotation
-loadings[1, 0, :] = (1.0 + 0j) * np.cos(np.deg2rad(10)) # example loading
-loadings[2, 0, :] = (1.0 + 0j) * np.sin(np.deg2rad(10)) # example loading
+loadings[1, 0, :] = (1.0 + 0.5j) * np.cos(np.deg2rad(10)) # example loading
+loadings[2, 0, :] = (1.0 - 0.5j) * np.sin(np.deg2rad(10)) # example loading
 
 
 # Initialize Module
@@ -28,15 +27,15 @@ hm = HansonModel(
 # 1) Plot directivity (3D)
 fig = plt.figure(figsize=(7, 7))
 ax1 = fig.add_subplot(111, projection="3d")
-hm.plot3Ddirectivity(
+_, _ = hm.plot3Ddirectivity(
     fig=fig,
     ax=ax1,
     m=1, # harmonic to plot
     R=ROBS, # observation radius
     Nphi=36*2, # plotting params
     Ntheta=18*2,
-    valmin=40,
-    valmax=65,
+    valmin=0,
+    valmax=20,
     title='far-field',
     mode='rotor', # 'rotor' or 'stator'
     loadings=loadings # blade loading harmonics
@@ -48,7 +47,7 @@ plt.show()
 hm.plot2Ddirectivity(
     m=1, # harmonic to plot
     R=ROBS, # observation radius
-    Ntheta=360,
+    Ntheta=360, # number of points along the circle
     mode='rotor', # 'rotor' or 'stator' or 'total'
     loadings=loadings, # blade loading harmonics
     plane='xz'
@@ -59,7 +58,7 @@ plt.show()
 # 3) Plot spectrum at a point
 fig, ax = plt.subplots()
 hm.plotPressureSpectrum(fig=fig, ax=ax, 
-                        x =np.array([1.0, 0.0, 0.0]).T, # position to plot the spectrum at
+                        x =np.array([1.0, 0.0, 0.0]).reshape((3, 1)), # position to plot the spectrum at
                         m = np.arange(1, 10, 1), # modes to compute
                         loadings=loadings # blade loading harmonics
                             )

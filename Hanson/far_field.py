@@ -372,7 +372,7 @@ class HansonModel():
             raise ValueError("Invalid mode, should be 'rotor', 'stator', or 'total'")
         pmB = pmB[:, 0] # shape (Nx,)
 
-        fig, ax = plot_3D_directivity(
+        fig, ax, _ = plot_3D_directivity(
             pmB, Theta, Phi, 
             blending=blending,
             title=f"Far-field directivity of $p_{{{int(m * self.B)}}}$",
