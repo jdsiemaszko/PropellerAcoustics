@@ -60,7 +60,7 @@ l1 = ax.plot(r_inner / r1, F1, color='r', label='$F_1 = C_L c/4\pi r $')[0]
 
 l2 = ax.plot(r_inner / r1, F2, color='g', label='$F_2 = C_L R^2/4rt$')[0]
 l3 = ax.plot(r_inner / r1, F3, color='b', label='$F_3 = tc/2\pi R^2$')[0]
-l4 = ax.plot(r_inner / r1, He_Mr, color='m', label='$He_0 / M_r$')[0]
+l4 = ax.plot(r_inner / r1, He_Mr, color='m', label='$He_0 / M_r = Bc/r$')[0]
 
 
 ax.set_xlabel('$r/r_t$')
@@ -76,9 +76,9 @@ ax.set_yscale('log')
 ax.legend(
     handles=[l1, l2, l3, l4],
     loc='best',          # keeps it inside automatically
-    frameon=True
+    frameon=True, fontsize = 8
 )
 
 plt.tight_layout()
 plt.show()
-# plt.savefig('./Figures/blade_params_single.pdf')
+fig.savefig('./Figures/blade_params_single.pdf')

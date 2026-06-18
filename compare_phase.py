@@ -28,168 +28,182 @@ FILE = 'COMP_PHASE'
 # BEGINNING OF HEADER
 # vary configuration
 from SourceMode.Configurations_NACA0012 import m_surface
+
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-
 SUFFIX = '_D180_MR'
-ms = np.array([1]) # harmonic to plot
-phi_plot = 90 # phi_experimental to plot, in degrees
 
-sourceArray.numerics['CompactnessCorrection'] = True
+for m in [1, 2, 3]:
+    ms = np.array([m]) # harmonic to plot
+    phi_plot = 90 # phi_experimental to plot, in degrees
 
-NDIPOLES = sourceArray.Ndipoles
+    sourceArray.numerics['CompactnessCorrection'] = True
 
+    NDIPOLES = sourceArray.Nsources
 
-r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
-BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
-PIN = sourceArray.PIN
-D_bras = sourceArray.green.radius * 2
-g = -1 * sourceArray.green.origin[2]
-B = sourceArray.B
-c = sourceArray.chord[0]
-Omega = sourceArray.Omega
-c0 = sourceArray.SoS
-han = sourceArray.getHanson()
-# END OF HEADER
+    D_bras = sourceArray.green.radius * 2
+    g = -1 * sourceArray.green.origin[2]
+    r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+    BLH, _, _, _ = sourceArray.getLoading(Fz, Fphi, D=D_bras, L = g,  steady_only=False) # compute loading on the fly, return PIN for reuse
+    PIN = sourceArray.PIN
 
-datadir = './Experimental/dataverse_files'
-# casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'  
+    B = sourceArray.B
+    c = sourceArray.chord[0]
+    Omega = sourceArray.Omega
+    c0 = sourceArray.SoS
+    han = sourceArray.getHanson()
+    # END OF HEADER
 
-# our exp data, extracted from time signal
-data = np.load('./Experimental/dataverse_files/D20L20_8000RPM_2_16.npz')
+    datadir = './Experimental/dataverse_files'
+    # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'  
 
-freqs = data['freqs']
-phase = -data['phase']   # shape: (n_freq, n_theta, n_phi), mind we need to conjugate!
-Pxx = data['Pxx']  # shape: (n_freq, n_theta, n_phi)
-phi = 180 - data['phi'] # shape Nphi, mind switch from exp to numerical frame
-theta = 90 - data['theta'] # shape Ntheta
-radius = 1.62 # assume
-phi_index = np.where(phi%360==phi_plot%360)[0][0]
+    # our exp data, extracted from time signal
+    data = np.load('./Experimental/dataverse_files/D20L20_8000RPM_2_16.npz')
+    # data = np.load('./Experimental/dataverse_files/phase_phi_AVERAGED_90.npz')
 
-# pick the right data
-phi = phi[phi_index] # float!
-Pxx = Pxx[ms[0]-1, :, phi_index] # harmonics from 1 to 10 along axis 0
-phase = phase[ms[0]-1, :, phi_index]
+    freqs = data['freqs']
+    phase = -data['phase']   # shape: (n_freq, n_theta, n_phi), mind we need to conjugate!
+    Pxx = data['Pxx']  # shape: (n_freq, n_theta, n_phi)
+    phi = 180 - data['phi'] # shape Nphi, mind switch from exp to numerical frame
+    theta = 90 - data['theta'] # shape Ntheta
+    radius = 1.62 # assume
+    phi_index = np.where(phi%360==phi_plot%360)[0][0]
 
-x_cart = np.array([
-    radius * np.cos(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
-    radius * np.sin(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
-    radius * np.cos(np.deg2rad(theta)) * np.ones_like(phi),
-]) # observer positions, shape 3, Ntheta
+    # pick the right data
+    phi = phi[phi_index] # float!
+    Pxx = Pxx[ms[0]-1, :, phi_index] # harmonics from 1 to 10 along axis 0
+    phase = phase[ms[0]-1, :, phi_index]
 
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = False
-beam_loading = PIN.getStrutLoadingHarmonics() 
+    x_cart = np.array([
+        radius * np.cos(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
+        radius * np.sin(np.deg2rad(phi)) * np.sin(np.deg2rad(theta)),
+        radius * np.cos(np.deg2rad(theta)) * np.ones_like(phi),
+    ]) # observer positions, shape 3, Ntheta
 
-p_beam_loading, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # mind the indexing change for m
-p_blade_loading, _ = han.getPressureRotor(x_cart, ms, BLH) 
+    PIN._numerics['include_vortex_sources'] = True
+    PIN._numerics['include_thickness_sources'] = False
+    beam_loading = PIN.getStrutLoadingHarmonics() 
 
-p_blade_thickness, _ = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner)) # NACA0012
+    p_beam_loading, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # mind the indexing change for m
+    p_blade_loading, _ = han.getPressureRotor(x_cart, ms, BLH) 
 
-PIN._numerics['include_vortex_sources'] = False
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics() 
+    p_blade_thickness, _ = han.getThicknessNoiseRotor(x_cart, ms, c * np.ones_like(r_inner), 0.082 * np.ones_like(r_inner)) # NACA0012
 
-p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
+    PIN._numerics['include_vortex_sources'] = False
+    PIN._numerics['include_thickness_sources'] = True
+    beam_loading = PIN.getStrutLoadingHarmonics() 
 
-
-PIN._numerics['include_vortex_sources'] = True
-PIN._numerics['include_thickness_sources'] = True
-beam_loading = PIN.getStrutLoadingHarmonics()
+    p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
 
 
-
-##### -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
-#### save gradients in the far-field (run once per observer and m)
-for index, sm in enumerate(sourceArray.children):
-
-    gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
-    print(f'pre-computing far-field gradients {index+1}')
-
-    gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
-    np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', gradG)
-
-
-# extract and rearrange
-gradG_arr = np.zeros((sourceArray.seg_radius.shape[0], 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
-ind_m = np.where(m_surface == ms[0])[0][0]
-for index, sm in enumerate(sourceArray.children):
-    gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
-
-
-p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
-p_direct_loading = sourceArray.getDirectPressure(x_cart, ms)
-
-# p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
-# p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
+    PIN._numerics['include_vortex_sources'] = True
+    PIN._numerics['include_thickness_sources'] = True
+    beam_loading = PIN.getStrutLoadingHarmonics()
 
 
 
+    ##### -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
+    #### save gradients in the far-field (run once per observer and m)
+    for index, sm in enumerate(sourceArray.children):
 
-#### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
+        gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
+        print(f'pre-computing far-field gradients {index+1}')
 
-### save gradients in the far-field (run once per observer and m)
-for index, sm in enumerate(sourceArray.children):
-    G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
-    print(f'pre-computing far-field G {index+1}')
-
-    G = sm.getScatteringGreen(x_cart, m_surface * B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
-    np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', G)
-
-Nr = sourceArray.seg_radius.shape[0]
-
-# G_arr = np.zeros((Nr, m_surface.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
-
-G_arr = np.zeros((Nr, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128) # pick only the ones we neeed
-ind_m = np.where(m_surface == ms[0])[0][0]
-for index, sm in enumerate(sourceArray.children):
-    G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
+        gradG = sm.getScatteringGreenGradient(x_cart, m_surface * B * Omega / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+        np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', gradG)
 
 
-p_beam_total , _ = han.getPressureStator(x_cart, ms*B, beam_loading)
+    # extract and rearrange
+    gradG_arr = np.zeros((sourceArray.seg_radius.shape[0], 3, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+    ind_m = np.where(m_surface == ms[0])[0][0]
+    for index, sm in enumerate(sourceArray.children):
+        gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
 
-p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)
-p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
 
+    p_scattered_loading = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
+    p_direct_loading = sourceArray.getDirectPressure(x_cart, ms)
 
-# scattering total
-p_total_scattering = p_direct_thickness + p_direct_loading + p_scattered_loading + p_scattered_thickness
-p_total_scattering_loading = p_direct_thickness + p_direct_loading + p_scattered_loading
-
-# pin total
-p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
-p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
+    # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_scattered_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
+    # p_direct_blade = np.load(f'./Data/current/NACA0012_rotor/p_direct_{MODE}_m{int(m)}_{casename}{SUFFIX}.npy')
 
 
 
 
+    #### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
+
+    ### save gradients in the far-field (run once per observer and m)
+    for index, sm in enumerate(sourceArray.children):
+        G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
+        print(f'pre-computing far-field G {index+1}')
+
+        G = sm.getScatteringGreen(x_cart, m_surface * B * Omega / c0, G_surface) # shape (Nm, Nx, Ny)
+        np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', G)
+
+    Nr = sourceArray.seg_radius.shape[0]
+
+    # G_arr = np.zeros((Nr, m_surface.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+
+    G_arr = np.zeros((Nr, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128) # pick only the ones we neeed
+    ind_m = np.where(m_surface == ms[0])[0][0]
+    for index, sm in enumerate(sourceArray.children):
+        G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
+
+
+    p_beam_total , _ = han.getPressureStator(x_cart, ms*B, beam_loading)
+
+    p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)
+    p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
+
+
+    # scattering total
+    p_total_scattering = p_direct_thickness + p_direct_loading + p_scattered_loading + p_scattered_thickness
+    p_direct_total = p_direct_thickness + p_direct_loading
+    p_total_scattering_loading = p_direct_thickness + p_direct_loading + p_scattered_loading
+
+    # pin total
+    p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
+    p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
 
 
 
-# experimental
-fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, valmin=10,
-                             plot_kwargs={'color':'k', 'linestyle':None,'marker':'s', 'label':'Experimental'},)
-
-# numerical
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering[:, 0]),
-        np.angle(p_total_scattering[:, 0] * np.exp(-1j * np.angle(p_total_scattering[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-        , valmax=65, valmin=10, fig=fig, ax=ax,
-        plot_kwargs={'color':'r', 'linestyle':'dashed','marker':'s', 'label':'Scattering'})
-
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering_loading[:, 0]),
-        np.angle(p_total_scattering_loading[:, 0] * np.exp(-1j * np.angle(p_total_scattering_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-        , valmax=65, valmin=10, fig=fig, ax=ax,
-        plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'*', 'label':'Scattering (loading only)'})
-
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin[:, 0]),
-        np.angle(p_total_pin[:, 0] * np.exp(-1j * np.angle(p_total_pin[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-        , valmax=65, valmin=10, fig=fig, ax=ax,
-        plot_kwargs={'color':'b', 'linestyle':'dashed','marker':'o', 'label':'PIN (incl. thickness)'})
 
 
-fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin_loading[:, 0]),
-        np.angle(p_total_pin_loading[:, 0] * np.exp(-1j * np.angle(p_total_pin_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-        , valmax=65, valmin=10, fig=fig, ax=ax,
-        plot_kwargs={'color':'g', 'linestyle':'dashed','marker':'^', 'label':'PIN (loading only)'})
-ax.legend()
-plt.show()
+
+
+    # experimental      
+    #   
+    fig = plt.figure(figsize=(4, 3))
+    ax = fig.add_subplot(111, projection="polar")
+
+    fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, valmin=10,
+                                plot_kwargs={'color':'k', 'linestyle':'none', 'marker':'o', 'label':'Experimental'},fig=fig, ax=ax,)
+
+    # numerical
+    fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering[:, 0]),
+            np.angle(p_total_scattering[:, 0] * np.exp(-1j * np.angle(p_total_scattering[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+            , valmax=65, valmin=10, fig=fig, ax=ax,
+            plot_kwargs={'color':'b', 'linestyle':'dashed','marker':'s', 'label':'Scattering'})
+
+    # fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering_loading[:, 0]),
+    #         np.angle(p_total_scattering_loading[:, 0] * np.exp(-1j * np.angle(p_total_scattering_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+    #         , valmax=65, valmin=10, fig=fig, ax=ax,
+    #         plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'*', 'label':'Scattering (loading only)'})
+
+    fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin[:, 0]),
+            np.angle(p_total_pin[:, 0] * np.exp(-1j * np.angle(p_total_pin[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+            , valmax=65, valmin=10, fig=fig, ax=ax,
+            plot_kwargs={'color':'r', 'linestyle':'-','marker':'^', 'label':'PIN'})
+    
+    fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_total[:, 0]),
+            np.angle(p_direct_total[:, 0] * np.exp(-1j * np.angle(p_direct_total[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+            , valmax=65, valmin=10, fig=fig, ax=ax,
+            plot_kwargs={'color':'g', 'linestyle':':','marker':'*', 'label':'Direct Only'})
+
+
+    # fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin_loading[:, 0]),
+    #         np.angle(p_total_pin_loading[:, 0] * np.exp(-1j * np.angle(p_total_pin_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+    #         , valmax=65, valmin=10, fig=fig, ax=ax,
+    #         plot_kwargs={'color':'g', 'linestyle':'dashed','marker':'^', 'label':'PIN (loading only)'})
+    ax.legend(fontsize=8)
+    plt.show()
+    fig.savefig(f'./Figures/phase_curves/phase_curve_{SUFFIX}_M{ms[0]}.pdf')
 

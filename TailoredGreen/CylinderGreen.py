@@ -613,7 +613,7 @@ class CylinderGreen(TailoredGreen):
             valmin = valmin, valmax=valmax
         )
 
-    def plotSelf(self, fig, ax):
+    def plotSelf(self, fig=None, ax=None):
         """
         Plot a cylindrical outline for reference.
         """
@@ -622,6 +622,10 @@ class CylinderGreen(TailoredGreen):
         e1 = self.normal   # completes right-handed basis
         R = self.radius
         phi = np.linspace(0, 2*np.pi, 36)
+
+        if fig is None or ax is None:
+            fig = plt.figure(figsize=(7, 7))
+            ax = fig.add_subplot(111, projection="3d")
 
         if self.dim==3:
 

@@ -137,7 +137,7 @@ param_handles = [
     Line2D([0], [0], color='r', label='$F_1 = C_L c/4\pi r $'),
     Line2D([0], [0], color='g', label='$F_2 = C_L R^2/4rt$'),
     Line2D([0], [0], color='b', label='$F_3 = tc/2\pi R^2$'),
-    Line2D([0], [0], color='m', label='$He_0 / M_r$'),
+    Line2D([0], [0], color='m', label='$He_0 / M_r = Bc/r$'),
 ]
 leg2 = ax.legend(
     handles=param_handles,
@@ -156,5 +156,5 @@ ax.add_artist(leg2)
 ax.add_artist(leg3)
 
 plt.tight_layout()
-# plt.show()
-plt.savefig('./Figures/blade_params_ALL.pdf')
+plt.show()
+fig.savefig('./Figures/blade_params_ALL.pdf')
