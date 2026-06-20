@@ -42,10 +42,10 @@ Fk_phi = Fk_phi_r + 1j * Fk_phi_i
 Fk_r = np.zeros_like(Fk_z, dtype=np.complex128)
 
 loading = np.stack(
-    (Fk_r.T, Fk_z.T, Fk_phi.T)
+    (Fk_r.T, Fk_z.T, -Fk_phi.T)
 ) # (3, Nk, Nr)
 loading = np.concatenate((np.zeros((3, 1, Nr)), loading), axis=1)
-loading_per_unit_span =loading/ dr[None, None, :] # force PER UNIT LENGTH
+loading_per_unit_span = loading / dr[None, None, :] # force PER UNIT LENGTH
 
 p_i = np.array(datafile['p_imag'])
 p_r = np.array(datafile['p_real'])
@@ -55,20 +55,25 @@ p = p_r + 1j * p_i
 # TEST:
 # loading = np.conjugate(loading)
 RADIUS_MULT = 1.0
-x = np.array([
+x_polar = np.array([
     R * np.ones_like(theta) * RADIUS_MULT,
     theta, 
     phi * np.ones_like(theta)
 ])
 
+x = np.array([
+    R * np.sin(theta) * np.cos(phi),
+    R * np.sin(theta) * np.sin(phi),
+    R * np.cos(theta)
+])
 
 
 m = np.round(BPF / BOmega)
 MAXK = Nk
 
-hm = HansonModel(twist_rad = np.deg2rad(10 * np.ones(NSEG+1)), chord_m = 0.025 * np.ones(NSEG+1),
-                            radius_m= r_bounds, B=B, # B=2 seems to be "most correct!"
-                            Dcylinder_m=0.02, Lcylinder_m=0.02, Omega_rads=Omega, rho_kgm3=1.2, c_ms=340., kmax=MAXK)
+hm = HansonModel(
+        radius_m= r_bounds, B=B, # B=2 seems to be "most correct!"
+        Omega_rads=Omega, rho_kgm3=1.2, c_mps=340.)
 
 
 # hm_near = NearFieldHansonModel(twist_rad = np.deg2rad(10 * np.ones(NSEG+1)), chord_m = 0.025 * np.ones(NSEG+1),
@@ -79,7 +84,7 @@ hm = HansonModel(twist_rad = np.deg2rad(10 * np.ones(NSEG+1)), chord_m = 0.025 *
 # hm.dr = np.ones_like(r) # overwrite the radial computations, take loading without normalizing
 # p_model, xmodel =  hm.getHansonPressure(x, m, B=hm.B, Omega=hm.Omega, loading=loading[:, :MAXK+1, :], nb=1, multiplier=hm.B)
 
-p_model, xmodel =  hm.getHansonPressure(x, m, B=hm.B, Omega=hm.Omega, loading=loading_per_unit_span[:, :MAXK+1, :], nb=1, multiplier=hm.B)
+p_model, _ =  hm.getPressureRotor(x, m, loading_per_unit_span, multiplier=hm.B)
 # p_model_nf, xmodel_nf =  hm_near.getHansonPressure(x, m, B=hm.B, Omega=hm.Omega, loading=
 #                                                    loading_per_unit_span[:, :MAXK+1, :],
 #                                                 #    np.conjugate(loading_per_unit_span[:, :MAXK+1, :]),
@@ -163,22 +168,22 @@ ax.grid()
 plt.tight_layout()
 plt.show()
 
-fig, ax = plt.subplots(figsize=(4, 3))
+# fig, ax = plt.subplots(figsize=(4, 3))
 # plot_directivity(fig, ax, x, spl_from_p(p_model)[:, m_to_plot-1])
 # plot_directivity(fig, ax2, x, spl_from_p(p)[:, m_to_plot-1])
 
-for color, mode in zip(['r', 'b', 'g'], [1, 5, 10]):
-    # ax.plot(np.rad2deg(theta), np.real(p_model)[:, mode-1] - np.real(p)[:, mode-1], color=color, label=f'm={mode}', marker='s')
-    # ax.plot(np.rad2deg(theta), np.imag(p_model)[:, mode-1] - np.imag(p)[:, mode-1], color=color, marker='^', linestyle='dashed')
+# for color, mode in zip(['r', 'b', 'g'], [1, 5, 10]):
+#     # ax.plot(np.rad2deg(theta), np.real(p_model)[:, mode-1] - np.real(p)[:, mode-1], color=color, label=f'm={mode}', marker='s')
+#     # ax.plot(np.rad2deg(theta), np.imag(p_model)[:, mode-1] - np.imag(p)[:, mode-1], color=color, marker='^', linestyle='dashed')
 
-    ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_model))[:, mode-1] % 180 - np.rad2deg(np.angle(p))[:, mode-1] % 180, color=color, label=f'm={mode}', marker='s')
+#     ax.plot(np.rad2deg(theta), np.rad2deg(np.angle(p_model))[:, mode-1] % 180 - np.rad2deg(np.angle(p))[:, mode-1] % 180, color=color, label=f'm={mode}', marker='s')
 
-ax.legend()
-ax.set_xlabel('Polar angle [deg]')
-ax.set_ylabel('Phase Error [deg]')
-ax.grid()
-plt.tight_layout()
-plt.show()
+# ax.legend()
+# ax.set_xlabel('Polar angle [deg]')
+# ax.set_ylabel('Phase Error [deg]')
+# ax.grid()
+# plt.tight_layout()
+# plt.show()
 
 # for index_x in [0, 5, 12, 18, 24, 36]:
 #     print(xmodel[:, index_x])
@@ -191,18 +196,18 @@ plt.show()
 #     plt.close()
 
 
-ROBS = 1.62 * RADIUS_MULT
-fig = plt.figure(figsize=(7, 7))
-ax = fig.add_subplot(111, projection="3d")
-hm.plot3Ddirectivity(fig, ax, m=5, R=ROBS,
-                        # valmax=30, valmin=-10,
-                        Nphi=36*2, Ntheta=18*2,
-                        # mode='beam',
-                            # mode='total',
-                        mode='blade'
-                        )
-plt.show()
-plt.close(fig)
+# ROBS = 1.62 * RADIUS_MULT
+# fig = plt.figure(figsize=(7, 7))
+# ax = fig.add_subplot(111, projection="3d")
+# hm.plot3Ddirectivity(fig, ax, m=5, R=ROBS,
+#                         # valmax=30, valmin=-10,
+#                         Nphi=36*2, Ntheta=18*2,
+#                         # mode='beam',
+#                             # mode='total',
+#                         mode='blade'
+#                         )
+# plt.show()
+# plt.close(fig)
 
 # fig = plt.figure(figsize=(7, 7))
 # ax = fig.add_subplot(111, projection="3d")

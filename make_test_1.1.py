@@ -5,17 +5,35 @@ test the PIN functionality, create a .h5 file with the inputs and outputs
 import h5py
 import numpy as np
 from Constants.helpers import read_force_file
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray
 import matplotlib.pyplot as plt
+from PotentialInteraction.PIN import PotentialInteraction
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
-
+dr = np.diff(r_inner)[0]
+r_outer = np.hstack([r_inner-dr/2, r_inner[-1]+dr/2])
 # Read flow data
 
 # r_vella = np.load('./data/Vella2026/r.npy')
 # Uinf_vella = np.load('./data/Vella2026/Uinf.npy')
 # Uinf = np.interp(r_inner, r_vella, Uinf_vella) # interpolate onto our grid
-PIN = sourceArray.getPIN(Fz, Fphi)
+
+PIN = PotentialInteraction(
+        twist_rad = np.deg2rad(10) * np.ones_like(r_outer),
+        chord_m = 0.025 * np.ones_like(r_outer),
+        radius_m=r_outer,
+        t_c = 0.0822 * np.ones_like(r_outer),
+        Fzprime_Npm=Fz,
+        Fphiprime_Npm=Fphi,
+        B=2,
+        Dcylinder_m= 0.02, Lcylinder_m=0.02,
+        Omega_rads=8000/60 * 2 * np.pi,
+        rho_kgm3=1.2,
+        c_mps=340,
+        kmax=40,
+        nb=1,
+        numerics= {'Nphi': 180, 'Nthetab': 36}
+        )
+
 PIN._numerics['gamma_steady'] = True
 
 Uinf_0 = PIN.Ui # 2, Nr
