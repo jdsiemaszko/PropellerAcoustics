@@ -7,6 +7,7 @@ import numpy as np
 from Constants.helpers import read_force_file
 import matplotlib.pyplot as plt
 from PotentialInteraction.PIN import PotentialInteraction
+from PotentialInteraction.beam_to_blade import BladeLoadings
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 dr = np.diff(r_inner)[0]
@@ -34,13 +35,31 @@ PIN = PotentialInteraction(
         numerics= {'Nphi': 180, 'Nthetab': 36}
         )
 
-PIN._numerics['gamma_steady'] = True
-
 Uinf_0 = PIN.Ui # 2, Nr
 Uinf = np.zeros_like(Uinf_0)
 Uinf[1, :] = Uinf_0[1, :] # remove the x component!
 # PIN.Ui = Uinf # only axial inflow
 PIN.updateUi(Uinf)
+PIN._numerics['gamma_steady'] = True
+
+PIN_legacy = BladeLoadings(
+            twist_rad = np.deg2rad(10) * np.ones_like(r_outer),
+        chord_m = 0.025 * np.ones_like(r_outer),
+        radius_m=r_outer,
+        Tprime_Npm=Fz,
+        Qprime_Npm=Fphi,
+        B=2,
+        Dcylinder_m= 0.02, Lcylinder_m=0.02,
+        Omega_rads=8000/60 * 2 * np.pi,
+        rho_kgm3=1.2,
+        c_mps=340,
+        kmax=40,
+        nb=1,
+        Uz0_mps=-PIN.Ui[1, :]
+)
+
+
+
 
 blade_harmonics = PIN.getBladeLoadingHarmonics() # 3, Nk, Nr of np.complex128
 strut_harmonics = PIN.getStrutLoadingHarmonics()  # 3, Nk, Nr of np.complex128
