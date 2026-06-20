@@ -92,7 +92,6 @@ class SourceMode():
         self.azimuth_offset = azimuth_offset # loading w.r.t. this azimuth, we will need to shift it later to match the dipole positions
 
 
-        # TODO: shift chord stations by c/4?
         if isinstance(dt, float): # float: assume constant dt across the chord :(
             self.dt = dt
 
@@ -135,7 +134,7 @@ class SourceMode():
 
         rad, norm, ax = getCylindricalBasis(self.dipole_angles, self.axis, self.radial, self.tangential) # shape (Nsources, 3)
 
-        self.force_unit = +ax * np.cos(self.gamma) - norm * np.sin(self.gamma) # shape (Nsources, 3) # TODO:sign?
+        self.force_unit = +ax * np.cos(self.gamma) - norm * np.sin(self.gamma) # shape (Nsources, 3) 
         self.force_unit = self.force_unit.T # (3, Nsources)
 
     def getDipoleGeometry(self):
@@ -208,9 +207,6 @@ class SourceMode():
         expterm = np.exp(+1j *  (m[None, :, None] * self.B  - self.s[:, None, None]) * self.dipole_angles[None, None, :])   # shape (Ns, Nm, Nsources)
         expterm_negative = np.exp(+1j * (m[None, :, None] * self.B + self.s[:, None, None]) * self.dipole_angles[None, None, :])  # (Ns-1, Nm, Nsources)
         
-        # UPDATE (3D loading)
-
-        # TODO: fix!
         BLH_rotated = self._rotate_loadings(BLH=BLH) # shape (Ns, Nsources, 3)
 
         loadings_positive = expterm[:, :, :, None] * BLH_rotated[:, None, :, :]
@@ -364,6 +360,26 @@ class SourceMode():
         #     f0[:, None, None] * phase * dx,
         #     axis=0
         # ) / np.sum(f0 * dx) # shape 2*Ns-1, Nm
+
+
+
+
+        #TODO TESTING: remove this when done
+        ###### loading concentrated at LE
+        # factor = np.exp(
+        #     1j * (m[None, :] * self.B - s[:, None])
+        #     * -self.chord / 2 /  self.radius
+        # ) # shape 2Ns-1, Nm
+
+        ###### loading concentrated at TE
+        # factor = np.exp(
+        #     1j * (m[None, :] * self.B - s[:, None])
+        #     * self.chord / 2 /  self.radius
+        # ) # shape 2Ns-1, Nm
+
+        ###### loading concentrated at c/2
+        # factor = np.ones_like(m[None, :] * self.B - s[:, None])
+
 
         loading *= factor[:, :, None, None]
 
@@ -916,7 +932,7 @@ class SourceModeArray():
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             index_r = child.index_radius
-            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+            # print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             pmB += child.getPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index] if BLH[index_r] is not None else None)
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
@@ -939,7 +955,7 @@ class SourceModeArray():
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
             index_r = child.index_radius
-            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+            # print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             pmB += child.getScatteredPressure(x, self.Omega, m, c=self.SoS, gradG=gradG[index], BLH=BLH[index] * self.dr[index_r] if BLH[index] is not None else None, gradG_surface=gradG_surface[index])
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
 
@@ -958,7 +974,7 @@ class SourceModeArray():
         for index, child in enumerate(self.children):
             index_r = child.index_radius
             pmB += child.getDirectPressure(x, self.Omega, m, c=self.SoS, BLH= BLH[index]  * self.dr[index_r] if BLH[index] is not None else None)
-            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+            # print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             # pmB += child.getPressureExplicitFreeField(x, self.Omega, m, self.SoS)
         return pmB
     
@@ -969,7 +985,7 @@ class SourceModeArray():
         print('computing direct thickness acoustic  pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+            # print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             pmB += child.getThicknessPressureDirect(x, self.Omega, m, c=self.SoS, rho0=self.rho0)
         return pmB
     
@@ -983,7 +999,7 @@ class SourceModeArray():
         print('computing scattered thickness acoustic  pressure')
         pmB = np.zeros((x.shape[1], m.shape[0]), dtype=np.complex128) # Nx, Nm
         for index, child in enumerate(self.children):
-            print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
+            # print(f'computing contribution of source mode {index+1} of {self.Nchildren}')
             pmB += child.getThicknessPressureScattered(x, self.Omega, m, c=self.SoS, rho0=self.rho0, G=G[index])
         return pmB
     

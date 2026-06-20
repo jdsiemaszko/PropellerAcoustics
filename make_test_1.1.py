@@ -46,6 +46,7 @@ blade_harmonics = PIN.getBladeLoadingHarmonics() # 3, Nk, Nr of np.complex128
 strut_harmonics = PIN.getStrutLoadingHarmonics()  # 3, Nk, Nr of np.complex128
 
 blade_downwash = PIN.getBladeDownwash() # Nr, Nphi
+blade_downwash_harmonics = PIN.getBladeDownwashHarmonics() # Nk, Nr
 phi = PIN.phi # Nphi
 k = PIN.k # Nk
 radius_inner = PIN.seg_radius # Nr
@@ -90,6 +91,7 @@ structure:
     ---blade_loading_harmonics_N_p_m
     ---strut_loading_harmonics_N_p_m
     ---blade_downwash_m_p_s
+    ---blade_downwash_harmonics_m_p_s
     ---azimuth_rad
     ---harmonic
     ---frequency_Hz
@@ -153,6 +155,10 @@ with h5py.File(filename, "w") as h5:
         "blade_downwash_m_p_s",
         data=blade_downwash
     )
+    g_downwash = g_out.create_group("blade_downwash_harmonics_m_p_s")
+    g_downwash.create_dataset("real", data=np.real(blade_downwash_harmonics))
+    g_downwash.create_dataset("imag", data=np.imag(blade_downwash_harmonics))
+
 
     # ---- coordinates / harmonic information ----
     g_out.create_dataset("azimuth_rad", data=phi)

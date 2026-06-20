@@ -59,19 +59,19 @@ Nsources = 180
 # ])
 # kref = fref * 2 * np.pi / c0
 
-# data = np.loadtxt('./Data/Santiago2026/impedance_30mm.txt', delimiter=',', skiprows=1)
-# fref = data[:, 0]
-# kref = fref * 2 * np.pi / c0
-# Zref = data[:, 2] + 1j * data[:, 3]
-# betaref = 1/Zref
+data = np.loadtxt('./Data/Santiago2026/impedance_40mm_with_tape.txt', delimiter=',', skiprows=1)
+fref = data[:, 0]
+kref = fref * 2 * np.pi / c0
+Zref = data[:, 2] + 1j * data[:, 3]
+betaref = 1/Zref
 
-# imp_func = lambda k: np.interp(k, kref, betaref) * 1j * k # set such that (d/dn + imp) p = 0 on the surface. Mind n is oriented inwards
+imp_func = lambda k: np.interp(k, kref, betaref) * 1j * k # set such that (d/dn + imp) p = 0 on the surface. Mind n is oriented inwards
 
 # Delany and Bazley model
-def Z_DB(omega, rho1, sigma1):
-    inp = omega / 2 / np.pi * rho1 / sigma1
-    res = 1.0 + 0.0571 * (inp)**(-0.754) - 1j * 0.087 * (inp)**(-0.732)
-    return res
+# def Z_DB(omega, rho1, sigma1):
+#     inp = omega / 2 / np.pi * rho1 / sigma1
+#     res = 1.0 + 0.0571 * (inp)**(-0.754) - 1j * 0.087 * (inp)**(-0.732)
+#     return res
 
 # def sigma_davies(porosity, mu, Dfibre):
 #     if porosity > 1 or porosity < 0:
@@ -79,10 +79,10 @@ def Z_DB(omega, rho1, sigma1):
 
 #     return 64 * mu * (1-porosity)**(1.5) / Dfibre**2 * (1+56 * (1-porosity)**3)
 
-def beta_DB(omega, rho, sigma):
-    Z = Z_DB(omega, rho, sigma)
-    beta = 1/Z
-    return beta
+# def beta_DB(omega, rho, sigma):
+#     Z = Z_DB(omega, rho, sigma)
+#     beta = 1/Z
+#     return beta
 
 
 # # a = Z_DB(2 * Omega_ref, rho0, 4000)
@@ -92,8 +92,8 @@ def beta_DB(omega, rho, sigma):
 # # sigma = sigma_davies(0.4, mu, Dfibre)
 # # sigma = 4000
 
-sigma = 1e12 # test of highly rigid surface
-imp_func = lambda k: beta_DB(k * c0, rho0, sigma) * 1j * k
+# sigma = 1e12 # test of highly rigid surface
+# imp_func = lambda k: beta_DB(k * c0, rho0, sigma) * 1j * k
 
 
 # Cylinder Green module

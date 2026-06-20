@@ -10,7 +10,7 @@ from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray
 from Hanson.far_field import HansonModel
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
-BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, steady_only=False) # compute loading on the fly, return PIN for reuse
+BLH, BLH_S, BLH_US, _ = sourceArray.getLoading(Fz, Fphi, D=0.02, L=0.02, steady_only=False) # compute loading on the fly, return PIN for reuse
 PIN = sourceArray.getPIN(Fz, Fphi)
 Hanson = sourceArray.getHanson()
 PIN._numerics['gamma_steady'] = True
@@ -54,9 +54,9 @@ R_arr     = np.full(theta_m.size, R)
 theta_arr = theta_m.ravel()
 phi_arr   = phi_m.ravel()
 
-X = R_arr * np.sin(theta_arr) * np.cos(phi_arr)
-Y = R_arr * np.sin(theta_arr) * np.sin(phi_arr)
-Z = R_arr * np.cos(theta_arr)
+X = R_arr * np.sin(np.deg2rad(theta_arr)) * np.cos(np.deg2rad(phi_arr))
+Y = R_arr * np.sin(np.deg2rad(theta_arr)) * np.sin(np.deg2rad(phi_arr))
+Z = R_arr * np.cos(np.deg2rad(theta_arr))
 
 x_cart = np.array([X, Y, Z])
 
@@ -68,7 +68,7 @@ pLUSmB_model_rotor, _ = Hanson.getPressureRotor(x_cart, ms, BLH_US)
 
 pmB_model_strut_loading, _ = Hanson.getPressureStator(x_cart, ms*B, beam_harmonics)
 
-ptmB_model_rotor, _ = Hanson.getThicknessNoiseRotor(x_cart, ms, chord_inner, t_c_effective, c0=c0, rho0=rho)
+ptmB_model_rotor, _ = Hanson.getThicknessNoiseRotor(x_cart, ms, chord_inner, t_c_effective)
 
 frequency = ms * B * Omega / 2 / np.pi
 
@@ -166,8 +166,8 @@ with h5py.File(filename, "w") as h5:
     g_out.create_dataset("frequency_mB_Hz", data=frequency)
 
     g_out.create_dataset("observer_radius_m", data=R_arr)
-    g_out.create_dataset("observer_polar_rad", data=theta_arr)
-    g_out.create_dataset("observer_azimuth_rad", data=phi_arr)
+    g_out.create_dataset("observer_polar_rad", data=np.deg2rad(theta_arr))
+    g_out.create_dataset("observer_azimuth_rad", data=np.deg2rad(phi_arr))
     # TODO: Robs
 
 print(f"Wrote {filename}")

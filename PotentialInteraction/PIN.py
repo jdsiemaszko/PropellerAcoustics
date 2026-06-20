@@ -133,6 +133,8 @@ class PotentialInteraction:
                 self.k[None, :, None, None] * 2 * np.pi / period_global * 
                  (phi/self.Omega)[None, None, :, None]) * dt, axis=2)
         
+        indices_k_bad = np.where(self.k%self.B != 0)
+        F_beam_k_global[:, indices_k_bad, :] = 0 # remove the spurrous odd harmonics!
         return F_beam_k_global
     
     def getGammaInPhi(self):
@@ -217,8 +219,8 @@ class PotentialInteraction:
         returns pressure distribution over the strut, as a function of r, phi, and theta (beam polar angle w.r.t rotor plane)
         """
 
-        include_thickness_sources=self._numerics.get('include_thickness_sources', False)
-        include_vortex_sources=self._numerics.get('include_vortex_sources', True)
+        include_thickness_sources = self._numerics.get('include_thickness_sources', False)
+        include_vortex_sources = self._numerics.get('include_vortex_sources', True)
 
         
         gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
@@ -249,7 +251,10 @@ class PotentialInteraction:
         # Lambda, b = self.getRankineParams()
         mu = self.getDoubletParams()
 
-        for vortex_index in range(-10, 10, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+        # for vortex_index in range(-10, 10, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+        # TODO: replace after testing
+        # for vortex_index in [0]: # sum an arbitrary amount of vortices, further ones should be negligible
+        for vortex_index in  range(-20, 21, 1): # sum an arbitrary amount of vortices, further ones should be negligible
             
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
             # phased vortices: shift the passage time by vortex_index * T/B
@@ -364,10 +369,10 @@ class PotentialInteraction:
         # --- Theodorsen arguments ---
         sigma = k[:, None] * self.Omega * self.seg_chord[None, :] / (2.0 * Ur[None, :])      # (Nk, Nr)
         beta = np.pi/2 - self.seg_twist # alpha in Wu et al. 2022, shape Nr
-
+        # beta = self.seg_twist
         mu = (
             1j * k[:, None]  * self.seg_chord[None, :] / (2.0 * self.seg_radius[None, :])
-            * np.exp(-1j * beta[None, :]) # TODO: check which form correct: me or Riccardo's?
+            * np.exp(-1j * beta[None, :]) # TODO:
             )                                           # (Nk, Nr)
         Nk, Nr = wk.shape
         US_TERM = np.ones((Nk, Nr), dtype=np.complex128)
@@ -385,6 +390,8 @@ class PotentialInteraction:
 
 
         US_TERM[1:, :] = np.conjugate(C * T1 + T2)
+        # US_TERM[1:, :] = C * T1 + T2
+
         
         Lkprime = (
             np.pi * self.rho * self.seg_chord[None, :] * Ur[None, :]
@@ -414,7 +421,7 @@ class PotentialInteraction:
 
         Nt = len(time)
         Nr = len(self.seg_radius)
-        BL = np.zeros((3, Nt, Nr))
+        BL = np.zeros((3, Nt, Nr), dtype=np.complex128)
         for i in range(3):
             BLH_twoside, k_twoside = twoside_spectrum(BLH[i], self.k)
             BLH_twoside = BLH_twoside

@@ -37,17 +37,17 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
 # shape='D'
 
-# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = 'D15L20_D180'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D15L20_D180'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180'
@@ -75,6 +75,8 @@ NDIPOLES = sourceArray.Nsources
 mss = np.array([1, 2, 3, 4, 5])
 
 for ms in mss:
+    sourceArray.numerics['CompactnessCorrection'] = True
+
     print(f'plotting mode {ms}')
     ms = np.array([ms])
 
@@ -269,14 +271,31 @@ for ms in mss:
     p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total_linear + p_beam_nonlinear
     p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
 
-    # shift to relative phase w.r.t. mic one at phi=0
-    ind_theta_ref = 0
-    ind_phi_ref = np.where(phi==0)[0][0]
-    ind_combined = ind_theta_ref * phi.shape[0] + ind_phi_ref
 
-    p_total_scattering *= np.exp(-1j * np.angle(p_total_scattering[ind_combined, :]))
-    p_total_pin  *= np.exp(-1j * np.angle(p_total_pin [ind_combined, :]))
-    p_total_pin_loading *= np.exp(-1j * np.angle(p_total_pin_loading[ind_combined, :]))
+    # uncorrected scattering solutions
+    sourceArray.numerics['CompactnessCorrection'] = False
+
+    sourceArray.updateBLH(BLH_S)
+    C_p_direct_s = sourceArray.getDirectPressure(x_cart, ms)
+    C_p_scattered_s = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
+
+    sourceArray.updateBLH(BLH_US)
+    C_p_direct_us = sourceArray.getDirectPressure(x_cart, ms)
+    C_p_scattered_us = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)
+
+    C_p_scattered_loading = C_p_scattered_s +  C_p_scattered_us
+
+    C_p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)
+    C_p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)
+
+    # shift to relative phase w.r.t. mic one at phi=0
+    # ind_theta_ref = 0
+    # ind_phi_ref = np.where(phi==0)[0][0]
+    # ind_combined = ind_theta_ref * phi.shape[0] + ind_phi_ref
+
+    # p_total_scattering *= np.exp(-1j * np.angle(p_total_scattering[ind_combined, :]))
+    # p_total_pin  *= np.exp(-1j * np.angle(p_total_pin [ind_combined, :]))
+    # p_total_pin_loading *= np.exp(-1j * np.angle(p_total_pin_loading[ind_combined, :]))
 
 
 
@@ -290,16 +309,15 @@ for ms in mss:
 
     components = [
         {
-            "name": "pin_total_loading",
+            "name": "pin_total_loading_only",
             "title": "PIN Model (vortex only)",
             "data": p_total_pin_loading[:, 0],
             "theta": theta_m,
             "phi": phi_m,
         },
 
-
         {
-            "name": "scattering",
+            "name": "scattering_total",
             "title": "Scattering Model",
             "data": p_total_scattering[:, 0],
             "theta": theta_m,
@@ -364,6 +382,45 @@ for ms in mss:
             "phi": phi_m,
         },
 
+                {
+            "name": "scattered_loading",
+            "title": r"$-\sum_{k>0}\langle \boldsymbol{\nabla} G_s \circ \boldsymbol{F}_k\rangle_\Omega$",
+            "data": p_scattered_us[:, 0] + p_scattered_s[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+
+
+
+        {       "name": "compact_scattered_loading_steady",
+            "title": r"$-\langle \boldsymbol{\nabla} G_s \circ \boldsymbol{F}_0\rangle_\Omega$",
+            "data": C_p_scattered_s[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+        {
+            "name": "compact_scattered_loading_unsteady",
+            "title": r"$-\sum_{k>0}\langle \boldsymbol{\nabla} G_s \circ \boldsymbol{F}_k\rangle_\Omega$",
+            "data": C_p_scattered_us[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+
+                {
+            "name": "compact_scattered_loading",
+            "title": r"$-\sum_{k>0}\langle \boldsymbol{\nabla} G_s \circ \boldsymbol{F}_k\rangle_\Omega$",
+            "data": C_p_scattered_us[:, 0] + C_p_scattered_s[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+                {
+            "name": "compact_scattered_thickness",
+            "title": r"$\langle G_s Q\rangle_\Omega$",
+            "data": C_p_scattered_thickness[:, 0],
+            "theta": theta_m,
+            "phi": phi_m,
+        },
+
             {
             "name": "pin_nonlinear",
             "title": r"1/2rhov^2",
@@ -391,8 +448,8 @@ for ms in mss:
 
     VMIN, VMAX = 10, 65
     harmonic = int(ms[0] * B)
-    R0 = 1.1
-    R1 = R0 * 1.1
+    R0 = 1.2
+    R1 = R0 * 1.2
 
     for comp in components:
 

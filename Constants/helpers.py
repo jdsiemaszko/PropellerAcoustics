@@ -900,17 +900,12 @@ def fft_periodic(signal_t, period, time, k):
     return signal_k, k
 
 def ifft_periodic(signal_k, period, time, k):
-    """ ifft of a periodic signal
-    signal_k - array of shape (Nk, ...)
-    k - multiples of the frequency 2 * pi / period of shape (Nk, )
-    time - time array to compute the signal on, shape (Nt, )
-    """
+    phase = np.exp(
+        -1j * (2 * np.pi / period) * np.outer(time, k)
+    )  # (Nt, Nk)
 
-    signal_t = np.sum(signal_k[None, :, ...] * np.exp(-1j *
-                 k[None, :, None] * 2 * np.pi / period *
-                 time[:, None, None]), axis=1) # (Nt, Nr), gamma in time
+    signal_t = np.einsum('tk,k...->t...', phase, signal_k)
 
-    
     return signal_t, time
 
 
@@ -980,6 +975,7 @@ def plot_complex_curve(
     line, = ax.plot(theta, r, **plot_kwargs)
 
     # --- Radial ticks ---
+    ax.set_rlabel_position(310)
     if rad_ticks is not None:
         ax.set_yticks(rad_ticks)
         ax.set_yticklabels([f"{rt:.2f}" for rt in rad_ticks])
