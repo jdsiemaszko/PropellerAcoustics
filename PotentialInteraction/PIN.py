@@ -320,7 +320,6 @@ class PotentialInteraction:
                 #doublet
 
                 zd = zv
-                # + self.seg_chord[None, :]/2
                 zdbar = np.conj(zd)
 
                 dfdz_doublet = - mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + ( zprime[:, None, None] / z[:, None, None] ) * ( 
