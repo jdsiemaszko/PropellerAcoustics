@@ -94,9 +94,9 @@ for m in [1, 2, 3]:
 
     p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
 
-
+    #TODO: make sure it's good
     PIN._numerics['include_vortex_sources'] = True
-    PIN._numerics['include_thickness_sources'] = True
+    PIN._numerics['include_thickness_sources'] = False
     beam_loading = PIN.getStrutLoadingHarmonics()
 
 

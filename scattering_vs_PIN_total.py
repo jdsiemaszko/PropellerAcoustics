@@ -61,7 +61,7 @@ han = sourceArray.getHanson()
     # ind_theta = 6     # 60 to -60 in 10
     # ind_phi = 9          # 0 to 350 in 10
 
-for (ind_theta, ind_phi) in zip([2, 6, 10, 6, ], [ 9, 9, 9, 0,]):
+for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
     print(f'parsing case {SUFFIX}, ind_theta: {ind_theta}, ind_phi: {ind_phi}')
     datadir = './Experimental/dataverse_files'
     # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
