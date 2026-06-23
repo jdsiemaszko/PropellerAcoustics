@@ -87,6 +87,23 @@ def plot_frequency_contour(
         r_grid, theta_deg_sorted, indexing="ij"
     )
 
+
+    period = 360
+    Theta = np.concatenate(
+    [Theta[:, -1:] - period, Theta, Theta[:, :1] + period],
+    axis=1
+    )
+
+    Phi = np.concatenate(
+        [Phi[:, -1:], Phi, Phi[:, :1]],
+        axis=1
+    )
+
+    magnitudes = np.concatenate(
+        [magnitudes[:, -1:], magnitudes, magnitudes[:, :1]],
+        axis=1
+    )
+
     rtip = 0.1
     rroot = 0.1 * 0.16
 
@@ -108,9 +125,11 @@ def plot_frequency_contour(
         magnitudes=magnitudes,
         # title=f"|P(f)| @ {actual_freq:.1f} Hz",
         ylabel=r"$\theta$ [deg]",
-        xlabel="r [m]",
+        xlabel="z [m]",
         fig=fig, ax=ax,
         levels=levels,
+            cmap='jet'
+
 
     )
 
@@ -119,8 +138,10 @@ def plot_frequency_contour(
     RADIUS = 0.01
     ax.set_aspect((360 / (rtip - rroot))**(-1))
     if Phi.max() > rtip:
-        ax.axvline(rroot, color='k', alpha=0.7)
-        ax.axvline(rtip, color='k', alpha=0.7)
+        ax.axvline(rroot, color='white', linestyle='dashed')
+        ax.axvline(rtip, color='white', linestyle='dashed')
+    ax.set_ylim(0, 360)
+    ax.set_xlim(right=2*rtip-1e-6)
 
     # plt.colorbar(cf, ax=ax, label="SPL [dB]")
 
@@ -137,6 +158,17 @@ if __name__ == "__main__":
 
     Omega = 8000 / 60 * 2 * np.pi
     B = 2
+    print(r_grid.max())
+    import os
+    for m in np.arange(1, 11, 1):
+        print(f'saving plots for m={m}')
+        folder_name = f"./Figures/SurfacePressureComponents_M{m}_RdBu"
 
-    plot_frequency_contour(data, r_grid[0], theta_grid[0], 2 * np.pi / Omega / 400, Omega * B / 2 / np.pi * 5)
-    plt.show()
+        fig, ax = plot_frequency_contour(data, r_grid[0], theta_grid[0], 2 * np.pi / Omega / 400, Omega * B / 2 / np.pi * m)
+        plt.show()
+        fig.savefig(
+        os.path.join(folder_name, f"p_surface_iLES.pdf"),
+        dpi=300,
+        bbox_inches="tight",
+        )
+        plt.close(fig)

@@ -14,18 +14,19 @@ from SourceMode.Configurations_NACA0012 import m_surface
 from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray
 SUFFIX = '_D360_HR'
 
-sourceArray.numerics['CompactnessCorrection'] = True
-# sourceArray.numerics['CompactnessCorrection'] = False
+# sourceArray.numerics['CompactnessCorrection'] = True
+sourceArray.numerics['CompactnessCorrection'] = False
 
 
 MODE = 'half'
 FILE = 'TOTAL_DIR'
 
-mss = np.arange(1, 11, 1)
+# mss = np.arange(1, 11, 1)
+mss = np.array([5])
 
 
 Nm = len(mss)
-Ncomp = 8
+Ncomp = 8+3
 r_query = np.array([0.5, 0.8, 0.9]) * 0.1
 Nr_query = len(r_query)
 Fms = np.zeros((3, Nm, Nr_query, Ncomp), dtype=np.complex128) # store loading harmonics!
@@ -69,11 +70,18 @@ for index_m, m in enumerate(mss):
 
 
     # manual computation!
+    sourceArray.numerics['CompactnessCorrection'] = False
+
     pmB_loading = sourceArray.getPressure(sourceArray.green.getBoundaryPoints(), mplot, gradG_surface[:, :, ind_m:ind_m+1, :, :])
     pmB_thickness = sourceArray.getThicknessPressure(sourceArray.green.getBoundaryPoints(), mplot, G=G_surface[:, ind_m:ind_m+1, :, :])
 
     pmB_total = pmB_loading + pmB_thickness
 
+    sourceArray.numerics['CompactnessCorrection'] = True
+    pmB_loading_cp = sourceArray.getPressure(sourceArray.green.getBoundaryPoints(), mplot, gradG_surface[:, :, ind_m:ind_m+1, :, :])
+    pmB_thickness_cp = sourceArray.getThicknessPressure(sourceArray.green.getBoundaryPoints(), mplot, G=G_surface[:, ind_m:ind_m+1, :, :])
+
+    pmB_total_cp = pmB_loading_cp + pmB_thickness_cp
 
 
     index = np.where(PIN.k == mplot * B)[0][0] # index of the desired mode 
@@ -119,9 +127,7 @@ for index_m, m in enumerate(mss):
     # TH, PHI = np.meshgrid(th_centers, z_centers, indexing='ij')
     PHI, TH = np.meshgrid(z_centers, th_centers, indexing='ij')
 
-
     # pin range
-
     thetab = PIN.theta_beam
     radius = PIN.seg_radius
     PHI_PIN, TH_PIN = np.meshgrid(radius, thetab, indexing='ij')
@@ -130,7 +136,7 @@ for index_m, m in enumerate(mss):
     import numpy as np
     import matplotlib.pyplot as plt
 
-    folder_name = f"./Figures/SurfacePressureComponents_M{mplot}_NONCOMPACT"
+    folder_name = f"./Figures/SurfacePressureComponents_M{mplot}_RdBu"
     os.makedirs(folder_name, exist_ok=True)
 
 
@@ -163,22 +169,59 @@ for index_m, m in enumerate(mss):
             'linestyle': 'dashed',
             'marker' : 's',
         },
-
         {
             "name": "total_scattering",
-            "title": "Total model",
             "data": pmB_total[:, 0],
-                    'theta' : TH,
+            'theta' : TH,
             'phi' : PHI,
             'color' : 'k',
             'linestyle': 'dashed',
             'marker' : 's',
         },
 
+                # ==========================================================
+        # 1) Loading contributions
+        # ==========================================================
+        {
+            "name": "loading_scattering_cp",
+            "data": pmB_loading_cp[:, 0],
+            'theta' : TH,
+            'phi' : PHI,
+            'color' : 'r',
+            'linestyle': 'dotted',
+            'marker' : 's',
+            # 'label' : ''
+        },
+
+        # ==========================================================
+        # 2) Thickness contributions
+        # ==========================================================
+        {
+            "name": "thickness_scattering_cp",
+            "data": pmB_thickness_cp[:, 0],
+            'theta' : TH,
+            'phi' : PHI,
+            'color' : 'b',
+            'linestyle': 'dotted',
+            'marker' : 's',
+        },
+
+        {
+            "name": "total_scattering_cp",
+            "data": pmB_total_cp[:, 0],
+            'theta' : TH,
+            'phi' : PHI,
+            'color' : 'k',
+            'linestyle': 'dotted',
+            'marker' : 's',
+        },
+
+
+
             {
             "name": "loading_PIN",
             "data": p_PIN_loading.T,
-                    'theta' : TH_PIN,
+            'theta' : TH_PIN,
             'phi' : PHI_PIN,
         'color' : 'r',
             'linestyle': 'solid',
@@ -225,7 +268,7 @@ for index_m, m in enumerate(mss):
 
     ]
 
-    rtip, rroot = sourceArray.r1, sourceArray.r0
+    rtip, rroot = 0.1, 0.1*0.16
 
     VMIN, VMAX = 80, 130
     levels = np.linspace(VMIN, VMAX, 21)
@@ -243,10 +286,28 @@ for index_m, m in enumerate(mss):
 
     for index_comp, comp in enumerate(components):
 
-        Z = comp['data']
-        TH = comp['theta']
-        PHI = comp['phi']
+        TH = comp['theta'] # NPhi, NTh
+        PHI = comp['phi'] # NPhi, NTh
+        Z = comp['data'].reshape(TH.shape) # NPhi, NTh
+        period = 2*np.pi
+
+        TH = np.concatenate(
+            [TH[:, -1:] - period, TH, TH[:, :1] + period],
+            axis=1
+        )
+
+        PHI = np.concatenate(
+            [PHI[:, -1:], PHI, PHI[:, :1]],
+            axis=1
+        )
+
+        Z = np.concatenate(
+            [Z[:, -1:], Z, Z[:, :1]],
+            axis=1
+        )
+
         print(f'component {comp['name']}, max SPL: {p_to_SPL(Z).max()}dB')
+
 
         HEIGHT = reference_height
 
@@ -265,14 +326,16 @@ for index_m, m in enumerate(mss):
             # title=comp["title"],
             levels=levels,
             fig=fig,
-            ax=ax
+            ax=ax,
+            cmap='jet'
         )
+        ax.set_ylim(0, 360)
 
         # ax.set_xlim(rroot, rtip)
         ax.set_aspect((360 / (rtip - rroot))**(-1))
         if PHI.max() > rtip:
-            ax.axvline(rroot, color='k', alpha=0.7)
-            ax.axvline(rtip, color='k', alpha=0.7)
+            ax.axvline(rroot, color='white', linestyle='dashed')
+            ax.axvline(rtip, color='white', linestyle='dashed')
 
         # store mappable for colorbar later
         mappables[comp["name"]] = mappable
@@ -297,12 +360,14 @@ for index_m, m in enumerate(mss):
             fig=fig2,
             ax=ax2
         )
+        ax2.set_ylim(0, 360)
+
 
         # ax.set_xlim(rroot, rtip)
         ax2.set_aspect((360 / (rtip - rroot))**(-1))
         if PHI.max() > rtip:
-            ax2.axvline(rroot, color='k', alpha=0.7)
-            ax2.axvline(rtip, color='k', alpha=0.7)
+            ax.axvline(rroot, color='white', linestyle='dashed')
+            ax.axvline(rtip, color='white', linestyle='dashed')
 
         fig2.savefig(
             os.path.join(folder_name, f"p_surface_{comp['name']}_phase.pdf"),
@@ -314,8 +379,8 @@ for index_m, m in enumerate(mss):
         # TODO: plot sectional loading!
         Z = Z.reshape(TH.shape) # of shape Nphi, Ntheta
         dtheta = TH[0, 1] - TH[0, 0]
-        F_sectional_z = -RADIUS * np.sum(Z * np.sin(TH) * dtheta, axis=1, dtype=np.complex128) # of shape Nphi
-        F_sectional_phi = RADIUS * np.sum(Z * np.cos(TH) * dtheta, axis=1, dtype=np.complex128) # of shape Nphi
+        F_sectional_z = -RADIUS * np.sum(Z[:, 1:-1] * np.sin(TH[:, 1:-1]) * dtheta, axis=1, dtype=np.complex128) # of shape Nphi
+        F_sectional_phi = RADIUS * np.sum(Z[:, 1:-1] * np.cos(TH[:, 1:-1]) * dtheta, axis=1, dtype=np.complex128) # of shape Nphi
 
         print(f'saving sectional loading at r_query={r_query}')
         Fms[1, index_m, :, index_comp] = (

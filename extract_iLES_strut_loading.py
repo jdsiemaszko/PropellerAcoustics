@@ -73,6 +73,11 @@ def compute_pressure_map(filename,
     r = x
     theta = np.arctan2(z, y)
 
+    # wrap the theta axis to avoid extrapolating
+    r = np.concatenate((r, r, r))
+    theta = np.concatenate((theta, theta-2*np.pi, theta+2*np.pi))
+    pressure = np.concatenate((pressure, pressure, pressure))
+
     # r_u = np.unique(r)
     # theta_u = np.unique(theta)
 
@@ -80,7 +85,7 @@ def compute_pressure_map(filename,
     pA = pressure
 
     # Structured mesh
-    r_grid = np.linspace(r.min(), r.max(), Nr)
+    r_grid = np.linspace(r.min()+1e-12, r.max()-1e-12, Nr)
     theta_grid = np.linspace(-np.pi, np.pi, Ntheta)
 
     R, TH = np.meshgrid(r_grid, theta_grid, indexing="ij")
