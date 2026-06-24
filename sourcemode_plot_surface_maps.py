@@ -11,8 +11,11 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray
-SUFFIX = '_D360_HR'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray
+# SUFFIX = '_D360_HR'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
+SUFFIX = 'D20L20_D180_v2'
 
 # sourceArray.numerics['CompactnessCorrection'] = True
 sourceArray.numerics['CompactnessCorrection'] = False
@@ -21,15 +24,17 @@ sourceArray.numerics['CompactnessCorrection'] = False
 MODE = 'half'
 FILE = 'TOTAL_DIR'
 
-# mss = np.arange(1, 11, 1)
-mss = np.array([5])
+mss = np.arange(1, 11, 1)
+# mss = np.array([5])
 
 
 Nm = len(mss)
 Ncomp = 8+3
+Nr = 37
 r_query = np.array([0.5, 0.8, 0.9]) * 0.1
 Nr_query = len(r_query)
 Fms = np.zeros((3, Nm, Nr_query, Ncomp), dtype=np.complex128) # store loading harmonics!
+Fsectional = np.zeros((3, Nm, Nr, Ncomp), dtype=np.complex128) # store loading harmonics!
 
 
 for index_m, m in enumerate(mss):
@@ -376,7 +381,6 @@ for index_m, m in enumerate(mss):
         )
         plt.close(fig2)
 
-        # TODO: plot sectional loading!
         Z = Z.reshape(TH.shape) # of shape Nphi, Ntheta
         dtheta = TH[0, 1] - TH[0, 0]
         F_sectional_z = -RADIUS * np.sum(Z[:, 1:-1] * np.sin(TH[:, 1:-1]) * dtheta, axis=1, dtype=np.complex128) # of shape Nphi
@@ -384,14 +388,23 @@ for index_m, m in enumerate(mss):
 
         print(f'saving sectional loading at r_query={r_query}')
         Fms[1, index_m, :, index_comp] = (
-            np.interp(r_query, PHI[:, 0], F_sectional_z.real)
-            + 1j * np.interp(r_query, PHI[:, 0], F_sectional_z.imag)
+            np.interp(r_query, PHI[:, -1], F_sectional_z.real)
+            + 1j * np.interp(r_query, PHI[:, -1], F_sectional_z.imag)
         )
 
         Fms[2, index_m, :, index_comp] = (
-            np.interp(r_query, PHI[:, 0], F_sectional_phi.real)
-            + 1j * np.interp(r_query, PHI[:, 0], F_sectional_phi.imag)
-)
+            np.interp(r_query, PHI[:, -1], F_sectional_phi.real)
+            + 1j * np.interp(r_query, PHI[:, -1], F_sectional_phi.imag)
+        )
+        print(f'saving net loading harmonics')
+        # Fsectional[1, index_m, :, index_comp] = F_sectional_z
+        # Fsectional[1, index_m, :, index_comp] = F_sectional_z
+
+        np.save(f'./Data/current/surface_pressure/R_REF_{index_m}_{index_comp}.npy', PHI)
+        np.save(f'./Data/current/surface_pressure/F_SECTIONAL_{index_m}_{index_comp}_Z.npy', F_sectional_z)
+        np.save(f'./Data/current/surface_pressure/F_SECTIONAL_{index_m}_{index_comp}_PHI.npy', F_sectional_phi)
+
+
 
         COLOR, MARKER, LINESTYLE = comp['color'], comp['marker'], comp['linestyle']
         MARKER=None
@@ -501,9 +514,9 @@ for index_m, m in enumerate(mss):
     )
     plt.close(fig4)
 
-destination = './Data/current/surface_pressure/loading_harmonics_NONCOMPACT.npy'
-destination_r = './Data/current/surface_pressure/r_query_NONCOMPACT.npy'
-destination_m = './Data/current/surface_pressure/m_query_NONCOMPACT.npy'
+destination = './Data/current/surface_pressure/loading_harmonics_ALL.npy'
+destination_r = './Data/current/surface_pressure/r_query_ALL.npy'
+destination_m = './Data/current/surface_pressure/m_query_ALL.npy'
 
 print(f'saving results of sectional loading at r_query={r_query} to {destination}')
 np.save(destination, Fms)

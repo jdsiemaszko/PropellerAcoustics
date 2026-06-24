@@ -30,13 +30,13 @@ from Constants.data_assim import getGojonData
 # vary configuration
 from SourceMode.Configurations_NACA0012 import m_surface
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
-# shape='D'
-
-from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D15L20_D180'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
 shape='D'
+
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180'
+# shape='D'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 
@@ -128,6 +128,14 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
     pmB_model_beam_thickness = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
     PIN._numerics['only_linear'] = False
+    PIN._numerics['only_nonlinear'] = True
+    PIN._numerics['include_vortex_sources'] = True
+    PIN._numerics['include_thickness_sources'] = True
+    BL = PIN.getStrutLoadingHarmonics()
+    pmB_model_beam_nonlinear = han.getPressureStator(x_cart, ms*B, BL)[0][0]
+
+
+    PIN._numerics['only_linear'] = False
     PIN._numerics['only_nonlinear'] = False
     PIN._numerics['include_vortex_sources'] = True
     PIN._numerics['include_thickness_sources'] = True
@@ -163,26 +171,6 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
     for index, sm in enumerate(sourceArray.children):
         gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
-
-
-    # p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
-    # p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
-
-    sourceArray.updateBLH(BLH_US)
-    p_scattered_us = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
-    p_direct_us = sourceArray.getDirectPressure(x_cart, ms)[0]
-
-    sourceArray.updateBLH(BLH_S)
-    p_scattered_s = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
-    p_direct_s = sourceArray.getDirectPressure(x_cart, ms)[0]
-
-
-
-
-    # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
-    # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy')
-
-
     # -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
     # save gradients in the far-field (run once per observer and m)
@@ -199,9 +187,41 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
     for index, sm in enumerate(sourceArray.children):
         G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy')
 
+    # p_direct_s = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_S, axes=[2, 0, 1]))[0]
+    # p_direct_us = sourceArray.getDirectPressure(x_cart, ms, BLH=np.transpose(BLH_US, axes=[2, 0, 1]))[0]
+
+    sourceArray.numerics['CompactnessCorrection'] = True
+    
+    sourceArray.updateBLH(BLH_US)
+    p_scattered_us_nc = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+    p_direct_us = sourceArray.getDirectPressure(x_cart, ms)[0]
+
+    sourceArray.updateBLH(BLH_S)
+    p_scattered_s_nc = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+    p_direct_s = sourceArray.getDirectPressure(x_cart, ms)[0]
+
+    p_scattered_thickness_nc = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)[0]
+    p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)[0]
+
+    sourceArray.numerics['CompactnessCorrection'] = False
+    sourceArray.updateBLH(BLH_US)
+    p_scattered_us = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+    p_direct_us = sourceArray.getDirectPressure(x_cart, ms)[0]
+
+    sourceArray.updateBLH(BLH_S)
+    p_scattered_s = sourceArray.getScatteredPressure(x_cart, ms, gradG=gradG_arr)[0]
+    p_direct_s = sourceArray.getDirectPressure(x_cart, ms)[0]
 
     p_scattered_thickness = sourceArray.getThicknessPressureScattered(x_cart, ms, G=G_arr)[0]
     p_direct_thickness = sourceArray.getThicknessPressureDirect(x_cart, ms)[0]
+    # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered)
+    # p_scattered = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_{MODE}_{ind_theta}_{ind_phi}.npy')
+
+
+
+
+
+
 
     # np.save(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy', p_scattered_thickness)
     # p_scattered_thickness = np.load(f'./Data/current/NACA0012_rotor/p_s_spectrum_thickness_{MODE}_{ind_theta}_{ind_phi}.npy')
@@ -225,6 +245,7 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
 
     SPL_total_PIN = p_to_SPL(pmB_model_total)
     SPL_PIN_beam_total = p_to_SPL(pmB_model_beam_total)
+    SPL_PIN_NL = p_to_SPL(pmB_model_beam_nonlinear)
 
     # SPLS TOTAL SCATTERING
     SPL_direct_s = p_to_SPL(p_direct_s)
@@ -241,7 +262,7 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
 
     # SPL_total = p_to_SPL(p_rms_total) # same computation
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(8, 5))
 
     # ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (PIN)", color='r', marker='^')
     # ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (PIN)", color='g', marker='^')
@@ -251,9 +272,14 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
 
     # ax.plot(ms, SPL_rotor_thickness, label=f"Thickness Noise (PIN)", color='b', marker='^')
     # ax.plot(ms, SPL_rotor_total, label=f"Rotor Total (PIN)", color='y', marker='^')
-    # ax.plot(ms, SPL_beam_loading, label=f"Beam Loading due to Blade Loading", color='m', marker='^')
-    # ax.plot(ms, SPL_beam_thickness, label=f"Beam Loading due to Blade Thickness", color='c', marker='^')
+    ax.plot(ms, SPL_beam_loading, label=f"Beam Loading due to Blade Loading", color='r', marker='^', linestyle=':')
+    ax.plot(ms, SPL_beam_thickness, label=f"Beam Loading due to Blade Thickness", color='b', marker='^', linestyle=':')
+    ax.plot(ms, SPL_PIN_NL, label=f"Non-linear", color='c', marker='^', linestyle=':')
+    ax.plot(ms, SPL_PIN_beam_total, label=f"Loading Total", color='k', marker='^', linestyle=':')
+
+
     # ax.plot(ms, SPL_total_PIN, label=f"Total (PIN)", color='k', marker='^')
+
     # ax.plot(freq[0] / BPF, spl_from_autopower(data), label=f"Experimental, total", color='k', alpha=0.75)
     # fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
     #                          plot_kwargs={
@@ -267,48 +293,65 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
 
     # ax.plot(ms, SPL_direct_thickness, label=f"Thickness Noise (SM)", color='b', marker='s', linestyle='dashed')
     # ax.plot(ms, SPL_SM_rotor_total, label=f"Rotor Total (SM)", color='y', marker='s', linestyle='dashed')
-    # # ax.plot(ms, SPL_scattered_s, label=f"Scattered Steady Loading Noise", color='m', marker='s', linestyle='dashed')
-    # # ax.plot(ms, SPL_scattered_us, label=f"Scattered Unsteady Loading Noise", color='tab:pink', marker='s', linestyle='dashed')
+    ax.plot(ms, SPL_scattered_s, label=f"Scattered Steady Loading Noise", color='r', marker='s', linestyle='dashed')
+    ax.plot(ms, SPL_scattered_us, label=f"Scattered Unsteady Loading Noise", color='m', marker='s', linestyle='dashed')
     # ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
-    # ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise", color='c', marker='s', linestyle='dashed')
-    # ax.plot(ms, SPL_total_scattering, label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
+    ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise", color='b', marker='s', linestyle='dashed')
+    ax.plot(ms, SPL_total_scattering, label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
 
-
+    ax.plot(ms, p_to_SPL(p_scattered_s_nc), label=f"Scattered Steady Loading Noise", color='r', marker='*', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_us_nc), label=f"Scattered Unsteady Loading Noise", color='m', marker='*', linestyle='dashed')
+    # ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc), label=f"Scattered Thickness Noise", color='b', marker='*', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc), label=f"Total (Scattering)", color='k', marker='*', linestyle='dashed')
 
 
     # --- plotting ---
-    ax.plot(ms, SPL_total_PIN, color='r', marker='^')
+    # ax.plot(ms, SPL_total_PIN, color='r', marker='^')
 
-    ax.plot(ms, SPL_total_scattering, color='b', marker='s', linestyle='--')
+    # ax.plot(ms, SPL_total_scattering, color='b', marker='s', linestyle='--')
 
-    ax.plot(freq[0]/BPF,
-            spl_from_autopower(data),
-            color='0.3',
-            linewidth=2)
+    # ax.plot(freq[0]/BPF,
+    #         spl_from_autopower(data),
+    #         color='0.3',
+    #         linewidth=2)
 
-    fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
-                            plot_kwargs={
-                                'color':'k',
-                                'linestyle':'dashed',
-                                'alpha':1.0,
-                                'linewidth': 2
-                            })
+    # fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+    #                         plot_kwargs={
+    #                             'color':'k',
+    #                             'linestyle':'dashed',
+    #                             'alpha':1.0,
+    #                             'linewidth': 2
+    #                         })
 
     model_handles = [
-        Line2D([0], [0], color='r', marker='^', linestyle='-',
+        Line2D([0], [0], color='k', marker='^', linestyle=':',
             label='PIN'),
-        Line2D([0], [0], color='b', marker='s', linestyle='--',
-            label='SM'),
-        Line2D([0], [0], color='0.3', lw=3,
-            label='Experiment'),
+        Line2D([0], [0], color='k', marker='s', linestyle='--',
+            label='SM (compact)'),
+        Line2D([0], [0], color='k', marker='*', linestyle='--',
+        label='SM (non-compact)'),
+        # Line2D([0], [0], color='0.3', lw=3,
+        #     label='Experiment'),
     ]
+    component_handles = [
+        Line2D([0], [0], color='r', lw=2, label='SSL'),
+        Line2D([0], [0], color='b', lw=2, label='ST'),
+        Line2D([0], [0], color='m', lw=2, label='SUSL'),
+        Line2D([0], [0], color='c', lw=2, label='NL'),
+        Line2D([0], [0], color='k', lw=2, label='Total'),
 
+        # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
+        # Line2D([0], [0], color='k', lw=2, label='L+T'),
+    ]
 
     leg2 = ax.legend(handles=model_handles,
                     #  title='Model',
-                    loc='upper left')
-
-    # ax.add_artist(leg1)
+                    loc='lower left', fontsize='8')
+    leg1 = ax.legend(handles=component_handles,
+                    #  title='Model',
+                    loc='lower right', fontsize='8')
+    ax.add_artist(leg1)
     ax.add_artist(leg2)
 
 
@@ -324,9 +367,18 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
     ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
     # ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
     # plt.xlim(0.03333, 100)
-    plt.xlim(0.1, 100)
+    # plt.xlim(0.1, 100)
+    plt.xlim(0.8, 12)
+
     print(theta, phi)
 
-    plt.ylim(0, 75)
+    plt.ylim(10, 75)
+    # plt.ylim(15, 65)
+
     plt.tight_layout()
     plt.show()
+    fig.savefig(
+        os.path.join(folder_name, f"spectrum_STRUT_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
+        dpi=300,
+        bbox_inches="tight",
+    )

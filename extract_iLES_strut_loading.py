@@ -86,7 +86,7 @@ def compute_pressure_map(filename,
 
     # Structured mesh
     r_grid = np.linspace(r.min()+1e-12, r.max()-1e-12, Nr)
-    theta_grid = np.linspace(-np.pi, np.pi, Ntheta)
+    theta_grid = np.linspace(-np.pi, np.pi, Ntheta, endpoint=False)
 
     R, TH = np.meshgrid(r_grid, theta_grid, indexing="ij")
 

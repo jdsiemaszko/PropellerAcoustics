@@ -35,9 +35,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
@@ -47,9 +47,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D15L20_D180'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'PARROT_D20L20_D180'
-shape = 'PARROT'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180'
+# shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D36_1_10 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D36_1_10'
@@ -171,9 +171,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2, 10, 2], [9, 9, 0, 13, 18, 18]):
     BL = PIN.getStrutLoadingHarmonics()
     pmB_model_beam_thickness = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
-    # TODO: check!
     PIN._numerics['include_vortex_sources'] = True
-    PIN._numerics['include_thickness_sources'] = False
+    PIN._numerics['include_thickness_sources'] = True
     BL = PIN.getStrutLoadingHarmonics()
     pmB_model_beam_total = han.getPressureStator(x_cart, ms*B, BL)[0][0]
 
@@ -182,6 +181,9 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2, 10, 2], [9, 9, 0, 13, 18, 18]):
     pmB_model_rotor_loading = pLSmB_model_rotor + pLUSmB_model_rotor
     pmB_model_total = pLSmB_model_rotor + pLUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam_total # assuming coherent
     # pmB_model_total = np.sqrt(np.abs(pmB_model_rotor_total)**2 + np.abs(pmB_model_beam)**2) # assuming incoherent
+
+    pmB_model_total_loading_only = pLSmB_model_rotor + pLUSmB_model_rotor + ptmB_model_rotor + pmB_model_beam_loading # assuming coherent
+
 
 
 
@@ -265,6 +267,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2, 10, 2], [9, 9, 0, 13, 18, 18]):
     SPL_beam_thickness = p_to_SPL(pmB_model_beam_thickness)
 
     SPL_total_PIN = p_to_SPL(pmB_model_total)
+    SPL_total_PIN_loading_only = p_to_SPL(pmB_model_total_loading_only)
+
 
     # SPLS TOTAL SCATTERING
     SPL_direct_s = p_to_SPL(p_direct_s)
@@ -317,6 +321,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2, 10, 2], [9, 9, 0, 13, 18, 18]):
 
     # --- plotting ---
     ax.plot(ms, SPL_total_PIN, color='r', marker='^')
+    ax.plot(ms, SPL_total_PIN_loading_only, color='g', marker='*', linestyle=':')
+
 
     ax.plot(ms, SPL_total_scattering, color='b', marker='s', linestyle='--')
 
@@ -334,10 +340,12 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2, 10, 2], [9, 9, 0, 13, 18, 18]):
                             })
 
     model_handles = [
-        Line2D([0], [0], color='r', marker='^', linestyle='-',
-            label='PIN (Vella et al. 2026)'),
         Line2D([0], [0], color='b', marker='s', linestyle='--',
-            label='SM'),
+            label='Scattering'),
+        Line2D([0], [0], color='r', marker='^', linestyle='-',
+            label='PIN (current)'),
+    Line2D([0], [0], color='g', marker='*', linestyle=':',
+            label='PIN (Vella et al. 2026)'),
         Line2D([0], [0], color='0.3', lw=3,
             label='Experiment'),
     ]

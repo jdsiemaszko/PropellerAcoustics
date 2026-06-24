@@ -3,13 +3,37 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 source = './Data/current/surface_pressure/'
-Fms = np.load(source + 'loading_harmonics.npy') # 3, Nm, Nr, Ncomp
+Fms = np.load(source + 'loading_harmonics_ALL.npy') # 3, Nm, Nr, Ncomp
 rs = np.load(source + 'r_query.npy') # Nrquery
 ms = np.load(source + 'm_query.npy') #Nm
 RTIP = 0.1
 RROOT = 0.016
 B = 2
 ks = ms * B
+
+Fz_iLES = np.load(source + 'Fzfreq_iLES.npy')[:, :] # Nfreq, Nrq
+Fphi_iLES = np.load(source + 'Fphifreq_iLES.npy')[:, :] # Nfreq, Nrq
+freqs_iLES = np.load(source + 'freqs_iLES.npy') # Nfreq
+
+rs = np.load(source + 'r_query.npy') # Nrquery
+ms = np.load(source + 'm_query.npy') #Nm
+B = 2
+ks = ms * B
+Omega = 8000/60 * 2 * np.pi
+
+# indices of frequencies matching ks
+idx = np.array([
+    np.argmin(np.abs(freqs_iLES / Omega * 2 * np.pi - k))
+    for k in ks
+])
+
+# optional sanity check
+if not np.allclose(freqs_iLES[idx]/ Omega * 2 * np.pi, ks):
+    print("Warning: some ks do not exactly exist in freqs_iLES")
+
+Fz_iLES = Fz_iLES[idx, :]
+Fphi_iLES = Fphi_iLES[idx, :]
+freqs_iLES = freqs_iLES[idx]
 
 data_vella = np.zeros((3, 10))
 for ind, st in enumerate(['0.5', '0.8', '0.9']):
@@ -22,10 +46,13 @@ for ind, st in enumerate(['0.5', '0.8', '0.9']):
 # rR = 0.017
 # r0 = np.linspace(rR, rT, 30)
 # dr = np.abs(rT - rR) / len(r0)
-dr = (RTIP - RROOT) / 40
+dr = (RTIP - RROOT) / 20
 data_vella /= dr
 
 components = [
+    # ==========================================================
+    # 1) Loading contributions
+    # ==========================================================
     {
         "name": "loading_scattering",
         "title": "Loading contribution",
@@ -34,6 +61,10 @@ components = [
         'marker' : 's',
         # 'label' : ''
     },
+
+    # ==========================================================
+    # 2) Thickness contributions
+    # ==========================================================
     {
         "name": "thickness_scattering",
         "title": "Thickness contribution",
@@ -41,45 +72,76 @@ components = [
         'linestyle': 'dashed',
         'marker' : 's',
     },
-
     {
         "name": "total_scattering",
-        "title": "Total model",
         'color' : 'k',
         'linestyle': 'dashed',
         'marker' : 's',
     },
 
+            # ==========================================================
+    # 1) Loading contributions
+    # ==========================================================
+    {
+        "name": "loading_scattering_cp",
+        'color' : 'r',
+        'linestyle': 'dotted',
+        'marker' : 's',
+        # 'label' : ''
+    },
+
+    # ==========================================================
+    # 2) Thickness contributions
+    # ==========================================================
+    {
+        "name": "thickness_scattering_cp",
+        'color' : 'b',
+        'linestyle': 'dotted',
+        'marker' : 's',
+    },
+
+    {
+        "name": "total_scattering_cp",
+        'color' : 'k',
+        'linestyle': 'dashed',
+        'marker' : 's',
+    },
+
+
+
         {
-        "name": "loading_PIN",
-    'color' : 'r',
-        'linestyle': ':',
+        "name": "loading_PIN_total",
+    'color' : 'k',
+        'linestyle': 'solid',
         'marker' : '^',
     },        {
         "name": "thickness_PIN",
                 'color' : 'b',
-        'linestyle': ':',
+        'linestyle': 'dotted',
         'marker' : '^',
     },
     {
         "name": "nonlinear_PIN",
             'color' : 'm',
-        'linestyle': ':',
+        'linestyle': 'solid',
         'marker' : '^',
     },
     {
-        "name": "total_PIN",
+        "name": "tota_PIN",
                 'color' : 'k',
-        'linestyle': ':',
+        'linestyle': 'dotted',
         'marker' : '^',
     },
 
         {
         "name": "total_plus_nolinear_PIN",
         'color' : 'c',
-        'linestyle': ':',
+        'linestyle': 'dotted',
         'marker' : '^',
     },
+
+
+
 ]
 
 for index_r, r in enumerate(rs):
@@ -93,6 +155,7 @@ for index_r, r in enumerate(rs):
        ax.plot(ks, abs(Fms[1, :, index_r, index_comp]), label=comp['name'], color=comp['color'], marker=comp['marker'], linestyle=comp['linestyle'])
  
     ax.plot(ks, data_vella[index_r, :], color='k', linewidth=2, marker='o')
+    # ax.plot(ks, abs(Fz_iLES[:, index_r]), color='k', linewidth=2, marker='o')
 
 
     from matplotlib.lines import Line2D

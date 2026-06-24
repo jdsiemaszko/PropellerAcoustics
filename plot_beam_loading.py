@@ -120,12 +120,12 @@ for index_r, r in enumerate(rs):
     for index_comp, comp in enumerate(components):
         if 'total' not in comp['name']:
             continue
-        ax.plot(time, Fmtime[1, :, index_r, index_comp], label=comp['name'], color=comp['color'], marker=comp['marker'], linestyle=comp['linestyle'])
+        ax.plot(time, Fmtime[1, :, index_r, index_comp], label=comp['name'], color=comp['color'], linestyle=comp['linestyle'])
 
         if comp['marker'] == 's':
-            ax.plot(time, Fmnctime[1, :, index_r, index_comp], label=comp['name'], color='g', marker='s', linestyle='--')
+            ax.plot(time, Fmnctime[1, :, index_r, index_comp], label=comp['name'], color='g',  linestyle='--')
  
-    ax.plot(ks, data_vella[index_r, :], color='k', linewidth=2, marker='o')
+    # ax.plot(ks, data_vella[index_r, :], color='k', linewidth=2, marker='o')
 
 
     from matplotlib.lines import Line2D

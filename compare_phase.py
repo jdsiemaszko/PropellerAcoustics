@@ -32,7 +32,7 @@ from SourceMode.Configurations_NACA0012 import m_surface
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 SUFFIX = '_D180_MR'
 
-for m in [1, 2, 3]:
+for m in [1, 2, 3, 4, 5]:
     ms = np.array([m]) # harmonic to plot
     phi_plot = 90 # phi_experimental to plot, in degrees
 
@@ -94,9 +94,8 @@ for m in [1, 2, 3]:
 
     p_beam_thickness, _ = han.getPressureStator(x_cart, ms*B, beam_loading) # loading beam noise due to blade thickness, not to be confused with beam thickness noise, which is zero since the beam is stationary
 
-    #TODO: make sure it's good
     PIN._numerics['include_vortex_sources'] = True
-    PIN._numerics['include_thickness_sources'] = False
+    PIN._numerics['include_thickness_sources'] = True
     beam_loading = PIN.getStrutLoadingHarmonics()
 
 
@@ -191,19 +190,20 @@ for m in [1, 2, 3]:
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin[:, 0]),
             np.angle(p_total_pin[:, 0] * np.exp(-1j * np.angle(p_total_pin[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
             , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'r', 'linestyle':'-','marker':'^', 'label':'PIN'})
+            plot_kwargs={'color':'r', 'linestyle':'-','marker':'^', 'label':'PIN (current)'})
+    
+
+    fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin_loading[:, 0]),
+            np.angle(p_total_pin_loading[:, 0] * np.exp(-1j * np.angle(p_total_pin_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+            , valmax=65, valmin=10, fig=fig, ax=ax,
+            plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'^', 'label':'PIN (Vella et al. 2026)'})
     
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_total[:, 0]),
-            np.angle(p_direct_total[:, 0] * np.exp(-1j * np.angle(p_direct_total[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'g', 'linestyle':':','marker':'*', 'label':'Direct Only'})
-
-
-    # fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin_loading[:, 0]),
-    #         np.angle(p_total_pin_loading[:, 0] * np.exp(-1j * np.angle(p_total_pin_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-    #         , valmax=65, valmin=10, fig=fig, ax=ax,
-    #         plot_kwargs={'color':'g', 'linestyle':'dashed','marker':'^', 'label':'PIN (loading only)'})
-    ax.legend(fontsize=8)
+        np.angle(p_direct_total[:, 0] * np.exp(-1j * np.angle(p_direct_total[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
+        , valmax=65, valmin=10, fig=fig, ax=ax,
+        plot_kwargs={'color':'g', 'linestyle':':','marker':'*', 'label':'Direct Only'})
+    
+    ax.legend(fontsize=8, loc='lower left')
     plt.show()
     fig.savefig(f'./Figures/phase_curves/phase_curve_{SUFFIX}_M{ms[0]}.pdf')
 

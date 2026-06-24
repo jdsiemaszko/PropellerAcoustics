@@ -917,7 +917,7 @@ def twoside_spectrum(oneside, k):
     """
 
 
-    twoside = np.concatenate((np.conj(oneside)[:0:-1], oneside), axis=0) # (2*Nk-1, Nr)
+    twoside = np.concatenate((np.conj(oneside)[:0:-1], oneside), axis=0, dtype=np.complex128) # (2*Nk-1, Nr)
     kk = np.concatenate((-k[:0:-1], k), axis=0) # (2*Nk-1,) 
     return twoside, kk
 
