@@ -50,9 +50,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = '_D10L20_D180'
 # shape='D'
 
-# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = 'D15L20_D180'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D15L20_D180'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180'
@@ -87,11 +87,11 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D20L20_D180_v2'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180_R40 as sourceArray # pick configuration
-SUFFIX = 'D20L20_D180_R40'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_R40 as sourceArray # pick configuration
+# SUFFIX = 'D20L20_D180_R40'
+# shape='D'
 
-for m in [1, 2, 3, 4, 5]:
+for m in [6]:
     print(f'mode m={m}')
     sourceArray.numerics['CompactnessCorrection'] = True
 

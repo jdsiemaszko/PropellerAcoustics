@@ -30,13 +30,13 @@ from Constants.data_assim import getGojonData
 # vary configuration
 from SourceMode.Configurations_NACA0012 import m_surface
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
-shape='D'
-
-# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = 'D15L20_D180'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
 # shape='D'
+
+from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D15L20_D180'
+shape='D'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 
@@ -230,6 +230,7 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
         element[np.isnan(element)] = 0.0
 
     p_total_scattering = p_direct_s + p_direct_us + p_scattered_s + p_scattered_us + p_direct_thickness + p_scattered_thickness
+    
     p_rotor_total = p_direct_s + p_direct_us + p_direct_thickness
     # p_total_minus_scattered_thickness = p_total_scattering - p_scattered_thickness
 
@@ -297,7 +298,7 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
     ax.plot(ms, SPL_scattered_us, label=f"Scattered Unsteady Loading Noise", color='m', marker='s', linestyle='dashed')
     # ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
     ax.plot(ms, SPL_scattered_thickness, label=f"Scattered Thickness Noise", color='b', marker='s', linestyle='dashed')
-    ax.plot(ms, SPL_total_scattering, label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_s+p_scattered_us+p_scattered_thickness), label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
 
     ax.plot(ms, p_to_SPL(p_scattered_s_nc), label=f"Scattered Steady Loading Noise", color='r', marker='*', linestyle='dashed')
     ax.plot(ms, p_to_SPL(p_scattered_us_nc), label=f"Scattered Unsteady Loading Noise", color='m', marker='*', linestyle='dashed')
@@ -335,9 +336,9 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
         #     label='Experiment'),
     ]
     component_handles = [
-        Line2D([0], [0], color='r', lw=2, label='SSL'),
-        Line2D([0], [0], color='b', lw=2, label='ST'),
-        Line2D([0], [0], color='m', lw=2, label='SUSL'),
+        Line2D([0], [0], color='r', lw=2, label='SL'),
+        Line2D([0], [0], color='b', lw=2, label='T'),
+        Line2D([0], [0], color='m', lw=2, label='USL'),
         Line2D([0], [0], color='c', lw=2, label='NL'),
         Line2D([0], [0], color='k', lw=2, label='Total'),
 

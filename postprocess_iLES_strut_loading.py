@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Constants.helpers import plot_directivity_contour, p_to_SPL
 from scipy.interpolate import interp1d
+import os
 
 def compute_frequency_map(pressure_maps, dt, target_frequency):
     """
@@ -311,10 +312,10 @@ if __name__ == "__main__":
     print(r_grid.max())
     net_loading_z, net_loading_phi, loading_harmonics_z, loading_harmonics_phi, freqs, r_stations = get_sectional_loading(data,
                              2 * np.pi / Omega / 400,  r_grid[0], theta_grid[0],
-                            #    r_query=np.array([0.5, 0.8, 0.9]) * 0.1,
+                               r_query=np.array([0.5, 0.8, 0.9]) * 0.1,
                             # r_query = r_grid[0]
-                            r_query = np.linspace(0.016, 0.1, 37),
-                            suffix='TEST'
+                            # r_query = np.linspace(0.016, 0.1, 37),
+                            # suffix='TEST'
                                )
     # harm_z = plot_loading_harmonics(
     #     loading_harmonics_z,

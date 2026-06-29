@@ -9,8 +9,9 @@ datadir = './Experimental/dataverse_files'
 # datafile = 'ISAE_D25_L32'
 # datafile = 'ISAE_D30_L30'
 # datafile = 'ISAE_D40_L30'
+datafile = 'ISAE_2_D15_L20'
 
-datafile = 'ISAE_2_airfoil_8000'
+# datafile = 'ISAE_2_airfoil_8000'
 Ntheta = 14
 
 
@@ -19,7 +20,7 @@ Ntheta = 14
 pref = 20e-6  # reference pressure (20 µPa)
 NB = 2
 RPM = 8000
-NBPF = 5 # harmonic to plot directivity for
+NBPF = 6 # harmonic to plot directivity for
 
 def load_h5(filename):
     return h5py.File(filename, "r")
@@ -207,10 +208,10 @@ with load_h5(f"{datadir}/{datafile}_autopower.h5") as f:
     theta = np.array(g["theta_deg"])[0] # polar
     radius = g["radius_m"][0][0] # float
 
-    # phi = np.array(g["phi_deg"])[0] # azimuth
-    # autopow = np.array(ap[f"Autopower_RPM_{RPM}_Pa2"])  # (freq, polar, azimuth)
-    autopow = np.array(ap[f"Autopower_arfoil20_Pa2"])  # (freq, polar, azimuth)
-    phi = np.array(g["phi_L20_deg"])[0] # azimuth
+    phi = np.array(g["phi_deg"])[0] # azimuth
+    autopow = np.array(ap[f"Autopower_RPM_{RPM}_Pa2"])  # (freq, polar, azimuth)
+    # autopow = np.array(ap[f"Autopower_arfoil20_Pa2"])  # (freq, polar, azimuth)
+    # phi = np.array(g["phi_L20_deg"])[0] # azimuth
 
 
 theta = theta[:Ntheta]

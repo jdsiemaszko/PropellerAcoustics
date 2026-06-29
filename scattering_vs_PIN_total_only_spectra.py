@@ -35,17 +35,17 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
 # shape='D'
 
-# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = 'D15L20_D180'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D15L20_D180'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180'
@@ -111,7 +111,7 @@ han = sourceArray.getHanson()
 
     # ind_theta = 6+4     # 60 to -60 in 10
     # ind_phi = 9          # 0 to 350 in 10
-for (ind_theta, ind_phi) in zip([6, 10, 6, 2, 10, 2], [9, 9, 0, 13, 18, 18]):
+for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18]):
     print(f'parsing case {SUFFIX}, ind_theta: {ind_theta}, ind_phi: {ind_phi}')
 
 

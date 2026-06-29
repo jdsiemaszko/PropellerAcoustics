@@ -45,13 +45,13 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = '_D10L20_D180'
 # shape='D'
 
-# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = 'D15L20_D180'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D15L20_D180'
+shape='D'
 
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'PARROT_D20L20_D180'
-shape = 'PARROT'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180'
+# shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L21W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180_v2'
@@ -72,7 +72,7 @@ shape = 'PARROT'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
-mss = np.array([1, 2, 3, 4, 5])
+mss = np.array([6])
 
 for ms in mss:
     sourceArray.numerics['CompactnessCorrection'] = True
@@ -210,6 +210,24 @@ for ms in mss:
     for index, sm in enumerate(sourceArray.children):
         gradG_arr[index] = np.load(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[:, ind_m, :, :].reshape(3, ms.shape[0], x_cart.shape[1], NDIPOLES)
 
+    #### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
+
+    ### save gradients in the far-field (run once per observer and m)
+    # for index, sm in enumerate(sourceArray.children):
+    #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
+    #     print(f'pre-computing far-field G {index+1}')
+
+    #     G = sm.getScatteringGreen(x_cart, m_surface * B * np.abs(Omega) / c0, G_surface) # shape (Nm, Nx, Ny)
+    #     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', G)
+
+    Nr = sourceArray.seg_radius.shape[0]
+
+    # G_arr = np.zeros((Nr, m_surface.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
+
+    G_arr = np.zeros((len(sourceArray.children), ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128) # pick only the ones we neeed
+    ind_m = np.where(m_surface == ms[0])[0][0]
+    for index, sm in enumerate(sourceArray.children):
+        G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
 
 
     # total scattered loading
@@ -234,24 +252,6 @@ for ms in mss:
 
 
 
-    #### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
-
-    ### save gradients in the far-field (run once per observer and m)
-    # for index, sm in enumerate(sourceArray.children):
-    #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
-    #     print(f'pre-computing far-field G {index+1}')
-
-    #     G = sm.getScatteringGreen(x_cart, m_surface * B * np.abs(Omega) / c0, G_surface) # shape (Nm, Nx, Ny)
-    #     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy', G)
-
-    Nr = sourceArray.seg_radius.shape[0]
-
-    # G_arr = np.zeros((Nr, m_surface.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
-
-    G_arr = np.zeros((len(sourceArray.children), ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128) # pick only the ones we neeed
-    ind_m = np.where(m_surface == ms[0])[0][0]
-    for index, sm in enumerate(sourceArray.children):
-        G_arr[index] = np.load(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{FILE}{SUFFIX}.npy')[ind_m, :, :] # extract only the m we need for plotting!
 
 
     p_beam_total_linear , _ = han.getPressureStator(x_cart, ms*B, beam_loading)

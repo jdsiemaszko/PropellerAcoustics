@@ -28,13 +28,13 @@ def spl_from_autopower(Pa2):
 # ======================================================================
 # ISAE 2 – D10 – L20 – varying RPM
 # ======================================================================
-with load_h5(f"{datadir}/ISAE_2_D20_L20_autopower.h5") as f:
-    g = f["ISAE_2_D20_L20"]
+with load_h5(f"{datadir}/ISAE_2_D15_L20_autopower.h5") as f:
+    g = f["ISAE_2_D15_L20"]
     freq = g["frequency_Hz"]
     ap = g["Autopower"]
 
     plt.figure()
-    for rpm in [4000, 5000, 6000, 7000, 8000]:
+    for rpm in [8000]:
         BPF = 2 * rpm / 60 * 2 * np.pi
         data = ap[f"Autopower_RPM_{rpm}_Pa2"][:, 6, 9]
         plt.semilogx(freq[0] / BPF, spl_from_autopower(data), label=f"{rpm} RPM")
@@ -79,7 +79,7 @@ with load_h5(f"{datadir}/ISAE_2_D15_L20_autopower.h5") as f:
     ap = g["Autopower"]
 
     plt.figure()
-    for rpm in [4000, 5000, 6000, 7000, 8000]:
+    for rpm in [8000]:
         data = ap[f"Autopower_RPM_{rpm}_Pa2"][:, 6, 9]
         plt.semilogx(freq[0], spl_from_autopower(data), label=f"{rpm} RPM")
 
