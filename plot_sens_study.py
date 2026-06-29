@@ -36,7 +36,7 @@ for fname, color, marker, label in zip(
         continue
 
     ax.plot(
-        m,
+        m * B,
         SPL -  SPL_base,
         color=color,
         marker=marker,
@@ -44,8 +44,8 @@ for fname, color, marker, label in zip(
         linewidth=1.5,
     )
 
-ax.set_xlabel(r"$f/B/Omega$")
-ax.set_xticks(m)
+ax.set_xlabel(r"$mB = f/\Omega$")
+ax.set_xticks(m*B)
 ax.set_ylabel("$\Delta SPL$ [dB]")
 ax.grid(True, alpha=0.3)
 ax.legend(fontsize=8, loc='upper right')

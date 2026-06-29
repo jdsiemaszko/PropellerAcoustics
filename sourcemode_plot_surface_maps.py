@@ -14,8 +14,26 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray
 # SUFFIX = '_D360_HR'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
-SUFFIX = 'D20L20_D180_v2'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
+# SUFFIX = 'D20L20_D180_v2'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray
+# SUFFIX = 'PARROT_D20L20_D180'
+# shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180'
+# shape='D'
+
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180_R40'
+# shape='D'
+
+from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D10L20_D180_R80'
+shape='D'
+
+
 
 # sourceArray.numerics['CompactnessCorrection'] = True
 sourceArray.numerics['CompactnessCorrection'] = False
@@ -45,6 +63,24 @@ for index_m, m in enumerate(mss):
     NDIPOLES = sourceArray.Nsources
 
     r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+
+    if shape == "PARROT":
+
+        rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
+        rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
+
+        q /= 1.125
+
+        r_inner = sourceArray.seg_radius
+        r1 = sourceArray.r1
+        Fz = np.interp(r_inner/r1, rt, t) # same radial array
+        Q = np.interp(r_inner/r1, rq, q) 
+        Fphi = Q / r_inner
+
+        TTARGET = 2.15 / sourceArray.B # Newtons
+        QTARGET = 25 / 1000 / sourceArray.B # Newton-radian-meters
+        Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
+        Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
 
     D_bras = sourceArray.green.radius * 2
     g = -1 * sourceArray.green.origin[2]
@@ -141,7 +177,7 @@ for index_m, m in enumerate(mss):
     import numpy as np
     import matplotlib.pyplot as plt
 
-    folder_name = f"./Figures/SurfacePressureComponents_M{mplot}_RdBu"
+    folder_name = f"./Figures/SurfacePressureComponents_{SUFFIX}_M{mplot}_RdBu"
     os.makedirs(folder_name, exist_ok=True)
 
 

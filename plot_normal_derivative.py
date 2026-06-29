@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # ---------------------------------------------------------
 # Settings
 # ---------------------------------------------------------
-data_dir = "./Data/current/validation"
+data_dir = "./Data/current/validation/green/"
 index_k = -1  # channel to plot
 
 # ---------------------------------------------------------
@@ -82,7 +82,7 @@ ax.set_yscale("log")
 
 ax.set_xlabel(r"$\Delta r / a$")
 # ax.set_ylabel(fr"$L_2(k={index_k})$")
-ax.set_ylabel(r"$\epsilon = \sqrt{1/N\sum_{n<N} (G_0(x_n|y) + G_s(x_n|y))} $")
+ax.set_ylabel(r"$\epsilon = \sqrt{1/N\sum_{i<N} (\partial_{\boldsymbol{n}_{\boldsymbol{x}_i}} G_t(\boldsymbol{x}_i|\boldsymbol{y}))^2}$")
 
 ax.grid(True, which="both", alpha=0.3)
 

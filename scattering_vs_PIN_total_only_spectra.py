@@ -43,9 +43,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = '_D10L20_D180'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D15L20_D180'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180'
@@ -66,6 +66,15 @@ shape='D'
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
 # SUFFIX = 'D20L20_D180_6000RPM'
 # shape='D'
+
+# from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D10L20_D180_R80'
+# shape='D'
+
+from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D15L20_D180_R40'
+shape='D'
+
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
@@ -160,6 +169,8 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
     # BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
 
 
+    PIN._numerics['only_linear'] = False
+    PIN._numerics['only_nonlinear'] = False
 
     PIN._numerics['include_vortex_sources'] = True
     PIN._numerics['include_thickness_sources'] = False

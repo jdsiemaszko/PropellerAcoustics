@@ -780,7 +780,9 @@ class SourceModeArray():
         self.Nchildren = len(self.children)
 
         self.Hanson = self.getHanson()
-        self.PIN = self.getPIN(self.BLH[1, 0, :], self.BLH[2, 0, :])
+        
+        #TODO: not very robust innit
+        self.PIN = self.getPIN(self.BLH[1, 0, :], self.BLH[2, 0, :], D=self.green.radius * 2, L = -1 * self.green.origin[2])
 
     def distributeBLH(self):
         """
@@ -1219,7 +1221,7 @@ class SourceModeArray():
         interface with PIN module, computing the loading and setting self.BLH to that loading
         """
 
-        PIN = self.getPIN(Fzprime, Fphiprime, D, L, numerics)
+        PIN = self.getPIN(Fzprime=Fzprime, Fphiprime=Fphiprime, D=D, L=L, numerics=numerics)
 
         BLH = PIN.getBladeLoadingHarmonics()
         BLH_US = np.zeros_like(BLH)
@@ -1234,7 +1236,7 @@ class SourceModeArray():
         
         return BLH, BLH_S, BLH_US, PIN
     
-    def getPIN(self, Fzprime, Fphiprime, D=0.02, L=0.02, numerics=None):
+    def getPIN(self, Fzprime, Fphiprime, D, L, numerics=None):
         """
         interface with PIN module, computing the loading and setting self.BLH to that loading
         """

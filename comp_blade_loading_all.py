@@ -82,7 +82,7 @@ CASES = [
     },
 ]
 
-fig, ax = plt.subplots(figsize=(8, 6))
+fig, ax = plt.subplots(figsize=(12, 6))
 
 for case in CASES:
     c0 = 340
@@ -147,6 +147,7 @@ leg2 = ax.legend(
 )
 
 leg3 = ax.legend(
+    title=f'Rotor/Strut/RPM',
     handles=case_handles,
     loc='lower left',          # keeps it inside automatically
     frameon=True, fontsize=8

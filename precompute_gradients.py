@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 # sourceArray = D15L20W00_D180
 # SUFFIX = 'D15L20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180_R40 as sourceArray
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_R40 as sourceArray
 # SUFFIX = 'D20L20_D180_v2'
-SUFFIX = 'D20L20_D180_R40'
+# SUFFIX = 'D20L20_D180_R40'
 
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D180_10_37 as sourceArray
 # SUFFIX = 'D20L20_D180_10_37'
@@ -25,6 +25,14 @@ SUFFIX = 'D20L20_D180_R40'
 # from SourceMode.Configuration_Porous_NACA0012 import D20L20_porous as sourceArray
 # # SUFFIX = 'D20L20_POROUS_RIGID_v2'
 # SUFFIX = 'D20L20_POROUS_40mm_w_tape'
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_NQ160 as sourceArray
+# SUFFIX = 'PARROT_D20L20_D180_NQ160'
+
+from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D10L20_D180_R80'
+shape='D'
+
 
 ms = np.arange(1, 11, 1)
 MODE = 'half'
