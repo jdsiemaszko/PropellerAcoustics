@@ -970,6 +970,7 @@ def plot_complex_curve(
     if valmin is not None and valmax is not None:
         r = (r - valmin) / (valmax - valmin)
         r = r * (1 - blending) + blending
+        r[np.where(r <= 0)] = 0
 
     # --- Main curve ---
     line, = ax.plot(theta, r, **plot_kwargs)
@@ -1107,7 +1108,7 @@ def plot_beam_azimuth(RMAX = 1.0, fig=None,ax=None):
 
     # Plot beam line
     ax.plot(x, y, z, 
-        linewidth=3, color='k', linestyle='dashed', alpha=0.7,
+        linewidth=3, color='k', linestyle='solid', alpha=0.7,
         zorder=1e6,)
 
 

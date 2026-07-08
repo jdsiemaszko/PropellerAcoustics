@@ -166,42 +166,40 @@ for m in [1, 2, 3, 4, 5]:
 
 
 
-
-
     # experimental      
     #   
-    fig = plt.figure(figsize=(4, 3))
+    fig = plt.figure(figsize=(6, 4))
     ax = fig.add_subplot(111, projection="polar")
 
-    fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, valmin=10,
+    fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, valmin=35,
                                 plot_kwargs={'color':'k', 'linestyle':'none', 'marker':'o', 'label':'Experimental'},fig=fig, ax=ax,)
 
     # numerical
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering[:, 0]),
             np.angle(p_total_scattering[:, 0] * np.exp(-1j * np.angle(p_total_scattering[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
+            , valmax=65, valmin=35, fig=fig, ax=ax,
             plot_kwargs={'color':'b', 'linestyle':'dashed','marker':'s', 'label':'Scattering'})
 
     # fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering_loading[:, 0]),
     #         np.angle(p_total_scattering_loading[:, 0] * np.exp(-1j * np.angle(p_total_scattering_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-    #         , valmax=65, valmin=10, fig=fig, ax=ax,
+    #         , valmax=65, valmin=35, fig=fig, ax=ax,
     #         plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'*', 'label':'Scattering (loading only)'})
 
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin[:, 0]),
             np.angle(p_total_pin[:, 0] * np.exp(-1j * np.angle(p_total_pin[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
+            , valmax=65, valmin=35, fig=fig, ax=ax,
             plot_kwargs={'color':'r', 'linestyle':'-','marker':'^', 'label':'PIN (current)'})
     
 
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_pin_loading[:, 0]),
             np.angle(p_total_pin_loading[:, 0] * np.exp(-1j * np.angle(p_total_pin_loading[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'^', 'label':'PIN (Vella et al. 2026)'})
+            , valmax=65, valmin=35, fig=fig, ax=ax,
+            plot_kwargs={'color':'g', 'linestyle':'dotted','marker':'*', 'label':'PIN (Vella et al. 2026)'})
     
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_total[:, 0]),
         np.angle(p_direct_total[:, 0] * np.exp(-1j * np.angle(p_direct_total[0, 0]))) # angle w.r.t x_cart[0] - i.e., the first microphone
-        , valmax=65, valmin=10, fig=fig, ax=ax,
-        plot_kwargs={'color':'g', 'linestyle':':','marker':'*', 'label':'Direct Only'})
+        , valmax=65, valmin=35, fig=fig, ax=ax,
+        plot_kwargs={'color':'m', 'linestyle':'-','marker':'p', 'label':'Direct Rotor Only'})
     
     ax.legend(fontsize=8, loc='lower left')
     plt.show()

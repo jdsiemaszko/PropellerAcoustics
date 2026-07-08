@@ -82,7 +82,7 @@ CASES = [
     },
 ]
 
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(8, 4))
 
 for case in CASES:
     c0 = 340
@@ -116,6 +116,7 @@ ax.set_xlabel('$r/r_t$')
 # ax.set_ylabel(r'$F = C_l c / 4\pi r$')
 ax.grid()
 ax.set_yscale('log')
+ax.set_ylim(5e-4)
 # --- secondary axis ---
 # ax2 = ax.twinx()
 # l2 = ax2.plot(r_inner / r1, He_Mr, color='b', label=r'$He_0 / M_r$')[0]
@@ -141,16 +142,17 @@ param_handles = [
 ]
 leg2 = ax.legend(
     handles=param_handles,
-    loc='upper left',          # keeps it inside automatically
-    frameon=True, fontsize=8
+    loc='lower left',          # keeps it inside automatically
+    frameon=True, fontsize=10
 
 )
 
 leg3 = ax.legend(
     title=f'Rotor/Strut/RPM',
     handles=case_handles,
-    loc='lower left',          # keeps it inside automatically
-    frameon=True, fontsize=8
+    loc='lower right',          # keeps it inside automatically
+    frameon=True, fontsize=10,
+    ncols=2
 )
 
 ax.add_artist(leg2)

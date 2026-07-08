@@ -29,8 +29,16 @@ import matplotlib.pyplot as plt
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_NQ160 as sourceArray
 # SUFFIX = 'PARROT_D20L20_D180_NQ160'
 
-from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D10L20_D180_R80'
+# from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D10L20_D180_R80'
+# shape='D'
+
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D20L20_D180_NQ160'
+# shape='D'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray # pick configuration
+SUFFIX = 'D20L20_D180_6000RPM_NQ160'
 shape='D'
 
 

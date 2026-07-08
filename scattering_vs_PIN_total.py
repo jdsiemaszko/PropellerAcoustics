@@ -30,13 +30,13 @@ from Constants.data_assim import getGojonData
 # vary configuration
 from SourceMode.Configurations_NACA0012 import m_surface
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
-# shape='D'
-
-from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D15L20_D180'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
 shape='D'
+
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180'
+# shape='D'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 
@@ -61,7 +61,7 @@ han = sourceArray.getHanson()
     # ind_theta = 6     # 60 to -60 in 10
     # ind_phi = 9          # 0 to 350 in 10
 
-for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
+for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     print(f'parsing case {SUFFIX}, ind_theta: {ind_theta}, ind_phi: {ind_phi}')
     datadir = './Experimental/dataverse_files'
     # casefile = f'ISAE_2_D{int(1000*D_bras)}_L{int(1000*g)}'
@@ -263,7 +263,19 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
 
     # SPL_total = p_to_SPL(p_rms_total) # same computation
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    # save all sound components for post-processing
+    for element, filename in zip([p_direct_s, p_direct_us, p_scattered_s, p_scattered_us, p_direct_thickness, p_scattered_thickness,
+                                p_scattered_s_nc, p_scattered_us_nc, p_scattered_thickness_nc,
+                                  ptmB_model_rotor, pLSmB_model_rotor, pLUSmB_model_rotor, pmB_model_beam_thickness, pmB_model_beam_loading, pmB_model_beam_nonlinear, pmB_model_beam_total],
+                                 ['p_direct_s', 'p_direct_us', 'p_scattered_s', 'p_scattered_us', 'p_direct_thickness', 'p_scattered_thickness',
+                                  'p_scattered_s_nc', 'p_scattered_us_nc', 'p_scattered_thickness_nc',
+                                  'ptmB_model_rotor', 'pLSmB_model_rotor', 'pLUSmB_model_rotor', 'pmB_model_beam_thickness', 'pmB_model_beam_loading', 'pmB_model_beam_nonlinear', 'pmB_model_beam_total'    
+                                  ]):
+        np.save(f'./Data/current/PRESSURE/{filename}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', element)
+
+    print(f'saved all pressure components for post-processing in ./Data/current/PRESSURE/')
+
+    fig, ax = plt.subplots(figsize=(6, 4))
 
     # ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (PIN)", color='r', marker='^')
     # ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (PIN)", color='g', marker='^')
@@ -336,10 +348,10 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
         #     label='Experiment'),
     ]
     component_handles = [
-        Line2D([0], [0], color='r', lw=2, label='SL'),
-        Line2D([0], [0], color='b', lw=2, label='T'),
-        Line2D([0], [0], color='m', lw=2, label='USL'),
-        Line2D([0], [0], color='c', lw=2, label='NL'),
+        Line2D([0], [0], color='r', lw=2, label='Steady Loading'),
+        Line2D([0], [0], color='b', lw=2, label='Thickness'),
+        Line2D([0], [0], color='m', lw=2, label='Unsteady Loading'),
+        Line2D([0], [0], color='c', lw=2, label='Non-linear'),
         Line2D([0], [0], color='k', lw=2, label='Total'),
 
         # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
@@ -348,28 +360,30 @@ for (ind_theta, ind_phi) in zip([2, 10, 2, 6, 10, 6, ], [4, 4, 9, 9, 9, 0,]):
 
     leg2 = ax.legend(handles=model_handles,
                     #  title='Model',
-                    loc='lower left', fontsize='8')
+                    loc='lower left', fontsize=11)
     leg1 = ax.legend(handles=component_handles,
                     #  title='Model',
-                    loc='lower right', fontsize='8')
+                    loc='lower right', fontsize=11)
     ax.add_artist(leg1)
     ax.add_artist(leg2)
+
+    ax.set_xticks(ms)
 
 
     # ax.plot(ms, SPL_total_scattering_minus_scattered_thickness, label=f"Direct+Scattering (Minus Thickness)", color='g', marker='s', linestyle='dashed')
 
 
-    # ax.legend(ncol=2, loc='upper left', fontsize=8)
-    ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
+    # ax.legend(ncol=2, loc='upper left', fontsize=11)
+    ax.set_xlabel("$m = f/B/\Omega$ (Hz)")
     ax.set_ylabel("SPL (dB)")
-    ax.set_xscale('log')
+    # ax.set_xscale('log')
 
     ax.grid(visible=True, which='major', color='k', linestyle='-')
     ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
     # ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
     # plt.xlim(0.03333, 100)
     # plt.xlim(0.1, 100)
-    plt.xlim(0.8, 12)
+    plt.xlim(0, 11)
 
     print(theta, phi)
 

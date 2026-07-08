@@ -45,7 +45,8 @@ for ind, st in enumerate(['0.5', '0.8', '0.9']):
 # rR = 0.017
 # r0 = np.linspace(rR, rT, 30)
 # dr = np.abs(rT - rR) / len(r0)
-dr = (RTIP - RROOT) / 20
+
+dr = (RTIP - RROOT) / 20 / 2 # times two because of Emma's error
 data_vella /= dr
 
 components = [
@@ -73,9 +74,9 @@ components = [
     },
     {
         "name": "total_scattering",
-        'color' : 'r',
-        'linestyle': 'dashed',
-        'marker' : 's',
+        'color' : 'm',
+        'linestyle': 'dashdot',
+        'marker' : 'p',
     },
 
             # ==========================================================
@@ -101,14 +102,14 @@ components = [
 
     {
         "name": "total_scattering_cp",
-        'color' : 'g',
-        'linestyle': 'dashed',
+        'color' : 'b',
+        'linestyle': '--',
         'marker' : 's',
     },
         {
         "name": "loading_PIN_total",
-    'color' : 'm',
-        'linestyle': 'solid',
+    'color' : 'g',
+        'linestyle':'dotted',
         'marker' : '^',
     },        {
         "name": "thickness_PIN",
@@ -119,7 +120,7 @@ components = [
     {
         "name": "nonlinear_PIN",
             'color' : 'm',
-        'linestyle': 'solid',
+        'linestyle': 'dotted',
         'marker' : '^',
     },
     {
@@ -131,8 +132,8 @@ components = [
 
         {
         "name": "total_plus_nolinear_PIN",
-        'color' : 'b',
-        'linestyle': 'dotted',
+        'color' : 'r',
+        'linestyle': 'solid',
         'marker' : '^',
     },
 
@@ -156,7 +157,7 @@ for index_r, r in enumerate(rs):
             #     ax.plot(ks, abs(Fms_NC[1, :, index_r, index_comp]), label=comp['name'], color='g', marker='s', linestyle='--')
     
         # ax.plot(ks, data_vella[index_r, :], color='k', linewidth=2, marker='o')
-        ax.plot(ks, abs(F_iLES[:, index_r]), color='k', linewidth=2, marker='o')
+        # ax.plot(ks, abs(F_iLES[:, index_r]), color='k', linewidth=2, marker='o')
 
 
         from matplotlib.lines import Line2D
@@ -173,18 +174,19 @@ for index_r, r in enumerate(rs):
         # ]
 
         model_handles = [
-        Line2D([0], [0], color='b',  linestyle=':', marker='^',
+        Line2D([0], [0], color='m',  linestyle='dashdot', marker='p',
+            label='Scattering (compact)'),
+        Line2D([0], [0], color='b',  linestyle='--', marker='s',
+            label='Scattering (non-compact)'),
+        Line2D([0], [0], color='r',  linestyle='solid', marker='^',
             label='PIN (current)'),
-        Line2D([0], [0], color='m',  linestyle=':', marker='^',
+        Line2D([0], [0], color='g',  linestyle=':', marker='*',
             label='PIN (Vella et al. 2026)'),
         # Line2D([0], [0], color='m',  linestyle=(0, (1, 1)), marker='^',
         #        label='PIN (incl. nonlinear)'),
-        Line2D([0], [0], color='r',  linestyle='--', marker='s',
-            label='SM (compact)'),
-            Line2D([0], [0], color='g',  linestyle='--', marker='s',
-            label='SM (non-compact)'),
-        Line2D([0], [0], color='k',  linestyle='-', marker='o',
-            label='iLES'),
+
+        # Line2D([0], [0], color='k',  linestyle='-', marker='o',
+        #     label='iLES'),
         ]
 
         # leg = ax.legend(handles=component_handles, loc='upper right', fontsize=8)
@@ -199,7 +201,9 @@ for index_r, r in enumerate(rs):
         plt.tight_layout()
         ax.set_xticks(ks)
 
+        ax.set_ylim(0, 0.5)
+
         ax.grid()
-        plt.savefig(f'./Figures/iLES/harmonics_beam_{DIRECTION}_{r:.4f}.pdf')
+        plt.savefig(f'./Figures/iLES/harmonics_beam_{DIRECTION}_{r:.4f}_TOTAL.pdf')
 
         plt.show()

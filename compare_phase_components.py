@@ -157,36 +157,36 @@ for m in [1, 2, 3]:
 
     # experimental
 
-    fig = plt.figure(figsize=(4, 3))
+    fig = plt.figure(figsize=(6, 4))
     ax = fig.add_subplot(111, projection="polar")
-    fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, valmin=10,
-                                plot_kwargs={'color':'k', 'linestyle':'none','marker':'o', 'label':'Exp'},fig=fig, ax=ax,)
+    # fig, ax = plot_complex_curve(theta, spl_from_autopower(Pxx), phase, valmax=65, valmin=35,
+    #                             plot_kwargs={'color':'k', 'linestyle':'none','marker':'o', 'label':'Exp'},fig=fig, ax=ax,)
 
     # numerical
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_total_scattering[:, 0]),
             np.angle(p_total_scattering[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'g', 'linestyle':'dashed','marker':'s', 'label':'Total'})
+            , valmax=65, valmin=35, fig=fig, ax=ax,
+            plot_kwargs={'color':'k', 'linestyle':'dashed','marker':'s', 'label':'Total'})
 
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_loading[:, 0]),
             np.angle(p_direct_loading[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'r', 'linestyle':'dashed', 'marker':'o', 'label':'DL'})
+            , valmax=65, valmin=35, fig=fig, ax=ax,
+            plot_kwargs={'color':'r', 'linestyle':'dashed', 'marker':'o', 'label':'Direct Loading'})
 
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_direct_thickness[:, 0]),
             np.angle(p_direct_thickness[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'b', 'linestyle':'dashed','marker':'*', 'label':'DT'})
+            , valmax=65, valmin=35, fig=fig, ax=ax,
+            plot_kwargs={'color':'b', 'linestyle':'dashed','marker':'*', 'label':'Direct Thickness'})
 
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_scattered_loading[:, 0]),
             np.angle(p_scattered_loading[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'^', 'label':'SL'})
+            , valmax=65, valmin=35, fig=fig, ax=ax,
+            plot_kwargs={'color':'m', 'linestyle':'dashed','marker':'^', 'label':'Scattered Loading'})
 
     fig, ax = plot_complex_curve(theta, p_to_SPL(p_scattered_thickness[:, 0]),
             np.angle(p_scattered_thickness[:, 0]) # angle w.r.t x_cart[0] - i.e., the first microphone
-            , valmax=65, valmin=10, fig=fig, ax=ax,
-            plot_kwargs={'color':'c', 'linestyle':'dashed','marker':'+', 'label':'ST'})
+            , valmax=65, valmin=35, fig=fig, ax=ax,
+            plot_kwargs={'color':'c', 'linestyle':'dashed','marker':'+', 'label':'Scattered Thickness'})
 
     ax.legend(fontsize=8, loc='lower left')
     plt.show()

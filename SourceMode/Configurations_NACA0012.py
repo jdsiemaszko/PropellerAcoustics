@@ -32,7 +32,7 @@ D_prop = 0.2
 numerics_cyl_midres = {
                     # D180_MR: # just right :)
                     'nmax': 16,
-                    'Nq_prop': 32,
+                    'Nq_prop': 32*10,
                     'Nq_evan': 16,
                     'eps_radius' : 1e-24, # must be lower than eps_eval!
                     'Nazim' : 9, # discretization of the boundary in the azimuth

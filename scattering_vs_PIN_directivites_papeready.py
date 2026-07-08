@@ -37,17 +37,17 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-# SUFFIX = '_D180_MR'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = '_D180_MR'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D15L20_D180'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'PARROT_D20L20_D180'
@@ -69,10 +69,23 @@ shape='D'
 # SUFFIX = 'D20L20_D180_6000RPM'
 # shape='D'
 
+
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_NQ160 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180_NQ160'
+# shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
+# SUFFIX = 'D20L20_D180_6000RPM_NQ160'
+# shape='D'
+
+# from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D10L20_D180_R80'
+# shape='D'
+
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
-mss = np.array([6])
+mss = np.array([2])
 
 for ms in mss:
     sourceArray.numerics['CompactnessCorrection'] = True
@@ -114,6 +127,7 @@ for ms in mss:
     Omega = sourceArray.Omega
     if shape == 'PARROT':
         Omega *= -1
+
 
     c0 = sourceArray.SoS
     han = sourceArray.getHanson()
@@ -446,10 +460,10 @@ for ms in mss:
         },
     ]
 
-    VMIN, VMAX = 10, 65
+    VMIN, VMAX = 25, 65
     harmonic = int(ms[0] * B)
-    R0 = 1.2
-    R1 = R0 * 1.2
+    R0 = 1.4
+    R1 = R0 * 1.1
 
     for comp in components:
 
@@ -473,7 +487,8 @@ for ms in mss:
         ax.set_zlim(-R0, R0)
 
         plot_beam_azimuth(R0, fig, ax)
-        plot_rotation_arrow(R1, PHI_EXTENT=[20, 90], fig=fig, ax=ax)
+        plot_rotation_arrow(R1, PHI_EXTENT=[10, 80], fig=fig, ax=ax)
+        # plt.show()
 
         fig.savefig(
             os.path.join(
@@ -505,7 +520,7 @@ for ms in mss:
         ax.set_zlim(-R0, R0)
 
         plot_beam_azimuth(R0, fig, ax)
-        plot_rotation_arrow(R1, PHI_EXTENT=[20, 90], fig=fig, ax=ax)
+        plot_rotation_arrow(R1, PHI_EXTENT=[10, 80], fig=fig, ax=ax)
 
         fig.savefig(
             os.path.join(
@@ -537,6 +552,23 @@ for ms in mss:
     )
     plt.close(fig)
 
+    fig = plt.figure(figsize=(1, 2.5))
+    cax = fig.add_axes([0.35, 0.05, 0.3, 0.9])
+
+    cbar = fig.colorbar(
+        SPL_mappable,
+        cax=cax,
+    )
+
+    cbar.set_label("SPL [dB]")
+
+    fig.savefig(
+        os.path.join(folder_name, "colorbar_spl_small.pdf"),
+        dpi=300,
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+
     # ==========================================
     # Phase colorbar
     # ==========================================
@@ -552,6 +584,23 @@ for ms in mss:
 
     fig.savefig(
         os.path.join(folder_name, "colorbar_phase.pdf"),
+        dpi=300,
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+
+    fig = plt.figure(figsize=(1, 2.5))
+    cax = fig.add_axes([0.35, 0.05, 0.3, 0.9])
+
+    cbar = fig.colorbar(
+        phase_mappable,
+        cax=cax,
+    )
+
+    cbar.set_label("Phase [rad]")
+
+    fig.savefig(
+        os.path.join(folder_name, "colorbar_phase_small.pdf"),
         dpi=300,
         bbox_inches="tight",
     )

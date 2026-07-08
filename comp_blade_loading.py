@@ -52,7 +52,7 @@ lambda0 = c0 / Omega * 2 * np.pi * B
 Mach_r  = Omega * r_inner / c0
 He_Mr = chord / lambda0 * 2 * np.pi / Mach_r
 
-fig, ax = plt.subplots(figsize=(8, 3))
+fig, ax = plt.subplots(figsize=(6, 3))
 
 # --- primary axis ---
 l1 = ax.plot(r_inner / r1, F1, color='r', label='$F_1 = C_L c/4\pi r $')[0]
@@ -76,7 +76,7 @@ ax.set_yscale('log')
 ax.legend(
     handles=[l1, l2, l3, l4],
     loc='best',          # keeps it inside automatically
-    frameon=True, fontsize = 8
+    frameon=True, fontsize = 11
 )
 
 plt.tight_layout()

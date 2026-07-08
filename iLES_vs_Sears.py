@@ -407,8 +407,8 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
     from Constants.helpers import read_force_file
     r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
-    Fz = np.interp(r_inner, r, Fz_reconstruct)
-    Fphi = np.interp(r_inner, r, Fphi_reconstruct)
+    # Fz = np.interp(r_inner, r, Fz_reconstruct)
+    # Fphi = np.interp(r_inner, r, Fphi_reconstruct)
 
     PIN = D20L20W00_D180.getPIN(Fz, Fphi, D=0.02, L=0.02)
 
@@ -479,11 +479,11 @@ for r_query in [0.5 * rt, 0.8 * rt, 0.9 * rt]:
         # ax.plot(ybar, np.abs(f_sears / getBLHatRadius(BLH[1, :, :], r_inner, r_query)[i]), color=color, linestyle='--')
         ax.plot(ybar, np.abs(f_sears / getBLHatRadius(BLH[1, :, :], r_inner, r_query)[i]) * chord, color='k', linestyle='--', linewidth=2)
 
-    leg1 = ax.legend(title=f'Hamonic number', ncols=2, loc='upper right', fontsize='8')
+    leg1 = ax.legend(title=f'Hamonic $k=f/\Omega$', ncols=2, loc='upper right', fontsize=8)
 
     leg2 = ax.legend(handles=model_handles,
                     #  title='Model',
-                    loc='upper left', fontsize='8')
+                    loc='upper left', fontsize=11)
 
     # ax.axvline(-chord/2, color='k', linestyle='--')
     # ax.axvline(+chord/2, color='k', linestyle='--')
@@ -573,6 +573,8 @@ Fz_in_time_reconstruct[k, :])
     ax.set_xlabel(fr'$k = f / \Omega$')
     ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
     plt.tight_layout()
-    plt.savefig(f'./Figures/iLES/net_{r_query:.4f}.pdf')
 
-    # plt.show()
+    plt.show()
+
+    fig.savefig(f'./Figures/iLES/net_{r_query:.4f}.pdf')
+

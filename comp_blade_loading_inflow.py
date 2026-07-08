@@ -41,7 +41,7 @@ lambda0 = c0 / Omega * 2 * np.pi * B
 Mach_r  = Omega * r_inner / c0
 He_Mr = chord / lambda0 * 2 * np.pi / Mach_r
 
-fig, ax = plt.subplots(figsize=(8, 3))
+fig, ax = plt.subplots(figsize=(6, 3))
 
 # --- primary axis ---
 l1 = ax.plot(r_inner / r1, Fz, color='r', label='$F_z$')[0]
@@ -65,7 +65,7 @@ ax.grid()
 ax.legend(
     handles=[l1, l2, l3, l4],
     loc='best',          # keeps it inside automatically
-    frameon=True, fontsize = 8
+    frameon=True, fontsize = 11
 )
 
 plt.tight_layout()

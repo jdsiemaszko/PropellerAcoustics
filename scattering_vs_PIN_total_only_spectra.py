@@ -71,25 +71,54 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D10L20_D180_R80'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D15L20_D180_R40'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D15L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D15L20_D180_R40'
+# shape='D'
 
+
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray # pick configuration
+# SUFFIX = 'D20L20_D180_v2'
+# shape='D'
+
+
+from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_NQ160 as sourceArray # pick configuration
+SUFFIX = 'PARROT_D20L20_D180_NQ160'
+shape = 'PARROT'
+
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
+# SUFFIX = 'D20L20_D180_6000RPM_NQ160'
+# shape='D'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 # sourceArray.numerics['CompactnessCorrection'] = False
 
 
 NDIPOLES = sourceArray.Nsources
+Omega_ref = 8000/60 * 2 * np.pi
 
-r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+if shape == 'D':
+    r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
-if shape == "PARROT":
+    T_TOTAL = np.trapezoid(Fz, r_inner) * sourceArray.B
+
+
+# TODO: remove!
+# TTARGET = 2.15 / sourceArray.B # Newtons
+# QTARGET = 27 / 1000 / sourceArray.B # Newton-radian-meters
+# Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
+# Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
+
+    if sourceArray.Omega != Omega_ref:
+        print(f'rescaling the loading from {Omega_ref} to {sourceArray.Omega} rad/s')
+        Fz *= (sourceArray.Omega/Omega_ref)**2
+        Fphi *= (sourceArray.Omega/Omega_ref)**2
+
+elif shape == "PARROT":
 
     rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
     rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
 
-    q /= 1.125
+    # q /= 1.125
 
     r_inner = sourceArray.seg_radius
     r1 = sourceArray.r1
@@ -98,9 +127,16 @@ if shape == "PARROT":
     Fphi = Q / r_inner
 
     TTARGET = 2.15 / sourceArray.B # Newtons
+    # TTARGET = T_TOTAL / sourceArray.B # Newtons
+
     QTARGET = 25 / 1000 / sourceArray.B # Newton-radian-meters
     Fz *= TTARGET / np.trapezoid(Fz, r_inner)  # rescale to target
     Fphi *= QTARGET / np.trapezoid(Fphi * r_inner, r_inner) # rescale to target
+
+    # r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+
+
+
 
 D_bras = sourceArray.green.radius * 2
 g = -1 * sourceArray.green.origin[2]
@@ -121,6 +157,8 @@ han = sourceArray.getHanson()
     # ind_theta = 6+4     # 60 to -60 in 10
     # ind_phi = 9          # 0 to 350 in 10
 for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18]):
+# for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
+
     print(f'parsing case {SUFFIX}, ind_theta: {ind_theta}, ind_phi: {ind_phi}')
 
 
@@ -165,7 +203,7 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
                                         BLH_US
                                         )[0][0]
 
-    ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, sourceArray.seg_chord, 0.082 * np.ones_like(r_inner))[0][0] # NACA0012
+    ptmB_model_rotor = han.getThicknessNoiseRotor(x_cart, ms, sourceArray.seg_chord, 0.0822 * np.ones_like(r_inner))[0][0] # NACA0012
     # BL  =  beam_l.getBeamLoadingHarmonics(BLH=BLH)
 
 
@@ -203,13 +241,13 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
 
     # -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
     # save gradients in the far-field (run once per observer and m)
-    for index, sm in enumerate(sourceArray.children):
+    # for index, sm in enumerate(sourceArray.children):
 
-        gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
-        print(f'pre-computing far-field gradients {index+1}')
+    #     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
+    #     print(f'pre-computing far-field gradients {index+1}')
 
-        gradG = sm.getScatteringGreenGradient(x_cart, ms*B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
-        np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', gradG)
+    #     gradG = sm.getScatteringGreenGradient(x_cart, ms*B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+    #     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', gradG)
 
 
 
@@ -240,13 +278,13 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
     # -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
     # save gradients in the far-field (run once per observer and m)
-    for index, sm in enumerate(sourceArray.children):
+    # for index, sm in enumerate(sourceArray.children):
 
-        G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
-        print(f'pre-computing far-field gradients {index+1}')
+    #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
+    #     print(f'pre-computing far-field gradients {index+1}')
 
-        G = sm.getScatteringGreen(x_cart, ms*B * np.abs(Omega)  / c0, G_surface) # shape (Nm, Nx, Ny)
-        np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
+    #     G = sm.getScatteringGreen(x_cart, ms*B * np.abs(Omega)  / c0, G_surface) # shape (Nm, Nx, Ny)
+    #     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
 
 
     G_arr = np.zeros((Nchildren, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
@@ -295,8 +333,10 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
 
     # SPL_total = p_to_SPL(p_rms_total) # same computation
 
-    fig, ax = plt.subplots(figsize=(12, 5))
 
+
+
+    # TODO: remove!
     # ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (PIN)", color='r', marker='^')
     # ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (PIN)", color='g', marker='^')
 
@@ -329,6 +369,7 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
 
 
 
+    fig, ax = plt.subplots(figsize=(6, 4))
 
     # --- plotting ---
     ax.plot(ms, SPL_total_PIN, color='r', marker='^')
@@ -364,7 +405,7 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
 
     leg2 = ax.legend(handles=model_handles,
                     #  title='Model',
-                    loc='upper left')
+                    loc='lower right', fontsize=10)
 
     # ax.add_artist(leg1)
     ax.add_artist(leg2)
@@ -374,18 +415,16 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
 
 
     # ax.legend(ncol=2, loc='upper left', fontsize=8)
-    ax.set_xlabel("$f^+ = f/B/\Omega$ (Hz)")
-    ax.set_ylabel("SPL (dB)")
+    ax.set_xlabel("$m = f/B/\Omega$ (Hz)")
+    ax.set_ylabel("SPL (dB) w.r.t. 20e-6 Pa")
     ax.set_xscale('log')
 
     ax.grid(visible=True, which='major', color='k', linestyle='-')
     ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
     # ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
     # plt.xlim(0.03333, 100)
-    plt.xlim(0.1, 100)
-    print(theta, phi)
-
-    plt.ylim(0, 75)
+    plt.xlim(0.8, 50)
+    plt.ylim(0, 70)
     plt.tight_layout()
     # plt.show()
     fig.savefig(

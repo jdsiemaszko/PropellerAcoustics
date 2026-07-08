@@ -29,12 +29,12 @@ z = np.cos(theta)
 fig = plt.figure(figsize=(6, 6))
 ax = fig.add_subplot(111, projection="3d")
 
-ax.view_init(25, 45)
+ax.view_init(25, 30)
 
 
 # Unit sphere wireframe (optional but helpful)
-u = np.linspace(0, 2*np.pi, 50)
-v = np.linspace(0, np.pi, 50)
+u = np.linspace(0, 2*np.pi, 20)
+v = np.linspace(0, np.pi, 20)
 xs = np.outer(np.cos(u), np.sin(v))
 ys = np.outer(np.sin(u), np.sin(v))
 zs = np.outer(np.ones_like(u), np.cos(v))
@@ -44,9 +44,9 @@ ax.plot_wireframe(xs, ys, zs, color='lightgray', alpha=0.3)
 # ax.plot(x, y, z, 'b-', linewidth=2, label="curve")
 
 # Points on curve
-ax.scatter(x, y, z, color='k', marker='o', s=40)
-R0 = 1.2
-R1 = R0 * 1.2
+ax.scatter(x, y, z, color='k', marker='x', s=40)
+R0 = 1.4
+R1 = R0 * 1.1
 # -----------------------------
 # Direction arrows along curve
 # -----------------------------
@@ -60,7 +60,7 @@ dz = z[1:] - z[:-1]
 ax.quiver(
     x[:-1], y[:-1], z[:-1],
     dx, dy, dz,
-    # length=0.15,
+    length=0.8,
     normalize=False,
     color='r'
 )

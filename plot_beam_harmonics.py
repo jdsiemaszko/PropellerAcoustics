@@ -46,7 +46,7 @@ for ind, st in enumerate(['0.5', '0.8', '0.9']):
 # rR = 0.017
 # r0 = np.linspace(rR, rT, 30)
 # dr = np.abs(rT - rR) / len(r0)
-dr = (RTIP - RROOT) / 20
+dr = (RTIP - RROOT) / 20 / 2
 data_vella /= dr
 
 components = [
@@ -85,7 +85,7 @@ components = [
     {
         "name": "loading_scattering_cp",
         'color' : 'r',
-        'linestyle': 'dotted',
+        'linestyle': 'dashdot',
         'marker' : 's',
         # 'label' : ''
     },
@@ -96,14 +96,14 @@ components = [
     {
         "name": "thickness_scattering_cp",
         'color' : 'b',
-        'linestyle': 'dotted',
+        'linestyle': 'dashdot',
         'marker' : 's',
     },
 
     {
         "name": "total_scattering_cp",
         'color' : 'k',
-        'linestyle': 'dashed',
+        'linestyle': 'dashdot',
         'marker' : 's',
     },
 
@@ -111,7 +111,7 @@ components = [
 
         {
         "name": "loading_PIN_total",
-    'color' : 'k',
+    'color' : 'r',
         'linestyle': 'solid',
         'marker' : '^',
     },        {
@@ -122,8 +122,8 @@ components = [
     },
     {
         "name": "nonlinear_PIN",
-            'color' : 'm',
-        'linestyle': 'solid',
+            'color' : 'g',
+        'linestyle': 'dotted',
         'marker' : '^',
     },
     {
@@ -145,53 +145,65 @@ components = [
 ]
 
 for index_r, r in enumerate(rs):
+    for index_dir, F_iLES, DIRECTION in zip([1, 2], [Fz_iLES, Fphi_iLES], ['Z', 'PHI']):
 
-    R_RT = r / RTIP
+        R_RT = r / RTIP
 
-    fig, ax = plt.subplots(figsize=(4, 3))
+        fig, ax = plt.subplots(figsize=(4, 3))
 
-    for index_comp, comp in enumerate(components):
+        for index_comp, comp in enumerate(components):
+            if comp['linestyle'] == 'dashdot':
+                continue
 
-       ax.plot(ks, abs(Fms[1, :, index_r, index_comp]), label=comp['name'], color=comp['color'], marker=comp['marker'], linestyle=comp['linestyle'])
- 
-    ax.plot(ks, data_vella[index_r, :], color='k', linewidth=2, marker='o')
-    # ax.plot(ks, abs(Fz_iLES[:, index_r]), color='k', linewidth=2, marker='o')
+            if comp['color'] == 'k' or comp['color'] == 'c':
+                continue
+
+            ax.plot(ks, abs(Fms[index_dir, :, index_r, index_comp]), label=comp['name'], color=comp['color'], marker=comp['marker'], linestyle=comp['linestyle'])
+        
+        # ax.plot(ks, data_vella[index_r, :], color='k', linewidth=2, marker='o')
+            # ax.plot(ks, abs(Fz_iLES[:, index_r]), color='k', linewidth=2, marker='o')
 
 
-    from matplotlib.lines import Line2D
-    component_handles = [
-        Line2D([0], [0], color='r', lw=2, label='L'),
-        # Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
-        Line2D([0], [0], color='b', lw=2, label='T'),
-        # Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
-        Line2D([0], [0], color='m', lw=2, label='NL'),
-        Line2D([0], [0], color='c', lw=2, label='L+T+NL'),
+        from matplotlib.lines import Line2D
+        component_handles = [
+            Line2D([0], [0], color='r', lw=2, label='Rotor Loading'),
+            # Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
+            Line2D([0], [0], color='b', lw=2, label='Rotor Thickness'),
+            # Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
+            Line2D([0], [0], color='g', lw=2, label='Non-linear Total'),
+            # Line2D([0], [0], color='c', lw=2, label='L+T+NL'),
 
-        # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
-        Line2D([0], [0], color='k', lw=2, label='L+T'),
-    ]
+            # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
+            # Line2D([0], [0], color='k', lw=2, label='L+T'),
+        ]
 
-    model_handles = [
-    Line2D([0], [0], color='k',  linestyle=':', marker='^',
-           label='PIN'),
-    Line2D([0], [0], color='k',  linestyle='--', marker='s',
-           label='SM'),
-    Line2D([0], [0], color='k',  linestyle='-', marker='o',
-           label='iLES'),
-    ]
+        model_handles = [
+        Line2D([0], [0], color='k',  linestyle=':', marker='^',
+            label='PIN'),
+        Line2D([0], [0], color='k',  linestyle='--', marker='s',
+            label='Scattering'),
+        # Line2D([0], [0], color='k',  linestyle='-', marker='o',
+        #        label='iLES'),
+        ]
 
-    leg = ax.legend(handles=component_handles, loc='upper right', fontsize=8)
-    leg2 = ax.legend(handles=model_handles,
-                #  title='Model',
-                 loc='upper center', fontsize=8)
-    ax.add_artist(leg)
-    ax.add_artist(leg2)
+        leg = ax.legend(handles=component_handles, loc='upper right', fontsize=8)
+        leg2 = ax.legend(handles=model_handles,
+                    #  title='Model',
+                    # loc='upper center',
+                    # loc='lower right',
+                    loc='upper left',
 
-    ax.set_xlabel(fr'$k = f / \Omega$')
-    ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
-    plt.tight_layout()
+                      fontsize=8)
+        ax.add_artist(leg)
+        ax.add_artist(leg2)
 
-    ax.grid()
-    plt.savefig(f'./Figures/iLES/harmonics_beam_{r:.4f}.pdf')
+        ax.set_xlabel(fr'$k = f / \Omega$')
+        ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
+        plt.tight_layout()
 
-    plt.show()
+        ax.set_ylim(0, 0.6)
+
+        ax.grid()
+        plt.savefig(f'./Figures/iLES/harmonics_beam_{DIRECTION}_{r:.4f}.pdf')
+
+        plt.show()

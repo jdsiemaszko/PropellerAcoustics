@@ -52,7 +52,7 @@ for f in files:
 # ---------------------------------------------------------
 # Plot
 # ---------------------------------------------------------
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(6, 3))
 
 # cmap = plt.cm.viridis
 # colors = cmap(np.linspace(0, 1, len(datasets)))
@@ -79,6 +79,7 @@ for color, marker, ds in zip(colors, markers, datasets):
 
 ax.set_xscale("log")
 ax.set_yscale("log")
+ax.set_xlim(right=5e5)
 
 ax.set_xlabel(r"$\Delta r / a$")
 # ax.set_ylabel(fr"$L_2(k={index_k})$")
@@ -88,8 +89,9 @@ ax.grid(True, which="both", alpha=0.3)
 
 ax.legend(
     title="Discretization ($N_m/N_q$)",
-    fontsize=8,
-    title_fontsize=9,
+    fontsize=10,
+    title_fontsize=10,
+    loc='lower right'
 )
 
 plt.tight_layout()

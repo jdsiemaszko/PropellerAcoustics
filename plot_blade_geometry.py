@@ -57,7 +57,7 @@ CASES = [
     },
 ]
 
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(6, 3))
 ax2 = ax.twinx()
 for case in CASES:
     c0 = 340
@@ -108,15 +108,15 @@ param_handles = [
 ]
 leg2 = ax.legend(
     handles=param_handles,
-    loc='lower center',          # keeps it inside automatically
-    frameon=True, fontsize=8
+    loc='upper right',          # keeps it inside automatically
+    frameon=True, fontsize=10
 
 )
 
 leg3 = ax.legend(
     handles=case_handles,
     loc='lower left',          # keeps it inside automatically
-    frameon=True, fontsize=8
+    frameon=True, fontsize=10
 )
 
 ax.add_artist(leg2)
