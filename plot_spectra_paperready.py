@@ -8,9 +8,15 @@ from Constants.data_assim import getGojonData
 # BEGINNING OF HEADER
 FILE='TOTAL'
 MODE = 'half'
-SUFFIX = '_D180_MR'
-shape='D'
+# SUFFIX = '_D180_MR'
+# shape='D'
+# RPM = 8000
+
+SUFFIX = 'PARROT_D20L20_D180_NQ160'
+shape = 'PARROT'
+RPM = -7250
 ms = np.arange(1,11,1)
+
 
 for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
 
@@ -45,7 +51,7 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     datadir = './Experimental/dataverse_files'
 
     data, BPF, freq, x_cart_data, theta_data, phi_data, theta_exp, phi_exp, casefile = getGojonData(datadir, 0.02, 0.02, shape=shape, B=2, 
-                                                                                                    RPM=8000
+                                                                                                    RPM=RPM
                                                                                                     )
     data = data[:, ind_theta, ind_phi]
     x_cart = x_cart_data[:, ind_theta, ind_phi].reshape((3, 1))
@@ -56,7 +62,7 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
 
 
     # CENTER PLOT: STRUT ONLY
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(6, 4))
 
     # ax.plot(ms, SPL_rotor_S, label=f"Steady Loading Noise (PIN)", color='r', marker='^')
     # ax.plot(ms, SPL_rotor_US, label=f"Unsteady Loading Noise (PIN)", color='g', marker='^')
@@ -82,11 +88,11 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     #                              'alpha':0.75
     #                          })
 
-    ax.plot(ms, p_to_SPL(p_scattered_s_nc), label=f"Scattered Steady Loading Noise", color='r', marker='*', linestyle='dashed')
-    ax.plot(ms, p_to_SPL(p_scattered_us_nc), label=f"Scattered Unsteady Loading Noise", color='m', marker='*', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_s_nc), label=f"Scattered Steady Loading Noise", color='r', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_us_nc), label=f"Scattered Unsteady Loading Noise", color='m', marker='s', linestyle='dashed')
     # ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
-    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc), label=f"Scattered Thickness Noise", color='b', marker='*', linestyle='dashed')
-    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc), label=f"Total (Scattering)", color='k', marker='*', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc), label=f"Scattered Thickness Noise", color='b', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc), label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
 
 
     # --- plotting ---
@@ -153,7 +159,7 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     )
 
     # LEFT PLOT: rotor ONLY
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(6, 4))
 
     ax.plot(ms, p_to_SPL(p_direct_s),  color='r', marker='s', linestyle='dashed')
     ax.plot(ms, p_to_SPL(p_direct_us), color='g', marker='s', linestyle='dashed')

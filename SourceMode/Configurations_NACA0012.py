@@ -346,11 +346,11 @@ D15L20W00_D180 = SourceModeArray(
 # Parrot rotor, see "Analysis of MAV Rotors Optimized for Low Noise and Aerodynamic Efficiency with Operational Constraints" by Volsi et al. (2024)
 # TODO: change pitch and chord distributions!
 
-rc, c = np.loadtxt('./Data/Parrot2024/chord.csv', skiprows=1, delimiter=',').T # radius, chord in meters
-rp, p = np.loadtxt('./Data/Parrot2024/pitch.csv', skiprows=1, delimiter=',').T # radius, pitch in degrees
+rc, cp = np.loadtxt('./Data/Parrot2024/chord.csv', skiprows=1, delimiter=',').T # radius, chord in meters
+rp, pp = np.loadtxt('./Data/Parrot2024/pitch.csv', skiprows=1, delimiter=',').T # radius, pitch in degrees
 
-chord_parrot = np.interp(r_outer, rc, c)
-pitch_parrot = np.interp(r_outer, rp, p)
+chord_parrot = np.interp(r_outer, rc, cp)
+pitch_parrot = np.interp(r_outer, rp, pp)
 # ref thrust of 2.15N @ RPM of 7250
 PARROT_D20L20W00_D180 = SourceModeArray(
                         BLH=np.zeros((3, Nk, Nr)), 
