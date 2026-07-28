@@ -170,7 +170,7 @@ for index_r, r in enumerate(rs):
             # Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
             Line2D([0], [0], color='b', lw=2, label='Rotor Thickness'),
             # Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
-            Line2D([0], [0], color='g', lw=2, label='Non-linear Total'),
+            Line2D([0], [0], color='g', lw=2, label='Non-Linear'),
             # Line2D([0], [0], color='c', lw=2, label='L+T+NL'),
 
             # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
@@ -186,14 +186,16 @@ for index_r, r in enumerate(rs):
         #        label='iLES'),
         ]
 
-        leg = ax.legend(handles=component_handles, loc='upper right', fontsize=8)
+        ax.set_xticks(ks)
+
+        leg = ax.legend(handles=component_handles, loc='upper right', fontsize=10)
         leg2 = ax.legend(handles=model_handles,
                     #  title='Model',
                     # loc='upper center',
                     # loc='lower right',
                     loc='upper left',
 
-                      fontsize=8)
+                      fontsize=10)
         ax.add_artist(leg)
         ax.add_artist(leg2)
 
@@ -201,7 +203,7 @@ for index_r, r in enumerate(rs):
         ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
         plt.tight_layout()
 
-        ax.set_ylim(0, 0.6)
+        ax.set_ylim(0,1.0)
 
         ax.grid()
         plt.savefig(f'./Figures/iLES/harmonics_beam_{DIRECTION}_{r:.4f}.pdf')

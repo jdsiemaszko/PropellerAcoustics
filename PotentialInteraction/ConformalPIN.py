@@ -181,6 +181,114 @@ class ConformalPIN(PotentialInteraction):
 
         return pressure # Nthetab, Nphi, Nr
 
+    def getStrutPressurePhysical(self):
+        """"
+        surface pressure accounting for conformal mapping, defined in the physical frame
+
+        returns pressure distribution over the strut, as a function of r, phi, and theta (beam polar angle w.r.t rotor plane)
+        """
+
+        gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
+
+        thetab = self.theta_beam
+        deltathetab = np.diff(thetab)[0]
+
+        zetas = self.zeta_s
+        zetasprime = self.Rd**2 / zetas # circle conjugate
+
+        # inflow part
+        Uimag = np.linalg.norm(self.Ui, axis=0) # Nr
+        alpha0 = np.arctan2(self.Ui[0], -self.Ui[1]) # Nr
+
+        # alpha0_zeta = alpha0 - self.theta0
+
+        vortex_period = 2 * np.pi / self.B / self.Omega # vortex passage period
+        pressure = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
+        dfdzeta = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
+        
+
+        Ucomplex_z = self.Ui[0] + 1j * self.Ui[1]
+        Ucomplex_z_conj = np.conj(Ucomplex_z)
+        Ucomplex_zeta_conj = Ucomplex_z_conj[None, None, :]  * (self.getDzetaDzInfinity(zetas)[:, None, None])**(-1)
+
+        # apply to the potential field:
+        # f = conj(Uinfinityzeta) * zeta = conj(Uinfinityz) * z + milne thomson terms
+
+        # add the mean flow term
+        dfdzeta = np.zeros((self.zeta_s.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128)
+        dfdzeta += Ucomplex_zeta_conj - np.conj(Ucomplex_zeta_conj) * zetasprime[:, None, None] / zetas[:, None, None] # potential in the computational frame
+
+        # dfdzeta += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0_zeta[None, None, :]) + np.exp(1j * alpha0_zeta[None, None, :]
+        #             ) * zetasprime[:, None, None] / zetas[:, None, None]) 
+        
+        for vortex_index in range(-12, 12, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+            # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
+            # phased vortices: shift the passage time by vortex_index * T/B
+            zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega) + 1j * self.Lcylinder 
+
+            zetav = self.getZeta(zv) # get vortex path in COMPUTATIONAL DOMAIN
+
+            zetavbar = np.conjugate(zetav) # complex conjugate
+
+            phi = self.phi
+            shift = vortex_index * vortex_period * self.Omega
+            shifted_phi = (phi - shift) % (2 * np.pi)
+
+            # sort once
+            sort_idx = np.argsort(shifted_phi)
+            phi_sorted = shifted_phi[sort_idx]
+
+            gamma_shifted = np.apply_along_axis(
+                lambda g: np.interp(phi, phi_sorted, g[sort_idx], period=2*np.pi),
+                axis=0,
+                arr=gamma
+            )
+            
+            dfdzeta_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (zetas[:, None, None] -
+                    zetav[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zetasprime[:, None, None] - 
+                    zetavbar[None, :, :]) * (-zetasprime[:, None, None] / zetas[:, None, None]) # Nthetab, Nr, Nphi
+            dfdzeta += dfdzeta_vortex
+
+            # dfdt_dzetavdzv= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (1j / zetavbar[None, :, :] +
+            #          1j / (zetav[None, :, :] - zetas[:, None, None]) - 1j / (zetavbar[None, :, :] - zetasprime[:, None, None]))
+            #  # (Nthetab, Nphi, Nr)
+            
+            dfdt_dzetavdzv1= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (
+                 1j / (zetas[:, None, None] - zetav[None, :, :]))
+            
+            dfdt_dzetavdzv2= gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (
+                 -1j / (zetasprime[:, None, None] - zetavbar[None, :, :]))
+            
+            dfdt_dzetavdzinfty = gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * (
+                 1j / zetavbar[None, :, :])
+
+             # (Nthetab, Nphi, Nr)
+
+
+            # add the linear contribution to the pressure, including the dzetadz mapping at zetav.
+            # note that at |zeta| -> infinity we have dzeta/dz = 1
+            # pressure += self.rho * np.real(dfdt_dzetavdzv * self.getDzetaDz(zetav)[None, :, :])
+            
+            dzetavdzv = self.getDzetaDz(zetav)[None, :, :] # pre-compute
+            # corrected version, mind to conjugate dzetavdzv....
+            pressure += self.rho * np.real( 
+                dfdt_dzetavdzinfty * np.conj(dzetavdzv) 
+                 - dfdt_dzetavdzv1 * dzetavdzv
+                 - dfdt_dzetavdzv2 * np.conj(dzetavdzv)
+            )
+
+        dfdz = dfdzeta * self.getDzetaDz(zetas)[:, None, None] # apply the mapping
+
+        u, v = np.real(dfdz), -np.imag(dfdz)
+        U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
+        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!
+        pressure += pressure_dynamic # add the nonlinear contribution
+
+        return pressure # Nthetab, Nphi, Nr
+
+
+
+
     def getBladeDownwash(self):
         """
         get downwash at the blade station due to uniform inflow over the cylinder, in m/s, in the time domain
@@ -332,7 +440,7 @@ class ConformalPIN(PotentialInteraction):
 
         return fig, ax
 
-    def plotMap(self, fig=None, ax=None,center=0+0j, radii = None):
+    def plotMap(self, fig=None, ax=None, center=0+0j, radii = None):
         radii = np.linspace(self.Rd, self.Rd * 3, 50) if radii is None else radii
 
         # Create figure/axes if not provided
@@ -408,6 +516,20 @@ class HypotrochoidalPIN(ConformalPIN):
         z = zeta + self.rho_corner / (1-1/self.Nsides) * (zeta/self.Rd) ** (-self.Nsides + 1)
         z *= np.exp(1j * self.theta0)
         return z
+
+    def getZconjZetaprimeconj(self, zeta):
+        """
+        recover conj(z(R^2/conj(zeta))) given zeta, required for milne-thomson theorem
+        should be on the outside of the cylinder, |zeta|>Rd, otherwise mapping may be ill-defined
+        """
+        # z = self.Rd * ((1-1/self.Nsides) * zeta + self.rho_corner / self.Rd *
+        #                 zeta **(-self.Nsides+1)) * np.exp(1j * self.theta0)
+
+        zeta_prime = self.Rd**2 / np.conj(zeta)
+        z = zeta_prime + self.rho_corner / (1-1/self.Nsides) * (zeta/self.Rd) ** (self.Nsides - 1)
+        z *= np.exp(-1j * self.theta0)
+        return z
+
     
     def getDzetaDz(self, zeta):
         """

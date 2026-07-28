@@ -32,6 +32,41 @@ pin = HypotrochoidalPIN(
     numerics={'Nphi': 180, 'Nthetab': 360}
 )
 
+theta0 = pin.theta0
+U = pin.Ui[0, 30] + pin.Ui[1, 30] * 1j
+# U = pin.Ui[1, 30] * 1j
+Ucomp = U * pin.getDzetaDzInfinity(1)
+
+radius = np.linspace(1.01, 10.0, 100) * pin.Rd
+angle = np.linspace(0, 2*np.pi, 100)
+zeta = radius[:, None] * np.exp(1j * angle[None, :]) # Nr, Ntheta
+z = pin.getZ(zeta) # Nr, Ntheta
+zeta_prime = pin.Rd**2 / np.conj(zeta) # circle coordinate
+# z_prime = np.conj(pin.getZ(zeta_prime)) # mapped circle coordinate
+z_prime = pin.getZconjZetaprimeconj(zeta)
+
+fphysical = np.conj(U) * z + U * z_prime # potential + 1j * stream function
+fcomputational = np.conj(Ucomp) * zeta + Ucomp * np.conj(zeta_prime)
+
+# plot contours of the two potentials!
+
+fig = plt.figure(figsize=(12, 6))
+ax1 = fig.add_subplot(121)
+ax2 = fig.add_subplot(122)
+
+ax1.contour(np.real(z), np.imag(z), np.imag(fphysical), levels=51, cmap='viridis')
+ax2.contour(np.real(z), np.imag(z), np.imag(fcomputational), levels=51, cmap='viridis')
+
+ax1.set_title('Physical')
+ax2.set_title('Computational')
+
+ax1.plot(np.real(pin.zs), np.imag(pin.zs), 'k--')
+ax2.plot(np.real(pin.zs), np.imag(pin.zs), 'k--')
+
+
+plt.show()
+
+
 # fig, ax = pin.plotZ()
 # fig, ax = pin.plotMap(center = 0.012 + 0.00j, radii = np.linspace(0.02/100, 0.02 * 10, 200))
 # plt.show()
