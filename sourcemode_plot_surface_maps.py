@@ -14,8 +14,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D360 as sourceArray
 # SUFFIX = '_D360_HR'
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
-# SUFFIX = 'D20L20_D180_v2'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
+SUFFIX = 'D20L20_D180_v2'
+shape='D'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray
 # SUFFIX = 'PARROT_D20L20_D180'
@@ -29,9 +30,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'D15L20_D180_R40'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D10L20_D180_R80'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D10L20_D180_R80'
+# shape='D'
 
 
 
@@ -380,6 +381,15 @@ for index_m, m in enumerate(mss):
 
         # store mappable for colorbar later
         mappables[comp["name"]] = mappable
+
+        # save the data for easy plotting later
+        np.save(os.path.join(folder_name, f"p_surface_{comp['name']}.npy"), Z)
+        np.save(os.path.join(folder_name, f"th_surface_{comp['name']}.npy"), TH)
+        np.save(os.path.join(folder_name, f"phi_surface_{comp['name']}.npy"), PHI)
+
+        np.save(f'./Data/current/surface_pressure/Z_{index_m}_{index_comp}.npy', Z)
+        np.save(f'./Data/current/surface_pressure/TH_{index_m}_{index_comp}.npy', TH)
+        np.save(f'./Data/current/surface_pressure/PHI_{index_m}_{index_comp}.npy', PHI)
 
         fig.savefig(
             os.path.join(folder_name, f"p_surface_{comp['name']}.pdf"),

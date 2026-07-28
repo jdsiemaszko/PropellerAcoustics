@@ -8,13 +8,13 @@ from Constants.data_assim import getGojonData
 # BEGINNING OF HEADER
 FILE='TOTAL'
 MODE = 'half'
-# SUFFIX = '_D180_MR'
-# shape='D'
-# RPM = 8000
+SUFFIX = '_D180_MR'
+shape='D'
+RPM = 8000
 
-SUFFIX = 'PARROT_D20L20_D180_NQ160'
-shape = 'PARROT'
-RPM = -7250
+# SUFFIX = 'PARROT_D20L20_D180_NQ160'
+# shape = 'PARROT'
+# RPM = -7250
 ms = np.arange(1,11,1)
 
 
@@ -280,8 +280,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
 
 
     # ax.legend(ncol=2, loc='upper left', fontsize=10)
-    ax.set_xlabel("$m = f/B/\Omega$ (Hz)")
-    ax.set_ylabel("SPL (dB) w.r.t. 20e-6 Pa")
+    ax.set_xlabel("$m = f/f_{\mathrm{BPF}}$ (-)")
+    ax.set_ylabel("SPL (dB w.r.t. 20e-6 Pa)")
     ax.set_xscale('log')
 
     ax.grid(visible=True, which='major', color='k', linestyle='-')
@@ -297,11 +297,112 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     plt.ylim(0, 70)
 
     plt.tight_layout()
-    plt.show()
     import os
     folder_name = f'./Figures/Spectra'
     fig.savefig(
         os.path.join(folder_name, f"spectrum_TAXONOMY_RIGHT_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
+        dpi=300,
+        bbox_inches="tight",
+    )
+
+
+
+
+    # PAPER PLOT: only totals
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    ax.plot(ms, p_to_SPL(p_direct_s+p_direct_us+p_direct_thickness), label=f"Rotor Total", color='r', marker='s')
+    # ax.plot(ms, p_to_SPL(p_direct_s),  color='r', marker='s', linestyle='dashed')
+    # ax.plot(ms, p_to_SPL(p_direct_us), color='g', marker='s', linestyle='dashed')
+    # ax.plot(ms, p_to_SPL(p_direct_thickness),  color='b', marker='s', linestyle='dashed')
+
+    # ax.plot(ms, p_to_SPL(pLSmB_model_rotor),  color='r', marker='^', linestyle=':')
+    # ax.plot(ms, p_to_SPL(pLUSmB_model_rotor), color='g', marker='^', linestyle=':')
+    # ax.plot(ms, p_to_SPL(ptmB_model_rotor),  color='b', marker='^', linestyle=':')
+    ax.plot(ms, p_to_SPL(pmB_model_beam_total), label=f"Strut Total (PIN)", color='b', marker='^', linestyle=':')
+    ax.plot(ms, p_to_SPL(pmB_model_beam_total+p_direct_s+p_direct_us+p_direct_thickness), label=f"Total (PIN)", color='k', marker='^', linestyle=':')
+
+    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc), label=f"Strut Total (Scattering)", color='b', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc+p_direct_s+p_direct_us+p_direct_thickness), label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
+
+
+    # --- plotting ---
+    # ax.plot(ms, SPL_total_PIN, color='r', marker='^')
+
+    # ax.plot(ms, SPL_total_scattering, color='b', marker='s', linestyle='--')
+
+
+    ax.plot(freq[0]/BPF,
+            spl_from_autopower(data),
+            color='0.3',
+            linewidth=2)
+
+    fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+                            plot_kwargs={
+                                'color':'k',
+                                'linestyle':'dashed',
+                                'alpha':1.0,
+                                'linewidth': 2
+                            })
+
+    model_handles = [
+        Line2D([0], [0], color='k', marker='^', linestyle=':',
+            label='PIN'),
+        Line2D([0], [0], color='k', marker='s', linestyle='--',
+            label='Scattering'),
+        Line2D([0], [0], color='0.3', lw=3,
+            label='Experiment'),
+    ]
+    component_handles = [
+        # Line2D([0], [0], color='r', lw=2, label='Rotor Steady Loading Noise'),
+        # Line2D([0], [0], color='b', lw=2, label='Rotor Thickness Noise'),
+        # Line2D([0], [0], color='g', lw=2, label='Rotor Unsteady Loading Noise'),
+        Line2D([0], [0], color='r', lw=2, label='Rotor'),
+        Line2D([0], [0], color='b', lw=2, label='Strut'),
+        Line2D([0], [0], color='k', lw=2, label='Total'),
+        # Line2D([0], [0], color='c', lw=2, label='Non-linear'),
+        # Line2D([0], [0], color='k', lw=2, label='Total'),
+
+        # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
+        # Line2D([0], [0], color='k', lw=2, label='L+T'),
+    ]
+
+    leg2 = ax.legend(handles=model_handles,
+                    #  title='Model',
+                    loc='upper right' if ind_phi != 0 else 'lower right', fontsize=10)
+    leg1 = ax.legend(handles=component_handles,
+                    #  title='Model',
+                    loc='lower right' if ind_phi != 0 else 'upper right', fontsize=10)
+    ax.add_artist(leg1)
+    ax.add_artist(leg2)
+
+
+
+    # ax.legend(ncol=2, loc='upper left', fontsize=10)
+    ax.set_xlabel("$m = f/f_{\mathrm{BPF}}$ (-)")
+    ax.set_ylabel("SPL (dB w.r.t. 20e-6 Pa)")
+    ax.set_xscale('log')
+    ax.set_xticks(ms)
+
+    ax.grid(visible=True, which='major', color='k', linestyle='-')
+    ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
+    # ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
+    # plt.xlim(0.03333, 100)
+    # plt.xlim(0.1, 100)
+    # plt.xlim(0, 11)
+    # plt.xlim(0.8, 14)
+    plt.xlim(0.8, 50)
+
+
+
+    plt.ylim(0, 70)
+
+    plt.tight_layout()
+    plt.show()
+    import os
+    folder_name = f'./Figures/Spectra'
+    fig.savefig(
+        os.path.join(folder_name, f"spectrum_TAXONOMY_PAPER_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
         dpi=300,
         bbox_inches="tight",
     )
