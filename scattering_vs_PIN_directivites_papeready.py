@@ -85,7 +85,7 @@ shape='D'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
-mss = np.array([2])
+mss = np.array([5])
 
 for ms in mss:
     sourceArray.numerics['CompactnessCorrection'] = True
@@ -466,6 +466,12 @@ for ms in mss:
     R1 = R0 * 1.1
 
     for comp in components:
+
+        # save data for component first
+        np.save(os.path.join(folder_name, f"data_directivities_{comp['name']}.npy"), comp["data"])
+        np.save(os.path.join(folder_name, f"theta_directivities_{comp['name']}.npy"), comp["theta"])
+        np.save(os.path.join(folder_name, f"phi_directivities_{comp['name']}.npy"), comp["phi"])
+
 
         # ==========================================================
         # SPL directivity

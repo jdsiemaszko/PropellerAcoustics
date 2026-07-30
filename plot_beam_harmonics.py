@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
+
 source = './Data/current/surface_pressure/'
 Fms = np.load(source + 'loading_harmonics_ALL.npy') # 3, Nm, Nr, Ncomp
 rs = np.load(source + 'r_query.npy') # Nrquery
@@ -188,24 +191,31 @@ for index_r, r in enumerate(rs):
 
         ax.set_xticks(ks)
 
-        leg = ax.legend(handles=component_handles, loc='upper right', fontsize=10)
-        leg2 = ax.legend(handles=model_handles,
-                    #  title='Model',
-                    # loc='upper center',
-                    # loc='lower right',
-                    loc='upper left',
 
-                      fontsize=10)
-        ax.add_artist(leg)
-        ax.add_artist(leg2)
+        
+        if index_dir==1 and index_r==0:
+            leg = ax.legend(handles=component_handles, loc='upper right', fontsize=10)
+            leg2 = ax.legend(handles=model_handles,
+                        #  title='Model',
+                        # loc='upper center',
+                        # loc='lower right',
+                        loc='upper left',
 
-        ax.set_xlabel(fr'$k = f / \Omega$')
-        ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
+                        fontsize=10)
+            ax.add_artist(leg)
+            ax.add_artist(leg2)
+        if index_dir==2:
+            ax.set_xlabel(fr'$k = f / \Omega$')
+        if index_r==0:
+            ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
         plt.tight_layout()
 
         ax.set_ylim(0,1.0)
 
-        ax.grid()
+        plt.minorticks_on()
+        # Grid
+        ax.grid(which='major', axis='both', linestyle='-')
+        ax.grid(which='minor', linestyle='--', alpha=0.5)
         plt.savefig(f'./Figures/iLES/harmonics_beam_{DIRECTION}_{r:.4f}.pdf')
 
         plt.show()

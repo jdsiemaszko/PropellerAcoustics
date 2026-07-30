@@ -4,7 +4,8 @@ import matplotlib.colors as colors
 import os 
 from Constants.data_assim import getGojonData, getHarmonicsFromData
 from Constants.helpers import plot_directivity_contour, plot_phase_directivity_contour, p_to_SPL, read_force_file
-
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
 components = [
         # ==========================================================
         # 1) Loading contributions
@@ -157,15 +158,16 @@ for index_comp, comp in enumerate(components):
         levels=levels,
         fig=fig,
         ax=ax,
-        cmap='jet'
+        # cmap='binary'
+        cmap='Blues'
     )
     ax.set_ylim(0, 2 * np.pi)
 
     # ax.set_xlim(rroot, rtip)
     ax.set_aspect((2 * np.pi / (rtip - rroot))**(-1))
     if PHI.max() > rtip:
-        ax.axvline(rroot, color='white', linestyle='dashed', linewidth=3)
-        ax.axvline(rtip, color='white', linestyle='dashed', linewidth=3)
+        ax.axvline(rroot, color='r', linestyle='dashed', linewidth=3)
+        ax.axvline(rtip, color='r', linestyle='dashed', linewidth=3)
         ax.set_xticks(np.linspace(0, 2*rtip, 11))
     else:
         ax.set_xticks(np.linspace(0, rtip, 6))
@@ -210,8 +212,8 @@ for index_comp, comp in enumerate(components):
     # # ax.set_xlim(rroot, rtip)
     # ax2.set_aspect((2 * np.pi / (rtip - rroot))**(-1))
     # if PHI.max() > rtip:
-    #     ax.axvline(rroot, color='white', linestyle='dashed')
-    #     ax.axvline(rtip, color='white', linestyle='dashed')
+    #     ax.axvline(rroot, color='r', linestyle='dashed')
+    #     ax.axvline(rtip, color='r', linestyle='dashed')
     # plt.tight_layout()
 
     # fig2.savefig(
@@ -229,7 +231,7 @@ cbar = fig.colorbar(
     cax=cax,
 )
 
-cbar.set_label("SPL [dB]")
+cbar.set_label("SPL [dB w.r.t. 20e-6 Pa]")
 cbar.set_ticks(np.arange(VMIN, VMAX+1, 10))
 
 fig.savefig(

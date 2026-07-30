@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 MODE = 'half'
 SUFFIX = '_D180_MR'
 folder = './Data/current/phase_curves/'
-
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
 m_values = [1, 2, 3, 4, 5]
 phi_values = [50, 90, 130]
 
@@ -12,7 +13,7 @@ labels = [
     'Scattering',
     'PIN (current)',
     'PIN (Vella et al. 2026)',
-    'Direct Rotor Radiation'
+    # 'Direct Rotor Radiation'
     # 'Direct Only'
 ]
 
@@ -154,9 +155,9 @@ for m in m_values:
             )
 
         if m == 5:
-            ax.set_xlabel('Microphone Index [-]')
+            ax.set_xlabel('Mic. index')
         if phi_plot==50: 
-            ax.set_ylabel('Phase w.r.t. mic. 1 [rad]')
+            ax.set_ylabel('Phase w.r.t. mic. 1. [rad]')
 
         fig.tight_layout()
         plt.show()

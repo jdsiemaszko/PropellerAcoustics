@@ -5,6 +5,9 @@ from matplotlib.lines import Line2D
 from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, p_to_SPL, spl_from_autopower, plot_BPF_peaks
 from Constants.data_assim import getGojonData
 
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
+
 # BEGINNING OF HEADER
 FILE='TOTAL'
 MODE = 'half'
@@ -74,7 +77,7 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     # ax.plot(ms, SPL_rotor_total, label=f"Rotor Total (PIN)", color='y', marker='^')
     ax.plot(ms, p_to_SPL(pmB_model_beam_loading), label=f"Beam Loading due to Blade Loading", color='r', marker='^', linestyle=':')
     ax.plot(ms, p_to_SPL(pmB_model_beam_thickness), label=f"Beam Loading due to Blade Thickness", color='b', marker='^', linestyle=':')
-    ax.plot(ms, p_to_SPL(pmB_model_beam_nonlinear), label=f"Non-linear", color='c', marker='^', linestyle=':')
+    ax.plot(ms, p_to_SPL(pmB_model_beam_nonlinear), label=f"Non-linear", color='m', marker='^', linestyle=':')
     ax.plot(ms, p_to_SPL(pmB_model_beam_total), label=f"Strut Total", color='k', marker='^', linestyle=':')
 
 
@@ -87,9 +90,14 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     #                              'linestyle':'dashed',
     #                              'alpha':0.75
     #                          })
+    ax.plot(ms, p_to_SPL(p_scattered_s), label=f"Scattered Steady Loading Noise", color='r', marker='p', linestyle='dashdot')
+    ax.plot(ms, p_to_SPL(p_scattered_us), label=f"Scattered Unsteady Loading Noise", color='g', marker='p', linestyle='dashdot')
+    # ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness), label=f"Scattered Thickness Noise", color='b', marker='p', linestyle='dashdot')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness+p_scattered_s+p_scattered_us), label=f"Total (Scattering)", color='k', marker='p', linestyle='dashdot')
 
     ax.plot(ms, p_to_SPL(p_scattered_s_nc), label=f"Scattered Steady Loading Noise", color='r', marker='s', linestyle='dashed')
-    ax.plot(ms, p_to_SPL(p_scattered_us_nc), label=f"Scattered Unsteady Loading Noise", color='m', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_us_nc), label=f"Scattered Unsteady Loading Noise", color='g', marker='s', linestyle='dashed')
     # ax.plot(ms, SPL_scattered, label=f"Scattered Loading Noise", color='m', marker='s', linestyle='dashed')
     ax.plot(ms, p_to_SPL(p_scattered_thickness_nc), label=f"Scattered Thickness Noise", color='b', marker='s', linestyle='dashed')
     ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc), label=f"Total (Scattering)", color='k', marker='s', linestyle='dashed')
@@ -104,16 +112,19 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     model_handles = [
         Line2D([0], [0], color='k', marker='^', linestyle=':',
             label='PIN'),
+        Line2D([0], [0], color='k', marker='p', linestyle='dashdot',
+            label='Scattering (compact)'),
         Line2D([0], [0], color='k', marker='s', linestyle='--',
-            label='Scattering'),
+            label='Scattering (non-compact)'),
+
         # Line2D([0], [0], color='0.3', lw=3,
         #     label='Experiment'),
     ]
     component_handles = [
         Line2D([0], [0], color='r', lw=2, label='Steady Loading'),
         Line2D([0], [0], color='b', lw=2, label='Thickness'),
-        Line2D([0], [0], color='m', lw=2, label='Unsteady Loading'),
-        Line2D([0], [0], color='c', lw=2, label='Non-linear'),
+        Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
+        Line2D([0], [0], color='m', lw=2, label='Non-linear'),
         Line2D([0], [0], color='k', lw=2, label='Total'),
 
         # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
@@ -133,20 +144,23 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
 
 
     # ax.legend(ncol=2, loc='upper left', fontsize=10)
-    ax.set_xlabel("$m = f/B/\Omega$ (Hz)")
-    ax.set_ylabel("SPL (dB)")
-    ax.set_xscale('log')
+    ax.set_xlabel("$m = f/B\Omega$")
+    ax.set_ylabel("SPL [dB w.r.t. 20e-6 Pa]")
+    # ax.set_xscale('log')
 
-    ax.grid(visible=True, which='major', color='k', linestyle='-')
-    ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
+    plt.minorticks_on()
+    # Grid
+    ax.grid(which='major', axis='both', linestyle='-')
+    ax.grid(which='minor', linestyle='--', alpha=0.5)
     # ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
     # plt.xlim(0.03333, 100)
     # plt.xlim(0.1, 100)
-    plt.xlim(0.8, 14)
+    # plt.xlim(0.8, 14)
+    plt.xlim(0, 11)
 
 
-    plt.ylim(20, 70)
-    # plt.ylim(15, 65)
+    # plt.ylim(20, 70)
+    plt.ylim(10, 75)
 
     plt.tight_layout()
     # plt.show()
@@ -183,8 +197,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
 
 
     # ax.legend(ncol=2, loc='upper left', fontsize=10)
-    ax.set_xlabel("$m = f/B/\Omega$ (Hz)")
-    ax.set_ylabel("SPL (dB)")
+    ax.set_xlabel("$m = f/B/\Omega$")
+    ax.set_ylabel("SPL [dB w.r.t. 20e-6 Pa]")
     ax.set_xscale('log')
 
     ax.grid(visible=True, which='major', color='k', linestyle='-')
@@ -280,8 +294,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
 
 
     # ax.legend(ncol=2, loc='upper left', fontsize=10)
-    ax.set_xlabel("$m = f/f_{\mathrm{BPF}}$ (-)")
-    ax.set_ylabel("SPL (dB w.r.t. 20e-6 Pa)")
+    ax.set_xlabel(r"$m = f/B\Omega$")
+    ax.set_ylabel("SPL [dB w.r.t. 20e-6 Pa]")
     ax.set_xscale('log')
 
     ax.grid(visible=True, which='major', color='k', linestyle='-')
@@ -379,8 +393,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
 
 
     # ax.legend(ncol=2, loc='upper left', fontsize=10)
-    ax.set_xlabel("$m = f/f_{\mathrm{BPF}}$ (-)")
-    ax.set_ylabel("SPL (dB w.r.t. 20e-6 Pa)")
+    ax.set_xlabel("$m = f/B\Omega$")
+    ax.set_ylabel("SPL [dB w.r.t. 20e-6 Pa]")
     ax.set_xscale('log')
     ax.set_xticks(ms)
 
@@ -401,8 +415,8 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     plt.show()
     import os
     folder_name = f'./Figures/Spectra'
-    fig.savefig(
-        os.path.join(folder_name, f"spectrum_TAXONOMY_PAPER_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
-        dpi=300,
-        bbox_inches="tight",
-    )
+    # fig.savefig(
+    #     os.path.join(folder_name, f"spectrum_TAXONOMY_PAPER_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
+    #     dpi=300,
+    #     bbox_inches="tight",
+    # )
