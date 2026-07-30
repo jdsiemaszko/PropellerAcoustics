@@ -5,8 +5,15 @@ import matplotlib.colors as colors
 from Constants.data_assim import getGojonData, getHarmonicsFromData
 from PotentialInteraction.PIN import PotentialInteraction
 from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, plot_beam_azimuth, plot_rotation_arrow
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
+
+r = np.linspace(0.016, 0.1, 100)
+Fz = np.interp(r, r_inner, Fz)
+Fphi = np.interp(r, r_inner, Fphi)
+r_inner = r
 
 rt, t =  np.loadtxt('./Data/Parrot2024/thrust_Npm.csv', skiprows=1, delimiter=',').T # radius/r1, thrust in Npm
 rq, q =  np.loadtxt('./Data/Parrot2024/torque_Nmpm.csv', skiprows=1, delimiter=',').T # radius/r1, torque in Nmpm
@@ -52,21 +59,27 @@ lambda0 = c0 / Omega * 2 * np.pi * B
 Mach_r  = Omega * r_inner / c0
 He_Mr = chord / lambda0 * 2 * np.pi / Mach_r
 
-fig, ax = plt.subplots(figsize=(6, 3))
+fig, ax = plt.subplots(figsize=(4, 3))
 
 # --- primary axis ---
 l1 = ax.plot(r_inner / r1, F1, color='r', label='$F_1 = C_L c/4\pi r $')[0]
 # l1 = ax.plot(r_inner / r1, F_p, color='c', label='$F_1 = C_L c/4\pi r $')[0]
 
-l2 = ax.plot(r_inner / r1, F2, color='g', label='$F_2 = C_L R^2/4rt$')[0]
-l3 = ax.plot(r_inner / r1, F3, color='b', label='$F_3 = tc/2\pi R^2$')[0]
-l4 = ax.plot(r_inner / r1, He_Mr, color='m', label='$He_0 / M_r = Bc/r$')[0]
+l2 = ax.plot(r_inner / r1, F2, color='g', label='$F_2 = C_L R^2/4rt$', linestyle='--')[0]
+l3 = ax.plot(r_inner / r1, F3, color='b', label='$F_3 = tc/2\pi R^2$', linestyle='dotted')[0]
+l4 = ax.plot(r_inner / r1, He_Mr, color='m', label='$He_B = Bc/r$', linestyle='dashdot')[0]
 
 
-ax.set_xlabel('$r/r_t$')
+ax.set_xlabel('$r/r_{\mathrm{tip}}$')
 # ax.set_ylabel(r'$F = C_l c / 4\pi r$')
-ax.grid()
+# ax.set_yticks(np.linspace(-np.pi, np.pi, 17), minor=True)
+
+plt.minorticks_on()
+# Grid
+ax.grid(which='major', axis='both', linestyle='-')
+ax.grid(which='minor', linestyle='--', alpha=0.5)
 ax.set_yscale('log')
+ax.set_ylim(5e-4, 1e0)
 # --- secondary axis ---
 # ax2 = ax.twinx()
 # l2 = ax2.plot(r_inner / r1, He_Mr, color='b', label=r'$He_0 / M_r$')[0]
@@ -75,8 +88,8 @@ ax.set_yscale('log')
 # --- legend (IMPORTANT FIX) ---
 ax.legend(
     handles=[l1, l2, l3, l4],
-    loc='best',          # keeps it inside automatically
-    frameon=True, fontsize = 11
+    loc='lower left',          # keeps it inside automatically
+    frameon=True, fontsize = 10, ncol=2
 )
 
 plt.tight_layout()

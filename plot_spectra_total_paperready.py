@@ -4,6 +4,8 @@ import matplotlib.colors as colors
 from matplotlib.lines import Line2D
 from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, p_to_SPL, spl_from_autopower, plot_BPF_peaks
 from Constants.data_assim import getGojonData
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 # BEGINNING OF HEADER
 FILE='TOTAL'
@@ -126,7 +128,11 @@ for (ind_theta, ind_phi, y1, y2) in zip([6, 10, 6, 2], [9, 9, 0, 18], [48, 48, N
         axins.set_yticks(np.arange(35, 80, 5))  
         axins.set_xlim(x1, x2)
         axins.set_ylim(y1, y2)    
-        axins.grid(True, which='both', linestyle='--', alpha=0.5)
+
+        plt.minorticks_on()
+        # Grid
+        axins.grid(which='major', axis='both', linestyle='-')
+        axins.grid(which='minor', linestyle='--', alpha=0.5)
 
         # optional: draw rectangle showing zoom region
         mark_inset(ax, axins, loc1=2, loc2=3, fc="none", ec="0.5")
@@ -194,13 +200,20 @@ for (ind_theta, ind_phi, y1, y2) in zip([6, 10, 6, 2], [9, 9, 0, 18], [48, 48, N
 
 
     # ax.legend(ncol=2, loc='upper left', fontsize=10)
-    ax.set_xlabel("$m = f/f_{\mathrm{BPF}}$ (-)")
-    ax.set_ylabel("SPL (dB w.r.t. 20e-6 Pa)")
+    ax.set_xlabel(r"$m = f/B\Omega$")
+    ax.set_ylabel("SPL [dB w.r.t. 20e-6 Pa]")
     ax.set_xscale('log')
-    ax.set_xticks(ms)
+    # ax.set_xticks(10.**np.arange(-1, 3, 1))
+    # ax.set_xticks(10.**np.arange(-1, 3, 1), minor=True)
 
-    ax.grid(visible=True, which='major', color='k', linestyle='-')
-    ax.grid(visible=True, which='minor', color='k', linestyle='--', alpha=0.5)
+
+    plt.minorticks_on()
+    ax.set_yticks(np.arange(0, 80, 10))
+
+    ax.set_yticks(np.arange(0, 80, 2), minor=True)
+    # Grid
+    ax.grid(which='major', axis='both', linestyle='-')
+    ax.grid(which='minor', linestyle='--', alpha=0.5)
     # ax.set_title(f'Theta = {theta} deg, Phi = {phi} deg')
     # plt.xlim(0.03333, 100)
     # plt.xlim(0.1, 100)
@@ -220,7 +233,7 @@ for (ind_theta, ind_phi, y1, y2) in zip([6, 10, 6, 2], [9, 9, 0, 18], [48, 48, N
     import os
     folder_name = f'./Figures/Spectra'
     fig.savefig(
-        os.path.join(folder_name, f"spectrum_TAXONOMY_PAPER_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
+        os.path.join(folder_name, f"spectrum_TAXONOMY_PAPER_TOTAL_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
         dpi=300,
         bbox_inches="tight",
     )

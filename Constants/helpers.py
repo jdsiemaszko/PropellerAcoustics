@@ -387,7 +387,7 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
         # --- color normalization ---
         norm = colors.Normalize(vmin=valmin, vmax=valmax)
-        facecolors = plt.cm.viridis(norm(mag_db_c))
+        facecolors = plt.cm.Blues(norm(mag_db_c))
 
         # --- build quad faces ---
         faces = []
@@ -414,7 +414,10 @@ def plot_3D_directivity(vector_to_plot, Theta, Phi,
 
         ax.add_collection3d(poly)
         # --- colorbar ---
-        mappable = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
+        mappable = plt.cm.ScalarMappable(
+            # cmap="viridis",
+            cmap='Blues',
+                                          norm=norm)
         mappable.set_array(mag_db_c)
 
         if plot_cbar:

@@ -32,9 +32,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
 SUFFIX = '_D180_MR'
 
-for m in [4]:
+for m in [1, 2, 3, 4, 5]:
     ms = np.array([m]) # harmonic to plot
-    phi_plot = 50 # phi_experimental to plot, in degrees
+    phi_plot = 90+90 # phi_experimental to plot, in degrees
 
     sourceArray.numerics['CompactnessCorrection'] = True
 
@@ -162,12 +162,19 @@ for m in [4]:
     p_total_pin = p_blade_loading + p_blade_thickness + p_beam_total
     p_total_pin_loading = p_blade_loading + p_blade_thickness + p_beam_loading
 
+    # save data for post-processing
+    folder = './Data/current/phase_curves/'
+    np.save(folder + f'pxx_exp_{m}_{phi_plot}_{MODE}{SUFFIX}.npy', Pxx)
+    np.save(folder + f'phase_exp_{m}_{phi_plot}_{MODE}{SUFFIX}.npy', phase)
+    np.save(folder + f'p_total_scattering_{m}_{phi_plot}_{MODE}{SUFFIX}.npy', p_total_scattering)
+    np.save(folder + f'p_total_pin_{m}_{phi_plot}_{MODE}{SUFFIX}.npy', p_total_pin)
+    np.save(folder + f'p_total_pin_loading_{m}_{phi_plot}_{MODE}{SUFFIX}.npy', p_total_pin_loading)
+    np.save(folder + f'p_total_direct_{m}_{phi_plot}_{MODE}{SUFFIX}.npy', p_direct_total)
+    np.save(folder + f'theta_{m}_{phi_plot}_{MODE}{SUFFIX}.npy', theta)
+
+    print(f'saved results to {folder}')
 
 
-
-
-    # experimental      
-    #   
     fig = plt.figure(figsize=(6, 4))
     ax = fig.add_subplot(111, projection="polar")
 
@@ -202,6 +209,6 @@ for m in [4]:
         plot_kwargs={'color':'m', 'linestyle':'-','marker':'p', 'label':'Direct Rotor Only'})
     
     ax.legend(fontsize=8, loc='lower left')
-    plt.show()
+    # plt.show()
     fig.savefig(f'./Figures/phase_curves/phase_curve_{SUFFIX}_M{ms[0]}.pdf')
 
