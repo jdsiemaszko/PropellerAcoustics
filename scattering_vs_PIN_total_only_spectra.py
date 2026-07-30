@@ -76,14 +76,14 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # shape='D'
 
 
-# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray # pick configuration
-# SUFFIX = 'D20L20_D180_v2'
-# shape='D'
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray # pick configuration
+SUFFIX = 'D20L20_D180_v2'
+shape='D'
 
 
-from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_NQ160 as sourceArray # pick configuration
-SUFFIX = 'PARROT_D20L20_D180_NQ160'
-shape = 'PARROT'
+# from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180_NQ160 as sourceArray # pick configuration
+# SUFFIX = 'PARROT_D20L20_D180_NQ160'
+# shape = 'PARROT'
 
 # from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray
 # SUFFIX = 'D20L20_D180_6000RPM_NQ160'
@@ -241,13 +241,13 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
 
     # -------------------------------- SCATTERED LOADING NOISE ------------------------------------------
     # save gradients in the far-field (run once per observer and m)
-    # for index, sm in enumerate(sourceArray.children):
+    for index, sm in enumerate(sourceArray.children):
 
-    #     gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
-    #     print(f'pre-computing far-field gradients {index+1}')
+        gradG_surface = np.load(f'./Data/current/NACA0012_rotor/gradG_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (3, Nm, Nz, Ny)
+        print(f'pre-computing far-field gradients {index+1}')
 
-    #     gradG = sm.getScatteringGreenGradient(x_cart, ms*B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
-    #     np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', gradG)
+        gradG = sm.getScatteringGreenGradient(x_cart, ms*B * np.abs(Omega)  / c0, gradG_surface) # shape (3, Nm, Nx, Ny)
+        np.save(f'./Data/current/NACA0012_rotor/gradG_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', gradG)
 
 
 
@@ -278,13 +278,13 @@ for (ind_theta, ind_phi) in zip([2, 6, 10, 6, 2, 10, 2], [9, 9, 9, 0, 13, 18, 18
     # -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
     # save gradients in the far-field (run once per observer and m)
-    # for index, sm in enumerate(sourceArray.children):
+    for index, sm in enumerate(sourceArray.children):
 
-    #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
-    #     print(f'pre-computing far-field gradients {index+1}')
+        G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
+        print(f'pre-computing far-field gradients {index+1}')
 
-    #     G = sm.getScatteringGreen(x_cart, ms*B * np.abs(Omega)  / c0, G_surface) # shape (Nm, Nx, Ny)
-    #     np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
+        G = sm.getScatteringGreen(x_cart, ms*B * np.abs(Omega)  / c0, G_surface) # shape (Nm, Nx, Ny)
+        np.save(f'./Data/current/NACA0012_rotor/G_sm_{index}_{MODE}_{ind_theta}_{ind_phi}_{FILE}{SUFFIX}.npy', G)
 
 
     G_arr = np.zeros((Nchildren, ms.shape[0], x_cart.shape[1], NDIPOLES), dtype=np.complex128)
