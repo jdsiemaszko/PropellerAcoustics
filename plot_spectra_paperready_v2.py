@@ -10,7 +10,7 @@ plt.rcParams["mathtext.fontset"] = "dejavuserif"
 # BEGINNING OF HEADER
 FILE='TOTAL'
 MODE = 'half'
-SUFFIX = '_D180_MR'
+SUFFIX = 'D20L20_D180_v2'
 shape='D'
 RPM = 8000
 
