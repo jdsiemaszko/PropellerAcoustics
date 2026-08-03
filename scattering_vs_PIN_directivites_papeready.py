@@ -89,7 +89,7 @@ shape='D'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
-mss = np.array([5])
+mss = np.array([2, 5])
 
 for ms in mss:
     sourceArray.numerics['CompactnessCorrection'] = True

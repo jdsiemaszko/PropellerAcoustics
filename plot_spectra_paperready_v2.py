@@ -150,9 +150,9 @@ for (ind_theta, ind_phi, y1, y2) in zip([6, 10, 6, 2], [9, 9, 0, 18], [52, 51, N
         Line2D([0], [0], color='b', marker='s', linestyle='--',
             label='Scattering'),
         Line2D([0], [0], color='r', marker='^', linestyle=':',
-            label='PIN (current)'),
+            label='PIN (vortex+doublet)'),
         Line2D([0], [0], color='g', marker='p', linestyle='dashdot',
-            label='PIN (Vella et al. 2026)'),
+            label='PIN (vortex only)'),
     ]
     component_handles = [
         # Line2D([0], [0], color='r', lw=2, label='Rotor Steady Loading Noise'),

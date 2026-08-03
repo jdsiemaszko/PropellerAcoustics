@@ -444,7 +444,7 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     # plt.ylim(15, 65)
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
     fig.savefig(
         os.path.join(folder_name, f"spectrum_STRUT_{ind_theta}_{ind_phi}{SUFFIX}.pdf"),
         dpi=300,

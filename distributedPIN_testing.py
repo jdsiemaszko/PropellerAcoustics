@@ -33,7 +33,7 @@ ms = np.arange(1, 16, 1)
 #     c_mps=340.0,
 #     kmax=NHARMONICS,
 #     nb=1,
-#     numerics={'Nphi': 720, 'Nthetab': 36*2, 'include_vortex_sources':True, 'include_thickness_sources':True}
+#     numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True}
 # )
 
 pin = DistributedPIN(
@@ -52,7 +52,7 @@ pin = DistributedPIN(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True, 'Nchord':20}
+    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True, 'Nchord':1}
 )
 
 blade_l = BladeLoadings(
@@ -103,8 +103,8 @@ hanson = HansonModel(
 # pin.plotDownwashInRotorPlane()
 # plt.show()
 
-pin.plotStrutLoading3D()
-plt.show()
+# pin.plotStrutLoading3D()
+# plt.show()
 
 
 Fblade = pin.getBladeLoadingHarmonics()
@@ -185,33 +185,33 @@ plt.show()
 
 k = pin.k
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-ax.plot(k, np.abs(Fblade[1, :, 30]), marker='s', color='r', label='PIN')
-ax.plot(k, np.abs(Fblade_old[1, :, 30]), marker='^', color='b', label='Old')
+# ax.plot(k, np.abs(Fblade[1, :, 30]), marker='s', color='r', label='PIN')
+# ax.plot(k, np.abs(Fblade_old[1, :, 30]), marker='^', color='b', label='Old')
 
-ax.plot(k, np.abs(Fblade[2, :, 30]), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.abs(Fblade_old[2, :, 30]), marker='^', color='b', linestyle='dashed')
-ax.set_xlabel('k')
-ax.set_ylabel('$|F^z_{blade}|$')
-ax.legend()
-ax.grid()
-plt.title('Blade Loadings')
-plt.show()
+# ax.plot(k, np.abs(Fblade[2, :, 30]), marker='s', color='r', linestyle='dashed')
+# ax.plot(k, np.abs(Fblade_old[2, :, 30]), marker='^', color='b', linestyle='dashed')
+# ax.set_xlabel('k')
+# ax.set_ylabel('$|F^z_{blade}|$')
+# ax.legend()
+# ax.grid()
+# plt.title('Blade Loadings')
+# plt.show()
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-ax.plot(k, np.rad2deg(np.angle(Fblade[1, :, 30])), marker='s', color='r', label='PIN')
-ax.plot(k, np.rad2deg(np.angle(Fblade_old[1, :, 30])), marker='^', color='b', label='Old')
+# ax.plot(k, np.rad2deg(np.angle(Fblade[1, :, 30])), marker='s', color='r', label='PIN')
+# ax.plot(k, np.rad2deg(np.angle(Fblade_old[1, :, 30])), marker='^', color='b', label='Old')
 
-ax.plot(k, np.rad2deg(np.angle(Fblade[2, :, 30])), marker='s', color='r', linestyle='dashed')
-ax.plot(k, np.rad2deg(np.angle(Fblade_old[2, :, 30])), marker='^', color='b', linestyle='dashed')
-ax.set_xlabel('k')
-ax.set_ylabel('$Arg(F^z_{blade})$ [deg]')
-ax.legend()
-ax.grid()
-plt.title('Blade Loadings')
-plt.show()
+# ax.plot(k, np.rad2deg(np.angle(Fblade[2, :, 30])), marker='s', color='r', linestyle='dashed')
+# ax.plot(k, np.rad2deg(np.angle(Fblade_old[2, :, 30])), marker='^', color='b', linestyle='dashed')
+# ax.set_xlabel('k')
+# ax.set_ylabel('$Arg(F^z_{blade})$ [deg]')
+# ax.legend()
+# ax.grid()
+# plt.title('Blade Loadings')
+# plt.show()
 
 
 fig, ax = plt.subplots()

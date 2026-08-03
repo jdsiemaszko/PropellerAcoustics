@@ -60,7 +60,7 @@ components = [
         "name": "loading_scattering",
         "title": "Loading contribution",
         'color' : 'r',
-        'linestyle': 'dashed',
+        'linestyle': 'dashdot',
         'marker' : 's',
         # 'label' : ''
     },
@@ -72,13 +72,13 @@ components = [
         "name": "thickness_scattering",
         "title": "Thickness contribution",
         'color' : 'b',
-        'linestyle': 'dashed',
+        'linestyle': 'dashdot',
         'marker' : 's',
     },
     {
         "name": "total_scattering",
         'color' : 'k',
-        'linestyle': 'dashed',
+        'linestyle': 'dashdot',
         'marker' : 's',
     },
 
@@ -88,7 +88,7 @@ components = [
     {
         "name": "loading_scattering_cp",
         'color' : 'r',
-        'linestyle': 'dashdot',
+        'linestyle': 'dashed',
         'marker' : 's',
         # 'label' : ''
     },
@@ -99,14 +99,14 @@ components = [
     {
         "name": "thickness_scattering_cp",
         'color' : 'b',
-        'linestyle': 'dashdot',
+        'linestyle': 'dashed',
         'marker' : 's',
     },
 
     {
         "name": "total_scattering_cp",
         'color' : 'k',
-        'linestyle': 'dashdot',
+        'linestyle': 'dashed',
         'marker' : 's',
     },
 

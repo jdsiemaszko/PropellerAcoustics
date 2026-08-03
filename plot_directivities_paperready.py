@@ -16,7 +16,7 @@ Nphi = 36
 B=2
 
 m_surface = np.arange(1, 11, 1)
-ms = [5]
+ms = [2]
 SUFFIX = 'D20L20_D180_v2'
 shape='D'
 
@@ -145,7 +145,7 @@ for comp in components:
 
     plot_beam_azimuth(R0, fig, ax)
     plot_rotation_arrow(R1, PHI_EXTENT=[10, 80], fig=fig, ax=ax)
-    # plt.show()
+    plt.show()
 
     fig.savefig(
         os.path.join(

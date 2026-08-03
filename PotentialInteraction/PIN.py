@@ -255,7 +255,13 @@ class PotentialInteraction:
         # TODO: replace after testing
         # for vortex_index in [0]: # sum an arbitrary amount of vortices, further ones should be negligible
         Nv = self._numerics.get('Nvortices', 10)
-        for vortex_index in  range(-Nv, Nv+1, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+
+        if Nv == 1:
+            vortex_indices = [0]
+        else:
+            vortex_indices = range(-Nv // 2, Nv // 2 + 1)
+
+        for vortex_index in vortex_indices: # sum an arbitrary amount of vortices, further ones should be negligible
             
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
             # phased vortices: shift the passage time by vortex_index * T/B
@@ -328,7 +334,7 @@ class PotentialInteraction:
 
                 dfdz += dfdz_doublet
 
-                pressure_doublet = np.real( self.Omega * self.seg_radius[None, None, :] * ( mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
+                pressure_doublet = self.rho * np.real( self.Omega * self.seg_radius[None, None, :] * ( mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
                      mu[None, None, :] ) / ( ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 ) ) )
 
                 pressure += pressure_doublet
@@ -343,8 +349,10 @@ class PotentialInteraction:
         pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!
 
         if only_linear:
+            print('WARNING: using only linear-acoustic pressure in PIN')
             output = pressure
         elif only_nonlinear:
+            print('WARNING: using only non-linear pressure in PIN')
             output = pressure_dynamic
         else:
             output = pressure + pressure_dynamic
@@ -1134,8 +1142,8 @@ class DistributedPIN(PotentialInteraction):
             for wl, wt, pos, in zip(weights_loading, weights_thickness, chord_inner_stations.T): # pos of size Nr
 
                 zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega
-                                                - pos[None, :] # shift the position to the right chordwise station, mind the convention is from LE to TE
-                                                ) + 1j * self.Lcylinder # shape Nphi, Nr
+                                                ) + 1j * self.Lcylinder - pos[None, :] # shift the position to the right chordwise station, mind the convention is from LE to TE
+                # shape Nphi, Nr
 
                 zvbar = np.conjugate(zv) # complex conjugate
 
@@ -1157,14 +1165,14 @@ class DistributedPIN(PotentialInteraction):
                     )
 
                     # rescale strength according to loading distribution
-                    gamma_shifted *= wl
+                    gamma_local = gamma_shifted * wl
                     
-                    dfdz_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (z[:, None, None] -
-                            zv[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
+                    dfdz_vortex = -1j * gamma_local[None, :, :] / 2 / np.pi / (z[:, None, None] -
+                            zv[None, :, :]) + 1j * gamma_local[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
                             zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
                     dfdz += dfdz_vortex
 
-                    pressure_vortex = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
+                    pressure_vortex = self.rho * gamma_local[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
                         1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
                     ) # (Nthetab, Nphi, Nr)
                     
@@ -1181,15 +1189,15 @@ class DistributedPIN(PotentialInteraction):
                     zdbar = np.conj(zd)
 
                     # rescale strength according to thickness distribution
-                    mu *= wt
+                    mu_local = mu * wt
 
-                    dfdz_doublet = - mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + ( zprime[:, None, None] / z[:, None, None] ) * ( 
-                                    np.conj( mu[None, None, :] ) / (( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2))
+                    dfdz_doublet = - mu_local[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + ( zprime[:, None, None] / z[:, None, None] ) * ( 
+                                    np.conj( mu_local[None, None, :] ) / (( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2))
 
                     dfdz += dfdz_doublet
 
-                    pressure_doublet = np.real( self.Omega * self.seg_radius[None, None, :] * ( mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
-                        mu[None, None, :] ) / ( ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 ) ) )
+                    pressure_doublet = np.real( self.Omega * self.seg_radius[None, None, :] * ( mu_local[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
+                        mu_local[None, None, :] ) / ( ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 ) ) )
 
                     pressure += pressure_doublet
 
