@@ -4,7 +4,7 @@ import matplotlib.colors as colors
 from TailoredGreen.TailoredGreen import TailoredGreen
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Constants.helpers import p_to_SPL, plot_3D_directivity, plot_directivity_contour, find_alpha
-from PotentialInteraction.PIN import PotentialInteraction
+from PotentialInteraction.PIN import PotentialInteraction, DistributedPIN
 from Hanson.far_field import HansonModel
 import aerosandbox as asb
 import neuralfoil as nf
@@ -1241,11 +1241,31 @@ class SourceModeArray():
         interface with PIN module, computing the loading and setting self.BLH to that loading
         """
 
-        PIN = PotentialInteraction(
+        # PIN = PotentialInteraction(
+        # twist_rad=self.twist,
+        # chord_m=self.chord,
+        # radius_m=self.radius,
+        # t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt).mean(axis=1) / self.chord, # TODO: fix????
+        # Fzprime_Npm=Fzprime,
+        # Fphiprime_Npm=Fphiprime,
+        # B=self.B,
+        # # Dcylinder_m=self.green.radius * 2,
+        # # Lcylinder_m=-1 * self.green.origin[2],
+        # Dcylinder_m= D, Lcylinder_m=L,
+        # Omega_rads=self.Omega,
+        # rho_kgm3=self.rho0,
+        # c_mps=self.SoS,
+        # kmax=self.Nk-1,
+        # nb=1,
+        # numerics=numerics if numerics is not None else {'Nphi': 180, 'Nthetab': 36}
+        # )
+
+        # TODO: input the actual thickness distribution?
+        PIN = DistributedPIN(
         twist_rad=self.twist,
         chord_m=self.chord,
         radius_m=self.radius,
-        t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt).mean(axis=1) / self.chord, # TODO: fix????
+        t_c = self.dt / self.chord if len(self.dt.shape) == 1 else (self.dt).mean(axis=1) / self.chord,
         Fzprime_Npm=Fzprime,
         Fphiprime_Npm=Fphiprime,
         B=self.B,
@@ -1257,7 +1277,7 @@ class SourceModeArray():
         c_mps=self.SoS,
         kmax=self.Nk-1,
         nb=1,
-        numerics=numerics if numerics is not None else {'Nphi': 180, 'Nthetab': 36}
+        numerics=numerics if numerics is not None else {'Nphi': 180, 'Nthetab': 36, 'Nchord':20}
         )
 
         return PIN

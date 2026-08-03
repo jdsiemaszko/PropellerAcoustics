@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 from Constants.helpers import theodorsen, twoside_spectrum, ifft_periodic, fft_periodic, periodic_sum_interpolated, plot_directivity_contour, p_to_SPL
 import matplotlib.pyplot as plt
 import warnings
-
+from scipy.integrate import quad
 
 class PotentialInteraction:
     def __init__(self,
@@ -19,7 +19,7 @@ class PotentialInteraction:
                 Dcylinder_m, Lcylinder_m, Omega_rads,
                 rho_kgm3=1.0, c_mps = 340, kmax = 20, nb:float = 1,
                 U0_mps:np.ndarray=None, # optional inflow velocity of shape (2, Nr), overwrites momentum theory computations
-                numerics = {},
+                numerics = {'Nvortices':10},
                 ):
         self.name = numerics.get('name', None)
         self.B = B
@@ -254,7 +254,8 @@ class PotentialInteraction:
         # for vortex_index in range(-10, 10, 1): # sum an arbitrary amount of vortices, further ones should be negligible
         # TODO: replace after testing
         # for vortex_index in [0]: # sum an arbitrary amount of vortices, further ones should be negligible
-        for vortex_index in  range(-10, 11, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+        Nv = self._numerics.get('Nvortices', 10)
+        for vortex_index in  range(-Nv, Nv+1, 1): # sum an arbitrary amount of vortices, further ones should be negligible
             
             # vortex position, complex, size (Nphi, Nr), vortex is moving from negative x to positive with speed Omega * r
             # phased vortices: shift the passage time by vortex_index * T/B
@@ -1033,7 +1034,7 @@ class PotentialInteraction:
                 cmap="viridis",
             )
 
-            ax[i].set_title(f"$F_{{{component_names[i]}}}^{{k={k[ik]}}}$")
+            ax[i].set_title(rf"$F_{{{component_names[i]}}}^{{k={k[ik]}}}$")
             ax[i].set_xlabel("Radius")
             ax[i].set_ylabel("Chord")
 
@@ -1044,3 +1045,168 @@ class PotentialInteraction:
 
         return fig, ax
 
+
+
+class DistributedPIN(PotentialInteraction):
+    def __init__(self, twist_rad, chord_m, radius_m, t_c, Fzprime_Npm, Fphiprime_Npm, B, Dcylinder_m, Lcylinder_m, Omega_rads, rho_kgm3=1, c_mps=340, kmax=20, nb = 1, U0_mps = None,
+                numerics={'Nvortices':10, 'Nchord': 10},
+                loading_func=lambda x: np.sqrt((1-x)/(1+x)), # Sears
+                thickness_func=lambda x, t=0.12: (
+                    2 * 5 * t * (
+                        0.2969 * np.sqrt((x/2+1/2))
+                        - 0.1260 * ((x/2+1/2))
+                        - 0.3516 * ((x/2+1/2)) ** 2
+                        + 0.2843 * ((x/2+1/2)) ** 3
+                        - 0.1036 * ((x/2+1/2)) ** 4
+                    ) # NACA0012 :)
+                ) 
+
+
+                  ):
+        super().__init__(twist_rad, chord_m, radius_m, t_c, Fzprime_Npm, Fphiprime_Npm, B, Dcylinder_m, Lcylinder_m, Omega_rads, rho_kgm3, c_mps, kmax, nb, U0_mps, numerics)
+
+        self.Nchord = self._numerics.get('Nchord', 10)
+        self.loading_func = loading_func # functions of x in (-1 to 1) (LE to TE) defining the loading and thickness over the chord
+        self.thickness_func = thickness_func # currently assuming the distributions are constant over the blade (sowwy)
+
+    def getStrutPressure(self,):
+        """
+        same as superclass, but with vortices and doublets distributed over the chord
+        """
+
+        include_thickness_sources = self._numerics.get('include_thickness_sources', False)
+        include_vortex_sources = self._numerics.get('include_vortex_sources', True)
+
+        
+        gamma = self.getGammaInPhi() # shape (Nphi, Nr) - quasi-steady-unsteady vortex strength
+
+        thetab = self.theta_beam
+        deltathetab = np.diff(thetab)[0]
+
+        z = self.Dcylinder/2 * np.exp(1j * thetab) # positions along the cylinder surface, complex, size (Nthetab)
+        zprime = self.Dcylinder**2 / 4 / z # circle conjugate
+
+        # inflow part
+        Uimag = np.linalg.norm(self.Ui, axis=0) # Nr
+        alpha0 = np.arctan2(self.Ui[0], -self.Ui[1]) # Nr
+
+        # TODO: check for errors
+        vortex_period = 2 * np.pi / self.B / self.Omega # vortex passage period
+        pressure = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
+        dfdz = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
+        
+        # add the mean flow term
+        dfdz += 1j * Uimag[None, None, :] * (np.exp(-1j * alpha0[None, None, :]) + np.exp(1j * alpha0[None, None, :]
+                    ) * zprime[:, None, None] / z[:, None, None]) 
+        
+        # thickness variables
+        # Lambda, b = self.getRankineParams()
+        mu = self.getDoubletParams()
+
+        Nv = self._numerics.get('Nvortices', 10)
+        Nc = self._numerics.get('Nchord', 10)
+
+        theta_outer_stations = np.pi / (Nc+1) * (np.arange(0, Nc+1, 1))
+        # theta_stations = 
+        chord_outer_stations = self.seg_chord[:, None] / 2 * (-np.cos(theta_outer_stations[None, :])) # -c/2 at the LEADING EDGE to c/2 at the TRAILING EDGE, shape Nr, Nc
+        chord_inner_stations = (chord_outer_stations[:, 1:] + chord_outer_stations[:, :-1]) / 2
+
+        weights_loading = np.empty(Nc)
+        for j in range(Nc):
+            weights_loading[j], _ = quad(
+                self.loading_func,
+                -np.cos(theta_outer_stations[j]),
+                -np.cos(theta_outer_stations[j+1])
+            )
+        weights_loading /= weights_loading.sum()
+
+        weights_thickness = np.empty(Nc)
+        for j in range(Nc):
+            weights_thickness[j], _ = quad(
+                self.thickness_func,
+                -np.cos(theta_outer_stations[j]),
+                -np.cos(theta_outer_stations[j+1])
+            )
+        weights_thickness /= weights_thickness.sum()
+
+        for vortex_index in  range(-Nv, Nv+1, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+            
+            for wl, wt, pos, in zip(weights_loading, weights_thickness, chord_inner_stations.T): # pos of size Nr
+
+                zv = self.seg_radius[None, :] * (self.phi[:, None] + vortex_index * vortex_period * self.Omega
+                                                - pos[None, :] # shift the position to the right chordwise station, mind the convention is from LE to TE
+                                                ) + 1j * self.Lcylinder # shape Nphi, Nr
+
+                zvbar = np.conjugate(zv) # complex conjugate
+
+                if include_vortex_sources:
+
+                    # add the linear contribution to dfdz
+                    phi = self.phi
+                    shift = vortex_index * vortex_period * self.Omega
+                    shifted_phi = (phi - shift) % (2 * np.pi)
+
+                    # sort once
+                    sort_idx = np.argsort(shifted_phi)
+                    phi_sorted = shifted_phi[sort_idx]
+
+                    gamma_shifted = np.apply_along_axis(
+                        lambda g: np.interp(phi, phi_sorted, g[sort_idx], period=2*np.pi),
+                        axis=0,
+                        arr=gamma
+                    )
+
+                    # rescale strength according to loading distribution
+                    gamma_shifted *= wl
+                    
+                    dfdz_vortex = -1j * gamma_shifted[None, :, :] / 2 / np.pi / (z[:, None, None] -
+                            zv[None, :, :]) + 1j * gamma_shifted[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
+                            zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
+                    dfdz += dfdz_vortex
+
+                    pressure_vortex = self.rho * gamma_shifted[None, :, :] * self.Omega * self.seg_radius[None, None, :] / 2 / np.pi * np.real(
+                        1j / zvbar[None, :, :] + 1j / (zv[None, :, :] - z[:, None, None]) - 1j / (zvbar[None, :, :] - zprime[:, None, None])
+                    ) # (Nthetab, Nphi, Nr)
+                    
+                    pressure += pressure_vortex # add the linear contribution to the pressure
+
+
+                # thickness contribution
+                # source: i made it up 
+                if include_thickness_sources:
+
+                    #doublet
+
+                    zd = zv
+                    zdbar = np.conj(zd)
+
+                    # rescale strength according to thickness distribution
+                    mu *= wt
+
+                    dfdz_doublet = - mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + ( zprime[:, None, None] / z[:, None, None] ) * ( 
+                                    np.conj( mu[None, None, :] ) / (( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2))
+
+                    dfdz += dfdz_doublet
+
+                    pressure_doublet = np.real( self.Omega * self.seg_radius[None, None, :] * ( mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
+                        mu[None, None, :] ) / ( ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 ) ) )
+
+                    pressure += pressure_doublet
+
+        u, v = np.real(dfdz), -np.imag(dfdz)
+        U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
+
+
+        only_linear = self._numerics.get('only_linear', False)
+        only_nonlinear = self._numerics.get('only_nonlinear', False)
+        
+        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!
+
+        if only_linear:
+            output = pressure
+        elif only_nonlinear:
+            output = pressure_dynamic
+        else:
+            output = pressure + pressure_dynamic
+
+        return output # Nthetab, Nphi, Nr

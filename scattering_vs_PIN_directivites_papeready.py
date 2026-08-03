@@ -37,9 +37,9 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # from SourceMode.Configurations_NACA0012 import D20L20W20_D180 as sourceArray # pick configuration
 # SUFFIX = '_D20L20W20_D180'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = '_D180_MR'
+# shape='D'
 
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = '_D10L20_D180'
@@ -81,6 +81,10 @@ shape='D'
 # from SourceMode.Configurations_NACA0012 import D10L20W00_D180 as sourceArray # pick configuration
 # SUFFIX = 'D10L20_D180_R80'
 # shape='D'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+SUFFIX = 'D20L20_D180_v2'
+shape='D'
 
 sourceArray.numerics['CompactnessCorrection'] = True
 
@@ -226,7 +230,7 @@ for ms in mss:
 
     #### -------------------------------- SCATTERED Thickness NOISE ------------------------------------------
 
-    ### save gradients in the far-field (run once per observer and m)
+    ## save gradients in the far-field (run once per observer and m)
     # for index, sm in enumerate(sourceArray.children):
     #     G_surface = np.load(f'./Data/current/NACA0012_rotor/G_surface_sm_{index}_{MODE}{SUFFIX}.npy') # shape (Nm, Nz, Ny)
     #     print(f'pre-computing far-field G {index+1}')
