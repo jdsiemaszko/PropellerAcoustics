@@ -21,7 +21,7 @@ ms = np.arange(1, 16, 1)
 #     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
 #     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
 #     radius_m=r_outer,
-#     t_c = np.ones_like(r_outer) * 0.12,
+#     t_c = np.ones_like(r_outer) * 0.0803,
 #     # Uz0_mps=U_flow,
 #     Fzprime_Npm=Fz,
 #     Fphiprime_Npm=Fphi,
@@ -40,7 +40,7 @@ pin = DistributedPIN(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
-    t_c = np.ones_like(r_outer) * 0.12,
+    t_c = np.ones_like(r_outer) * 0.0803,
     # Uz0_mps=U_flow,
     Fzprime_Npm=Fz,
     Fphiprime_Npm=Fphi,
@@ -52,7 +52,7 @@ pin = DistributedPIN(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True, 'Nchord':1}
+    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True, 'Nchord':10}
 )
 
 blade_l = BladeLoadings(

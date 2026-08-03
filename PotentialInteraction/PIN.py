@@ -209,7 +209,9 @@ class PotentialInteraction:
 
         # mu = radius_doublet ** 2 * np.abs(Ur) # Nr
         # Ucomplex = self.Omega * self.seg_radius - self.Ui[0] - 1j * self.Ui[1]
-        Ucomplex = self.Omega * self.seg_radius
+
+        Ucomplex = -self.Omega * self.seg_radius # TODO: SIGNS!
+        
         mu = radius_doublet_squared * Ucomplex # Nr, doublet strength, accounting for orientation of the inflow
 
         return mu
@@ -310,7 +312,6 @@ class PotentialInteraction:
                 # zspbar = np.conj(zsp)
                 # zsnbar = np.conj(zsn)
 
-                # ##### TODO: Lambda conj?
                 # # dfdz due to a sum of source at zsp and sink at zsn of strength Lambda
                 # dfdz_sourcesink = Lambda[None, None, :] / 2 / np.pi * ( 1 / (z[:, None, None] - zsp[None, :, :]) - 1 / (z[:, None, None] - zsn[None, :, :])
                 # ) + Lambda[None, None, :] / 2 / np.pi * (1 / (zprime[:, None, None] - zspbar[None, :, :]) - 1 / (zprime[:, None, None] - zsnbar[None, :, :])
@@ -334,19 +335,19 @@ class PotentialInteraction:
 
                 dfdz += dfdz_doublet
 
-                pressure_doublet = self.rho * np.real( self.Omega * self.seg_radius[None, None, :] * ( mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
+                pressure_doublet = self.rho * np.real( self.Omega * self.seg_radius[None, None, :] * (np.conj(mu[None, None, :]) / (zdbar[None, :, :]**2) - mu[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 - np.conj(
                      mu[None, None, :] ) / ( ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 ) ) )
 
                 pressure += pressure_doublet
 
         u, v = np.real(dfdz), -np.imag(dfdz)
-        U = np.sqrt(u**2 + v**2) # (Nthetab, Nphi, Nr)
+        Usq = u**2 + v**2 # (Nthetab, Nphi, Nr)
 
 
         only_linear = self._numerics.get('only_linear', False)
         only_nonlinear = self._numerics.get('only_nonlinear', False)
         
-        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - U**2) # total!
+        pressure_dynamic = 0.5 * self.rho * (Uimag**2 - Usq) # total!
 
         if only_linear:
             print('WARNING: using only linear-acoustic pressure in PIN')
@@ -1164,9 +1165,7 @@ class DistributedPIN(PotentialInteraction):
                         arr=gamma
                     )
 
-                    # rescale strength according to loading distribution
-                    gamma_local = gamma_shifted * wl
-                    
+                    gamma_local = wl * gamma_shifted # scale the vortex strength by the loading weight for this chordwise station
                     dfdz_vortex = -1j * gamma_local[None, :, :] / 2 / np.pi / (z[:, None, None] -
                             zv[None, :, :]) + 1j * gamma_local[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
                             zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
@@ -1184,19 +1183,17 @@ class DistributedPIN(PotentialInteraction):
                 if include_thickness_sources:
 
                     #doublet
-
                     zd = zv
                     zdbar = np.conj(zd)
 
-                    # rescale strength according to thickness distribution
-                    mu_local = mu * wt
+                    mu_local = wt * mu
 
                     dfdz_doublet = - mu_local[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + ( zprime[:, None, None] / z[:, None, None] ) * ( 
                                     np.conj( mu_local[None, None, :] ) / (( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2))
 
                     dfdz += dfdz_doublet
 
-                    pressure_doublet = np.real( self.Omega * self.seg_radius[None, None, :] * ( mu_local[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 + np.conj(
+                    pressure_doublet = self.rho * np.real( self.Omega * self.seg_radius[None, None, :] * (np.conj(mu_local[None, None, :]) / (zdbar[None, :, :]**2) - mu_local[None, None, :] / ( z[:, None, None] - zd[None, :, :] ) ** 2 - np.conj(
                         mu_local[None, None, :] ) / ( ( zprime[:, None, None]  - zdbar[None, :, :] ) ** 2 ) ) )
 
                     pressure += pressure_doublet
