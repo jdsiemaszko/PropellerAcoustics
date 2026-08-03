@@ -58,7 +58,8 @@ def u_total(k):
     return np.conj(ubar_baseflow(k) + ubar_vortex(k) + ubar_doublet(k))
 
 def uu1_total(k):
-    return u_total(k+1) * np.conj(u_total(k))
+    #TODO: why the conjugate?
+    return np.conj(u_total(k+1) * np.conj(u_total(k)))
 
 # def u_vortex_array
 
@@ -79,22 +80,22 @@ p_acoustic = -1j * Gamma * Omega * radius / 2 / np.pi / R * (R / z0prime)**2 - 2
 #         )
 
 
-ks = np.arange(-100, 100, 1)
-# ks = np.arange(-3, 5, 1)
+# ks = np.arange(-100, 100, 1)
 
+ks = np.arange(-3, 5, 1)
 uu1s = np.array([uu1_total(k) for k in ks])
-p_dynamic = 0.5 * np.sum(uu1s, axis=0)
+# p_dynamic = 0.5 * np.sum(uu1s, axis=0)
+
+p_dynamic = 0.5 * (
+    uu1_total(-1) + uu1_total(2)
+                   )
 
 # u0 = np.conj(np.conj(Uinf) - 1j * Gamma / 2 / np.pi / z0 - mu / z0**2)
 # um1 = np.conj(-1j * Gamma * R / 2 / np.pi / z0**2 - 2 * mu * R / z0**3)
 # u2 = np.conj(-Uinf - 1j * Gamma / 2 / np.pi / z0prime - mu / z0prime**2)
 # u3 = np.conj(-1j * Gamma * R / 2 / np.pi / z0prime**2 + 2 * mu * R / z0prime**3)
 
-# p_dynamic = 0.5 * (
-#     # u0 * np.conj(um1) 
-#     # + u3 * np.conj(u2)
-#     uu1_total(-1) + uu1_total(2)
-#                    )
+
 
 p_acoustic *= rho0
 p_dynamic *= -rho0
@@ -140,13 +141,17 @@ pin = PotentialInteraction(
 pin._numerics['gamma_steady'] = True
 pin._numerics['only_linear']  = True
 F_linear = pin.getStrutLoading()
+
 pin._numerics['only_linear'] =  False
 pin._numerics['only_nonlinear']  = True
 F_nonlinear = pin.getStrutLoading() # 3, Nt, Nr
 
-F_total = F_linear + F_nonlinear
+# pin._numerics['only_linear'] =  False
+# pin._numerics['only_nonlinear']  = False
+# F_total = pin.getStrutLoading() # 3, Nt, Nr
 
-ratio_total = (F_nonlinear[1] * 1j + F_nonlinear[2]) / (F_linear[1] * 1j + F_linear[2])
+F_total = F_linear + F_nonlinear
+ratio_total = (F_nonlinear[1] * 1j - F_nonlinear[2]) / (F_linear[1] * 1j - F_linear[2])
 
 # -------------------------------------------------------
 # Query radii
@@ -157,12 +162,15 @@ fig, ax = plt.subplots(figsize=(7, 4))
 
 for rq, color in zip(r_query, ['r', 'g', 'b', 'y']):
     for element, x_array, kwargs in zip(
-        [ratio, ratio_total],
-        # [-2 * np.pi * R * p_acoustic, F_linear[1] * 1j - F_linear[2]],
-        # [-2 * np.pi * R * p_dynamic, F_nonlinear[1] * 1j - F_nonlinear[2]],
-        # [-2 * np.pi * R * (p_dynamic + p_acoustic), F_total[1] * 1j - F_total[2]],
+        [abs(ratio), abs(ratio_total)],
+        # [-2 * np.pi * R * np.imag(p_acoustic), F_linear[1]],
+        # [-2 * np.pi * R * np.real(p_acoustic), -F_linear[2]],
+        # [-2 * np.pi * R * np.imag(p_dynamic), F_nonlinear[1]],
+        # [-2 * np.pi * R * np.real(p_dynamic), -F_nonlinear[2]],
+        # [-2 * np.pi * R * np.imag(p_dynamic + p_acoustic), F_total[1]],
+        # [-2 * np.pi * R * np.real(p_dynamic + p_acoustic), -F_total[2]],
+        # [np.abs(-2 * np.pi * R * (p_dynamic + p_acoustic)), np.abs(F_total[1] * 1j - F_total[2])],
 
-        # [p_acoustic, p_dynamic],
         [phi, pin.phi],
         [{'linestyle':'solid', 'color' : color}, {'linestyle':'dashed', 'color' : color}]):
         if rq < radius.min() or rq > radius.max():
@@ -178,7 +186,7 @@ for rq, color in zip(r_query, ['r', 'g', 'b', 'y']):
         ax.plot(
             x_array,
             # np.abs(z0),
-                np.abs(ratio_interp), label=fr"$r={rq:.3f}\,\mathrm{{m}}$", **kwargs)
+                ratio_interp, label=fr"$r={rq:.3f}\,\mathrm{{m}}$", **kwargs)
 
 
 # ax.set_yscale('log')
