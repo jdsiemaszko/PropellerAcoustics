@@ -2,6 +2,7 @@ import numpy as np
 from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, plot_beam_azimuth, plot_rotation_arrow
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+from matplotlib.lines import Line2D
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
@@ -18,7 +19,7 @@ Omega = 8000/60*2*np.pi
 
 radius, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 
-phi = np.linspace(- 1 * np.pi, 1 * np.pi, 1000)
+phi = np.linspace(- 1 * np.pi, 1.5 * np.pi, 1000)
 z0 = 1j * L + phi[:, None] * radius[None, :] # Nphi, Nr
 z0prime = np.conj(z0)
 
@@ -82,9 +83,13 @@ p_acoustic = -1j * Gamma * Omega * radius / 2 / np.pi / R * (R / z0prime)**2 - 2
 
 # ks = np.arange(-100, 100, 1)
 
-ks = np.arange(-3, 5, 1)
+ks = np.arange(-3, 6, 1)
 uu1s = np.array([uu1_total(k) for k in ks])
-# p_dynamic = 0.5 * np.sum(uu1s, axis=0)
+p_dynamic_8_terms = 0.5 * np.sum(uu1s, axis=0) * -rho0
+
+ks = np.arange(-10, 21, 1)
+uu1s = np.array([uu1_total(k) for k in ks])
+p_dynamic_20_terms = 0.5 * np.sum(uu1s, axis=0) * -rho0
 
 p_dynamic = 0.5 * (
     uu1_total(-1) + uu1_total(2)
@@ -156,44 +161,114 @@ ratio_total = (F_nonlinear[1] * 1j - F_nonlinear[2]) / (F_linear[1] * 1j - F_lin
 # -------------------------------------------------------
 # Query radii
 # -------------------------------------------------------
-r_query = np.array([0.1 * 0.3 ,0.1 * 0.5, 0.1 * 0.7,  0.1 * 0.9])   # example radii [m]
+
+r_query = np.array([0.1 * 0.3 ,0.1 * 0.5, 0.1 * 0.7, 0.1 * 0.9]) # example radii [m]
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+
+# ------------------------------------------------------------------
+# Specify zoom region
+x0, x1 = -np.pi/8, np.pi/8    
+y0, y1 = 0.055, 0.143   
+# ------------------------------------------------------------------
 
 fig, ax = plt.subplots(figsize=(7, 4))
 
-for rq, color in zip(r_query, ['r', 'g', 'b', 'y']):
-    for element, x_array, kwargs in zip(
-        [abs(ratio), abs(ratio_total)],
-        # [-2 * np.pi * R * np.imag(p_acoustic), F_linear[1]],
-        # [-2 * np.pi * R * np.real(p_acoustic), -F_linear[2]],
-        # [-2 * np.pi * R * np.imag(p_dynamic), F_nonlinear[1]],
-        # [-2 * np.pi * R * np.real(p_dynamic), -F_nonlinear[2]],
-        # [-2 * np.pi * R * np.imag(p_dynamic + p_acoustic), F_total[1]],
-        # [-2 * np.pi * R * np.real(p_dynamic + p_acoustic), -F_total[2]],
-        # [np.abs(-2 * np.pi * R * (p_dynamic + p_acoustic)), np.abs(F_total[1] * 1j - F_total[2])],
+# Create inset
+axins = inset_axes(ax, width="35%", height="55%", loc="upper right")
 
-        [phi, pin.phi],
-        [{'linestyle':'solid', 'color' : color}, {'linestyle':'dashed', 'color' : color}]):
+colors = ['r', 'g', 'b', 'y']
+for rq, color in zip(r_query, colors):
+    for element, x_array, kwargs in zip(
+        [abs(ratio),
+         abs(p_dynamic_8_terms/p_acoustic),
+         abs(p_dynamic_20_terms/p_acoustic),
+         abs(ratio_total)],
+        [phi, phi, phi, pin.phi],
+        [{'linestyle':'dotted',  'color':color},
+         {'linestyle':'dashdot', 'color':color},
+         {'linestyle':'dashed',  'color':color},
+         {'linestyle':'solid',   'color':color}]
+    ):
+
         if rq < radius.min() or rq > radius.max():
-            print(f"Warning: r = {rq:.4f} m outside interpolation range.")
             continue
 
-        # interpolate along the radius axis
         ratio_interp = np.array([
             np.interp(rq, radius, ratio_i)
             for ratio_i in element
         ])
 
-        ax.plot(
-            x_array,
-            # np.abs(z0),
-                ratio_interp, label=fr"$r={rq:.3f}\,\mathrm{{m}}$", **kwargs)
+        # Main axes
+        ax.plot(x_array, ratio_interp, **kwargs)
 
+        # Inset
+        axins.plot(x_array, ratio_interp, **kwargs)
 
-# ax.set_yscale('log')
-ax.set_xlabel(r"$\phi$")
-ax.set_ylabel(r"$|p_\mathrm{dynamic}/p_\mathrm{acoustic}|$")
-ax.legend(title="Radius")
+# Zoom limits
+axins.set_xlim(x0, x1)
+axins.set_ylim(y0, y1)
+
+# Optional inset cosmetics
+# axins.set_xticks([])
+# axins.set_yticks([])
+axins.grid()
+
+mark_inset(ax, axins, loc1=2, loc2=3, fc="none", ec="0.5")
+
+# ax.indicate_inset_zoom(axins, edgecolor="black", )
+
+# ------------------------------------------------------------------
+# Legends (unchanged)
+radius_handles = [
+    Line2D([0], [0], color=color, lw=2,
+           label=fr"$r/r_\mathrm{{tip}}={rq/0.1:.1f}$")
+    for rq, color in zip(r_query, colors)
+]
+legend_radius = ax.legend(handles=radius_handles,
+                          title="Station",
+                        #   loc="upper left",
+                          loc="lower right",
+
+                          ncols=2)
+ax.add_artist(legend_radius)
+
+dataset_handles = [
+    Line2D([0], [0], color='k', lw=2, linestyle='dotted',
+           label="2"),
+               Line2D([0], [0], color='k', lw=2, linestyle='dashdot',
+           label="8"),
+               Line2D([0], [0], color='k', lw=2, linestyle='dashed',
+           label="20"),
+    Line2D([0], [0], color='k', lw=2, linestyle='solid',
+           label=r"$\rightarrow\infty$"),
+]
+ax.legend(handles=dataset_handles,
+          title=r"No. of Terms in $(p^\mathrm{dynamic})_1^{\theta}$",
+          loc="lower left",
+          ncols=2)
+# ------------------------------------------------------------------
+
+ax.set_xlabel(r"$\phi=\Omega t$")
+ax.set_ylabel(r"$\left|(p^\mathrm{dynamic})^{\theta}_1/(p^\mathrm{acoustic})^{\theta}_1\right|$")
+ax.set_xticks(np.arange(-np.pi, 1.6 * np.pi, np.pi/2))
+ax.set_xticks(np.arange(-np.pi, 3 * np.pi, np.pi/8), minor=True)
+ax.set_xticklabels(
+    [
+    r"$-\mathrm{\pi}$",
+    r"$-\mathrm{\pi}/2$",
+    r"$0$",
+    r"$\mathrm{\pi}/2$",
+    r"$\mathrm{\pi}$",
+    r"$3\mathrm{\pi}/2$",
+]
+    # [f"${val/np.pi:.1f}\pi$" for val in np.arange(-np.pi, 3 * np.pi, np.pi/2)]
+                   )
+
+plt.minorticks_on()
 ax.grid(which='major', axis='both', linestyle='-')
 ax.grid(which='minor', linestyle='--', alpha=0.5)
+ax.set_ylim(0.04, 0.15)
+ax.set_xlim(-np.pi, 1.5 * np.pi)
 plt.tight_layout()
 plt.show()
+fig.savefig('./Figures/Appendix_A.pdf', dpi=300, bbox_inches='tight')

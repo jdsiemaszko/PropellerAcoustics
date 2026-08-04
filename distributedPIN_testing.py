@@ -17,24 +17,24 @@ NHARMONICS = 40
 ms = np.arange(1, 16, 1)
 
 
-# pin = PotentialInteraction(
-#     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
-#     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
-#     radius_m=r_outer,
-#     t_c = np.ones_like(r_outer) * 0.0803,
-#     # Uz0_mps=U_flow,
-#     Fzprime_Npm=Fz,
-#     Fphiprime_Npm=Fphi,
-#     B=2,
-#     Dcylinder_m=0.02,
-#     Lcylinder_m=0.02,
-#     Omega_rads=8000/60*2*np.pi,
-#     rho_kgm3=1.2,
-#     c_mps=340.0,
-#     kmax=NHARMONICS,
-#     nb=1,
-#     numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True}
-# )
+pin = PotentialInteraction(
+    twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
+    chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
+    radius_m=r_outer,
+    t_c = np.ones_like(r_outer) * 0.0803,
+    # Uz0_mps=U_flow,
+    Fzprime_Npm=Fz,
+    Fphiprime_Npm=Fphi,
+    B=2,
+    Dcylinder_m=0.02,
+    Lcylinder_m=0.02,
+    Omega_rads=8000/60*2*np.pi,
+    rho_kgm3=1.2,
+    c_mps=340.0,
+    kmax=NHARMONICS,
+    nb=1,
+    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':False}
+)
 
 pin = DistributedPIN(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
@@ -52,7 +52,8 @@ pin = DistributedPIN(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True, 'Nchord':10}
+    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True,
+               'include_thickness_sources':False, 'Nchord':1}
 )
 
 blade_l = BladeLoadings(
@@ -111,12 +112,13 @@ Fblade = pin.getBladeLoadingHarmonics()
 Fblade_old = blade_l.getBladeLoadingHarmonics()
 
 Fbeam = pin.getStrutLoadingHarmonics()
+
 Fbeam_old = beam_l.getBeamLoadingHarmonics(BLH=Fblade_old)
 Fbeam_old_steady = beam_l.getBeamLoadingHarmonics(BLH=None)
 
 
 
-ind_theta = 6       # -60 to 60 in 10
+ind_theta = 10       # -60 to 60 in 10
 ind_phi = 9          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*0.02)}_L{int(1000*0.02)}'

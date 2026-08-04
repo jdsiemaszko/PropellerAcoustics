@@ -1099,7 +1099,6 @@ class DistributedPIN(PotentialInteraction):
         Uimag = np.linalg.norm(self.Ui, axis=0) # Nr
         alpha0 = np.arctan2(self.Ui[0], -self.Ui[1]) # Nr
 
-        # TODO: check for errors
         vortex_period = 2 * np.pi / self.B / self.Omega # vortex passage period
         pressure = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
         dfdz = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
@@ -1112,10 +1111,9 @@ class DistributedPIN(PotentialInteraction):
         # Lambda, b = self.getRankineParams()
         mu = self.getDoubletParams()
 
-        Nv = self._numerics.get('Nvortices', 10)
         Nc = self._numerics.get('Nchord', 10)
 
-        theta_outer_stations = np.pi / (Nc+1) * (np.arange(0, Nc+1, 1))
+        theta_outer_stations = np.pi / Nc * (np.arange(0, Nc+1, 1))
         # theta_stations = 
         chord_outer_stations = self.seg_chord[:, None] / 2 * (-np.cos(theta_outer_stations[None, :])) # -c/2 at the LEADING EDGE to c/2 at the TRAILING EDGE, shape Nr, Nc
         chord_inner_stations = (chord_outer_stations[:, 1:] + chord_outer_stations[:, :-1]) / 2
@@ -1138,7 +1136,15 @@ class DistributedPIN(PotentialInteraction):
             )
         weights_thickness /= weights_thickness.sum()
 
-        for vortex_index in  range(-Nv, Nv+1, 1): # sum an arbitrary amount of vortices, further ones should be negligible
+
+        Nv = self._numerics.get('Nvortices', 10)
+
+        if Nv == 1:
+            vortex_indices = [0]
+        else:
+            vortex_indices = range(-Nv // 2, Nv // 2 + 1)
+
+        for vortex_index in vortex_indices:  # sum an arbitrary amount of vortices, further ones should be negligible
             
             for wl, wt, pos, in zip(weights_loading, weights_thickness, chord_inner_stations.T): # pos of size Nr
 
@@ -1166,6 +1172,7 @@ class DistributedPIN(PotentialInteraction):
                     )
 
                     gamma_local = wl * gamma_shifted # scale the vortex strength by the loading weight for this chordwise station
+
                     dfdz_vortex = -1j * gamma_local[None, :, :] / 2 / np.pi / (z[:, None, None] -
                             zv[None, :, :]) + 1j * gamma_local[None, :, :] / 2 / np.pi / (zprime[:, None, None] - 
                             zvbar[None, :, :]) * (-zprime[:, None, None] / z[:, None, None]) # Nthetab, Nr, Nphi
