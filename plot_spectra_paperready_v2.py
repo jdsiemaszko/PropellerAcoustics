@@ -20,7 +20,7 @@ RPM = 8000
 ms = np.arange(1,11,1)
 
 
-for (ind_theta, ind_phi, y1, y2) in zip([6, 10, 6, 2], [9, 9, 0, 18], [52, 51, None, 46], [62, 66, None, 61]):
+for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [9, 9, 0, 18], [52, 51, None, 46], [62, 66, None, 61])):
 
 
     # ind_theta = 2
@@ -168,21 +168,22 @@ for (ind_theta, ind_phi, y1, y2) in zip([6, 10, 6, 2], [9, 9, 0, 18], [52, 51, N
         # Line2D([0], [0], color='k', lw=2, label='L+T'),
     ]
 
-    leg1 = ax.legend(handles=model_handles,
-                    # loc='upper center',
-                    loc='lower right' if y1 is not None else 'upper right',
-                    # bbox_to_anchor=(0.5, -0.18),
-                    ncol=1,
-                    fontsize=10)
+    if index_global==0:
+        leg1 = ax.legend(handles=model_handles,
+                        # loc='upper center',
+                        loc='lower right' if y1 is not None else 'upper right',
+                        # bbox_to_anchor=(0.5, -0.18),
+                        ncol=1,
+                        fontsize=10)
 
-    # leg2 = ax.legend(handles=component_handles,
-    #                 # loc='upper center',
-    #                 loc='lower right',
-    #                 # bbox_to_anchor=(0.5, -0.28),
-    #                 ncol=1,
-    #                 fontsize=10)
+        # leg2 = ax.legend(handles=component_handles,
+        #                 # loc='upper center',
+        #                 loc='lower right',
+        #                 # bbox_to_anchor=(0.5, -0.28),
+        #                 ncol=1,
+        #                 fontsize=10)
 
-    ax.add_artist(leg1)
+        ax.add_artist(leg1)
     # ax.add_artist(leg2)
 
 

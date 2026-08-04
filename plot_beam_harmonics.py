@@ -115,7 +115,7 @@ components = [
         {
         "name": "loading_PIN_total",
     'color' : 'r',
-        'linestyle': 'solid',
+        'linestyle': 'dotted',
         'marker' : '^',
     },        {
         "name": "thickness_PIN",
@@ -173,7 +173,7 @@ for index_r, r in enumerate(rs):
             # Line2D([0], [0], color='g', lw=2, label='Unsteady Loading'),
             Line2D([0], [0], color='b', lw=2, label='Rotor Thickness'),
             # Line2D([0], [0], color='y', lw=2, label='Rotor Total'),
-            Line2D([0], [0], color='g', lw=2, label='Non-Linear'),
+            Line2D([0], [0], color='g', lw=2, label='Dynamic Pressure'),
             # Line2D([0], [0], color='c', lw=2, label='L+T+NL'),
 
             # Line2D([0], [0], color='c', lw=2, label='Beam Noise due to Thickness'),
@@ -199,7 +199,9 @@ for index_r, r in enumerate(rs):
                         #  title='Model',
                         # loc='upper center',
                         # loc='lower right',
-                        loc='upper left',
+                        # loc='upper left',
+                        loc='right',
+
 
                         fontsize=10)
             ax.add_artist(leg)
@@ -210,7 +212,7 @@ for index_r, r in enumerate(rs):
             ax.set_ylabel(fr'$|\hat{{F}}_k| [N/m]$')
         plt.tight_layout()
 
-        ax.set_ylim(0,1.0)
+        ax.set_ylim(0,0.6)
 
         plt.minorticks_on()
         # Grid

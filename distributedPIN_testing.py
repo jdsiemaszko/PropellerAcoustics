@@ -33,7 +33,7 @@ pin = PotentialInteraction(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':False}
+    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True}
 )
 
 pin = DistributedPIN(
@@ -53,7 +53,9 @@ pin = DistributedPIN(
     kmax=NHARMONICS,
     nb=1,
     numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True,
-               'include_thickness_sources':False, 'Nchord':1}
+            #    'include_thickness_sources':True,
+               'include_thickness_sources':False,
+                 'Nchord':10}
 )
 
 blade_l = BladeLoadings(
@@ -118,8 +120,8 @@ Fbeam_old_steady = beam_l.getBeamLoadingHarmonics(BLH=None)
 
 
 
-ind_theta = 10       # -60 to 60 in 10
-ind_phi = 9          # 0 to 350 in 10
+ind_theta = 3       # -60 to 60 in 10
+ind_phi = 18          # 0 to 350 in 10
 datadir = './Experimental/dataverse_files'
 casefile = f'ISAE_2_D{int(1000*0.02)}_L{int(1000*0.02)}'
 B=2
