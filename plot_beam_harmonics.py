@@ -131,14 +131,14 @@ components = [
     },
     {
         "name": "tota_PIN",
-                'color' : 'k',
+                'color' : 'c',
         'linestyle': 'dotted',
         'marker' : '^',
     },
 
         {
         "name": "total_plus_nolinear_PIN",
-        'color' : 'c',
+        'color' : 'k',
         'linestyle': 'dotted',
         'marker' : '^',
     },
@@ -158,7 +158,10 @@ for index_r, r in enumerate(rs):
             if comp['linestyle'] == 'dashdot':
                 continue
 
-            if comp['color'] == 'k' or comp['color'] == 'c':
+            if comp['color'] == 'c':
+                continue
+
+            if comp['color'] == 'k':
                 continue
 
             ax.plot(ks, abs(Fms[index_dir, :, index_r, index_comp]), label=comp['name'], color=comp['color'], marker=comp['marker'], linestyle=comp['linestyle'])

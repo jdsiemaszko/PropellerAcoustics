@@ -30,11 +30,12 @@ FILE = 'COMP_PHASE'
 from SourceMode.Configurations_NACA0012 import m_surface
 
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = '_D180_MR'
+SUFFIX = 'D20L20_D180_v2'
 
 for m in [1, 2, 3, 4, 5]:
     ms = np.array([m]) # harmonic to plot
-    phi_plot = 90+90 # phi_experimental to plot, in degrees
+    
+    phi_plot = 130 # phi_experimental to plot, in degrees
 
     sourceArray.numerics['CompactnessCorrection'] = True
 

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 MODE = 'half'
-SUFFIX = '_D180_MR'
+SUFFIX = 'D20L20_D180_v2'
 folder = './Data/current/phase_curves/'
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
@@ -11,14 +11,15 @@ phi_values = [50, 90, 130]
 
 labels = [
     'Scattering',
-    'PIN (current)',
-    'PIN (Vella et al. 2026)',
+    'PIN (vortex+doublet)',
+    'PIN (vortex only)',
     # 'Direct Rotor Radiation'
     # 'Direct Only'
 ]
 
-markers = ['s', '^', '*', 'p']
-colors = ['b', 'r', 'g', 'm']
+markers = ['s', '^', 'p']
+colors = ['b', 'r', 'g']
+linestyles=['dashed', 'dotted', 'dashdot']
 
 
 for m in m_values:
@@ -71,7 +72,7 @@ for m in m_values:
 
 
         # Models
-        for dataset, label, marker, color in zip(
+        for dataset, label, marker, color, linestyle in zip(
             [
                 p_total_scattering,
                 p_total_pin,
@@ -80,7 +81,8 @@ for m in m_values:
             ],
             labels,
             markers,
-            colors
+            colors,
+            linestyles
         ):
 
             phase_data = np.angle(
@@ -97,7 +99,7 @@ for m in m_values:
                 mic_index,
                 phase_data,
                 marker=marker,
-                linestyle='-',
+                linestyle=linestyle,
                 color=color,
                 alpha=0.8,
                 label=label

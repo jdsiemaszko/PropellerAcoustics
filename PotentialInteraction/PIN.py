@@ -55,7 +55,6 @@ class PotentialInteraction:
         if U0_mps is not None:
             self.Ui = U0_mps # (2, Nr) x positive to the right, y positive upwards
         else:
-            # TODO: Landgrebe inflow model!
 
             Uiz = - np.sqrt(self.Fzprime * self.B /  4 / np.pi / self.rho / self.seg_radius) # positive upwards, mind that this should include total loading: B * Fzprime
             Uiz[np.where(Uiz==0)] = 1e-12 # dont divide by zero!
@@ -240,7 +239,6 @@ class PotentialInteraction:
         Uimag = np.linalg.norm(self.Ui, axis=0) # Nr
         alpha0 = np.arctan2(self.Ui[0], -self.Ui[1]) # Nr
 
-        # TODO: check for errors
         vortex_period = 2 * np.pi / self.B / self.Omega # vortex passage period
         pressure = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
         dfdz = np.zeros((thetab.shape[0], self.phi.shape[0], self.seg_radius.shape[0]), dtype=np.complex128) # Nthetab, Nphi, Nr
@@ -737,7 +735,7 @@ class PotentialInteraction:
         plt.tight_layout()
         return fig, axes
 
-    def plotStrutLoading2D(self, r_query, fig=None, ax=None):
+    def plotStrutLoading2D(self, r_query, fig=None, ax=None, kwargs={'color':'k', 'linestyle':'dashed'}):
         """
         Plot strut loading vs azimuth at a given radial station (r/r_tip),
         using scipy interpolation in the radial direction.
@@ -780,7 +778,9 @@ class PotentialInteraction:
             axes = ax
 
         for i, (axi, label) in enumerate(zip(axes, component_labels)):
-            axi.plot(phi, np.real(F_interp[i]), label='Real', color='k', linestyle='dashed')
+            axi.plot(phi, np.real(F_interp[i]),
+                      **kwargs
+                      )
             # axi.plot(phi, np.imag(F_interp[i]), '--', label='Imag')
 
             axi.set_ylabel('F [N/m]')

@@ -65,6 +65,21 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
     # PAPER PLOT: only totals
     fig, ax = plt.subplots(figsize=(6, 4))
 
+    
+    ax.plot(freq[0]/BPF,
+            spl_from_autopower(data),
+            color='0.3',
+            linewidth=2)
+
+    fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
+                            plot_kwargs={
+                                'color':'k',
+                                'linestyle':'solid',
+                                'alpha':1.0,
+                                'linewidth': 2
+                            })
+
+
     ax.plot(ms, p_to_SPL(pmB_model_beam_total + p_direct_s+p_direct_us+p_direct_thickness), label=f"Total (PIN)", color='r', marker='^', linestyle=':')
     ax.plot(ms, p_to_SPL(pmB_model_beam_loading + p_direct_s+p_direct_us+p_direct_thickness), label=f"Total (PIN, Vella)", color='g', marker='p', linestyle='dashdot')
 
@@ -83,15 +98,6 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
         # replot all curves in inset
 
 
-        axins.plot(ms, p_to_SPL(pmB_model_beam_total+p_direct_s+p_direct_us+p_direct_thickness),
-                color='r', marker='^', linestyle=':')
-        axins.plot(ms, p_to_SPL(pmB_model_beam_loading+p_direct_s+p_direct_us+p_direct_thickness),
-                color='g', marker='p', linestyle='dashdot')
-
-        axins.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc+
-                                p_direct_s+p_direct_us+p_direct_thickness),
-                color='b', marker='s', linestyle='dashed')
-
         axins.plot(freq[0]/BPF,
                 spl_from_autopower(data),
                 color='0.3',
@@ -105,6 +111,15 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
                                 'alpha':1.0,
                                 'linewidth': 2
                             })
+
+        axins.plot(ms, p_to_SPL(pmB_model_beam_total+p_direct_s+p_direct_us+p_direct_thickness),
+                color='r', marker='^', linestyle=':')
+        axins.plot(ms, p_to_SPL(pmB_model_beam_loading+p_direct_s+p_direct_us+p_direct_thickness),
+                color='g', marker='p', linestyle='dashdot')
+
+        axins.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc+
+                                p_direct_s+p_direct_us+p_direct_thickness),
+                color='b', marker='s', linestyle='dashed')
 
         # inset limits
 
@@ -130,19 +145,6 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
 
     # ax.plot(ms, SPL_total_scattering, color='b', marker='s', linestyle='--')
 
-
-    ax.plot(freq[0]/BPF,
-            spl_from_autopower(data),
-            color='0.3',
-            linewidth=2)
-
-    fig, ax = plot_BPF_peaks(fig, ax, freq[0] / BPF, spl_from_autopower(data), N0=1, N1= 25, range=0.01, 
-                            plot_kwargs={
-                                'color':'k',
-                                'linestyle':'solid',
-                                'alpha':1.0,
-                                'linewidth': 2
-                            })
 
     model_handles = [
         Line2D([0], [0], color='0.3', lw=3,

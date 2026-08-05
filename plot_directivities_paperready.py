@@ -217,6 +217,18 @@ cbar = fig.colorbar(
     cax=cax,
 )
 
+ticks = np.arange(-np.pi, np.pi + 1e-10, np.pi/2)
+labels = [
+    r"$-\pi$",
+    r"$-\pi/2$",
+    r"$0$",
+    r"$\pi/2$",
+    r"$\pi$",
+]
+
+cbar.set_ticks(ticks)
+cbar.set_ticklabels(labels)
+
 cbar.set_label("Phase [rad]")
 
 fig.savefig(

@@ -33,10 +33,15 @@ pin = PotentialInteraction(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True, 'include_thickness_sources':True}
+    numerics={'Nphi': 180, 'Nthetab': 36,
+            #    'include_vortex_sources':True,
+               'include_vortex_sources':False,
+               'include_thickness_sources':True
+            #    'include_thickness_sources':False
+               }
 )
 
-pin = DistributedPIN(
+pin2 = DistributedPIN(
     twist_rad= np.deg2rad(10) * np.ones(NRADIALSEGMENTS),
     chord_m = 0.025 * np.ones(NRADIALSEGMENTS),
     radius_m=r_outer,
@@ -52,10 +57,12 @@ pin = DistributedPIN(
     c_mps=340.0,
     kmax=NHARMONICS,
     nb=1,
-    numerics={'Nphi': 180, 'Nthetab': 36, 'include_vortex_sources':True,
-            #    'include_thickness_sources':True,
-               'include_thickness_sources':False,
-                 'Nchord':10}
+    numerics={'Nphi': 180, 'Nthetab': 36,
+            #    'include_vortex_sources':True,
+               'include_vortex_sources':False,
+               'include_thickness_sources':True,
+            #    'include_thickness_sources':False,
+                 'Nchord':20}
 )
 
 blade_l = BladeLoadings(
@@ -108,6 +115,10 @@ hanson = HansonModel(
 
 # pin.plotStrutLoading3D()
 # plt.show()
+
+fig, ax = pin.plotStrutLoading2D(r_query=0.8, kwargs={'color':'b', 'linestyle':'dashed'})
+fig, ax = pin2.plotStrutLoading2D(r_query=0.8, fig=fig, ax=ax, kwargs={'color':'r', 'linestyle':'dotted'})
+plt.show()
 
 
 Fblade = pin.getBladeLoadingHarmonics()
