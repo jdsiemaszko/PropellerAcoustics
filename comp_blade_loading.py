@@ -57,9 +57,16 @@ CL_p = Fz / 0.5 / 1.2 / (Omega_p * r_inner)**2 / chord_parrot
 F_p = CL / 4 / np.pi * chord_parrot / r_inner
 
 
-lambda0 = c0 / Omega * 2 * np.pi * B
+lambda0 = c0 / Omega * 2 * np.pi / B
 Mach_r  = Omega * r_inner / c0
 He_Mr = chord / lambda0 * 2 * np.pi / Mach_r
+# He_Mr = B * chord / r_inner
+
+# c / l * 2 * pi / Mach = 
+# c / l * 2 * pi / Omega / r * c0 = 
+# c / (c0  / (m*B*Omega/2/pi)) * 2 * pi / Omega / r * c0 = 
+# c / c0 * m * B * Omega / 2 / pi * 2 * pi / Omega / r * c0 = 
+# c / r * m * B .... huh
 
 fig, ax = plt.subplots(figsize=(5, 3))
 
@@ -76,7 +83,7 @@ l5 = ax.plot(r_inner / r1, F1+F2+F3, color='k', label='$F_1+F_2+F_3$', linestyle
 l4 = ax.plot(r_inner / r1, He_Mr, color='m', label='$He_B = Bc/r$', linestyle='dashdot')[0]
 
 
-ax.set_xlabel('$r/r_{\mathrm{tip}}$')
+ax.set_xlabel(r'$r/r_{\mathrm{tip}}$')
 # ax.set_ylabel(r'$F = C_l c / 4\pi r$')
 # ax.set_yticks(np.linspace(-np.pi, np.pi, 17), minor=True)
 
@@ -84,9 +91,11 @@ plt.minorticks_on()
 # Grid
 ax.grid(which='major', axis='both', linestyle='-')
 ax.grid(which='minor', linestyle='--', alpha=0.5)
-# ax.set_yscale('log')
+ax.set_yscale('log')
 # ax.set_ylim(5e-4, 1e0)
-ax.set_ylim(0, 0.8)
+ax.set_ylim(1e-2, 5e1)
+ax.set_xlim(r_inner[0]/r_inner[-1], 1)
+# ax.set_ylim(0, 0.8)
 
 # --- secondary axis ---
 # ax2 = ax.twinx()

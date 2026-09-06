@@ -102,7 +102,7 @@ components = [
     ]
 
 SUFFIX = 'D20L20_D180_v2'
-mplot = 5
+mplot = 1
 index_m = mplot-1
 # folder_name = f"./Figures/SurfacePressureComponents_{SUFFIX}_M{mplot}_RdBu"
 # folder_name = os.path.join(os.curdir, 'Figures', f"SurfacePressureComponents_{SUFFIX}_M{mplot}_RdBu")

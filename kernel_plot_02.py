@@ -44,9 +44,9 @@ observer = np.array([
 # Source points
 # -------------------------------------------------------------------------
 r_source = np.linspace(
-    -5 * D + RREF,
-    5 * D + RREF,
-    250
+    -100 * D + RREF,
+    100 * D + RREF,
+    2500
 )
 
 sources = np.vstack([
@@ -99,34 +99,99 @@ gradient_kernel = green.getGradientGreenAnalytical(
 )
 
 
-# -------------------------------------------------------------------------
-# Extract magnitudes
-# -------------------------------------------------------------------------
-kernel_abs = np.abs(kernel[:, 0, :]).T.squeeze()
 
-# gradient_kernel has shape:
-#     (3, Nk, Nx, Ny)
-#
-# Take the vector norm first, then extract the relevant dimensions.
-gradient_abs = np.linalg.norm(
-    gradient_kernel,
-    axis=0
-)
+# moments!
+r0 = np.linspace(RROOT, RTIP, 100)
 
-gradient_abs = gradient_abs[:, 0, :].T.squeeze()
+import numpy as np
 
 
-# -------------------------------------------------------------------------
-# Normalize independently
-# -------------------------------------------------------------------------
-kernel_abs /= np.max(kernel_abs)
-gradient_abs /= np.max(gradient_abs)
+def get_moments(k, r, r0):
+    """
+    Compute moments of k(r) about r0.
 
+    The irrelevant portions of k are masked to zero while retaining
+    the original r-grid, avoiding integration across disjoint domains.
+
+    Parameters
+    ----------
+    k : array_like
+        Function values on the radial grid r.
+    r : array_like
+        1-D radial grid.
+    r0 : float or array_like
+        Reference radius/radii.
+
+    Returns
+    -------
+    m0, m1, m2 : ndarray or float
+        Zeroth, first, and second moments over RROOT < r < RTIP.
+    m0_total : float
+        Zeroth moment over the full radial domain.
+    m0_tail : ndarray or float
+        Zeroth moment over the complement of RROOT < r < RTIP.
+    """
+    k = np.asarray(k)
+    r = np.asarray(r)
+    r0 = np.atleast_1d(r0)
+
+    # Full-domain zeroth moment
+    m0_total = np.trapezoid(k, r)
+
+    # Masks on the original r-grid
+    inner_mask = (r > RROOT) & (r < RTIP)
+    outer_mask = ~inner_mask
+
+    # Zero irrelevant portions of k.
+    # Keep the original r-grid so that the integration domains
+    # remain contiguous.
+    k_inner = np.where(inner_mask, k, 0.0)
+    k_outer = np.where(outer_mask, k, 0.0)
+
+    # Distance from each r0
+    dr = r[None, :] - r0[:, None]
+
+    # Moments over RROOT < r < RTIP
+    m0 = np.trapezoid(
+        k_inner[None, :],
+        r,
+        axis=1,
+    )
+
+    m1 = np.trapezoid(
+        k_inner[None, :] * dr,
+        r,
+        axis=1,
+    )
+
+    m2 = np.trapezoid(
+        k_inner[None, :] * dr**2,
+        r,
+        axis=1,
+    )
+
+    # Zeroth moment over the tail
+    m0_tail = np.trapezoid(
+        k_outer[None, :],
+        r,
+        axis=1,
+    )
+
+    # Return scalars if r0 was scalar
+    if np.ndim(r0) == 1 and r0.size == 1:
+        return m0[0], m1[0], m2[0], m0_total, m0_tail[0]
+
+    return m0, m1, m2, m0_total, m0_tail
+
+
+m01, m11, m21, m0_total1, m0_tail1 = get_moments(kernel[0, 0, :], r_source, r0)
+m02, m12, m22, m0_total2, m0_tail2 = get_moments(gradient_kernel[2, 0, 0, :], r_source, r0)
 
 # -------------------------------------------------------------------------
 # Radial coordinate
 # -------------------------------------------------------------------------
-x = r_source - RREF
+# x = r_source - RREF
+x = r0
 x_plot = x * 2 / D
 
 
@@ -137,7 +202,8 @@ fig, ax = plt.subplots(figsize=(4, 3))
 
 ax.plot(
     x_plot,
-    kernel_abs,
+    # kernel_abs,
+    m11/m01,
     # label=r'Kernel $|G|$',
     color='r',
     label=r'$|K_1(r-r_0)|$',
@@ -146,7 +212,7 @@ ax.plot(
 
 ax.plot(
     x_plot,
-    gradient_abs,
+    m12/m02,
     # label=r'Gradient $|\nabla G|$',
     color='b',
     label=r'$|\boldsymbol{K}_2(r-r_0)|$',
