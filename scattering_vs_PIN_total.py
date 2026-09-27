@@ -42,8 +42,11 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = 'PARROT_D20L20_D180_NQ160'
 # shape = 'PARROT'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
-SUFFIX = 'D20L20_D180_v2'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180 as sourceArray # pick configuration
+# SUFFIX = 'D20L20_D180_v2'
+
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
+SUFFIX = 'D20L20_D180_M20'
 shape='D'
 
 sourceArray.numerics['CompactnessCorrection'] = True
@@ -130,7 +133,7 @@ for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):
     print(theta, phi)
 
     Nr = len(r_inner)
-    ms = np.arange(1, 11, 1) # harmonics to extract
+    ms = np.arange(1, 20, 1) # harmonics to extract
 
 
 

@@ -76,11 +76,13 @@ l1 = ax.plot(r_inner / r1, F1, color='r', label=r'$F_1 = \sqrt{{B C_l c/8\mathrm
 
 l2 = ax.plot(r_inner / r1, F2, color='g', label='$F_2 = C_L c/4\mathrm{\pi} L$', linestyle=(0, (1, 1)))[0]
 l3 = ax.plot(r_inner / r1, F3, color='b', label='$F_3 = \overline{(t/c)}c^2/2\mathrm{\pi}  L^2$', linestyle='dotted')[0]
-# l5 = ax.plot(r_inner / r1, CL / 2 / t_c / chord * L, color='y', label='$F_4$', linestyle='dotted')[0]
+
+
 l5 = ax.plot(r_inner / r1, F1+F2+F3, color='k', label='$F_1+F_2+F_3$', linestyle='solid')[0]
+l6 = ax.plot(r_inner / r1, t_c * chord / L / CL, color='y', label=r'$\overline{(t/c)} c /C_l/L$', linestyle=(5, (10, 3)))[0]
 
 
-l4 = ax.plot(r_inner / r1, He_Mr, color='m', label='$He_B = Bc/r$', linestyle='dashdot')[0]
+l4 = ax.plot(r_inner / r1, He_Mr, color='m', label=r'$\mathrm{He}_B = Bc/r$', linestyle='dashdot')[0]
 
 
 ax.set_xlabel(r'$r/r_{\mathrm{tip}}$')
@@ -104,7 +106,7 @@ ax.set_xlim(r_inner[0]/r_inner[-1], 1)
 
 # --- legend (IMPORTANT FIX) ---
 ax.legend(
-    handles=[l1, l2, l3, l4, l5],
+    handles=[l1, l2, l3, l4, l6, l5],
     # handles=[l1, l3, l5, l2, l4],
 
     # loc='lower left',          # keeps it inside automatically

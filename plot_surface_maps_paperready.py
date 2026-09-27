@@ -17,6 +17,10 @@ components = [
             'linestyle': 'dashed',
             'marker' : 's',
             # 'label' : ''
+            'labely' : '',
+            'labelx' : '$r$ [m]',
+            # 'labelx' : '$r$ [m]',
+
         },
 
         # ==========================================================
@@ -28,12 +32,16 @@ components = [
             'color' : 'b',
             'linestyle': 'dashed',
             'marker' : 's',
+            'labely' : '',
+            'labelx' : '$r$ [m]',
         },
         {
             "name": "total_scattering",
             'color' : 'k',
             'linestyle': 'dashed',
             'marker' : 's',
+            'labely' : '',
+            'labelx' : '$r$ [m]',
         },
 
                 # ==========================================================
@@ -45,6 +53,8 @@ components = [
             'linestyle': 'dotted',
             'marker' : 's',
             # 'label' : ''
+            'labely' : '',
+            'labelx' : '$r$ [m]',
         },
 
         # ==========================================================
@@ -55,6 +65,8 @@ components = [
             'color' : 'b',
             'linestyle': 'dotted',
             'marker' : 's',
+            'labely' : '',
+            'labelx' : '$r$ [m]',
         },
 
         {
@@ -62,6 +74,8 @@ components = [
             'color' : 'k',
             'linestyle': 'dotted',
             'marker' : 's',
+            'labelx' : '$r$ [m]',
+                        'labely' : '',
         },
 
 
@@ -71,23 +85,31 @@ components = [
         'color' : 'r',
             'linestyle': 'solid',
             'marker' : '^',
+            'labely' : r"$\theta$ [rad]",
+             'labelx' : '$r$ [m]',
         },        {
             "name": "thickness_PIN",
                     'color' : 'b',
             'linestyle': 'solid',
             'marker' : '^',
+            'labely' : r"$\theta$ [rad]",
+                 'labelx' : '$r$ [m]',
         },
         {
             "name": "nonlinear_PIN",
                 'color' : 'm',
             'linestyle': 'solid',
             'marker' : '^',
+            'labely' : r"$\theta$ [rad]",
+            'labelx' : '$r$ [m]',
         },
         {
             "name": "total_PIN",
                     'color' : 'k',
             'linestyle': 'solid',
             'marker' : '^',
+            'labely' : r"$\theta$ [rad]",
+         'labelx' : '$r$ [m]',
         },
 
             {
@@ -95,6 +117,8 @@ components = [
             'color' : 'c',
             'linestyle': 'solid',
             'marker' : '^',
+            'labely' : '',
+            'labelx' : '$r$ [m]',
         },
 
 
@@ -102,7 +126,7 @@ components = [
     ]
 
 SUFFIX = 'D20L20_D180_v2'
-mplot = 1
+mplot = 5
 index_m = mplot-1
 # folder_name = f"./Figures/SurfacePressureComponents_{SUFFIX}_M{mplot}_RdBu"
 # folder_name = os.path.join(os.curdir, 'Figures', f"SurfacePressureComponents_{SUFFIX}_M{mplot}_RdBu")
@@ -120,7 +144,7 @@ levels_phase = np.linspace(-np.pi, np.pi, 21)
 mappables = {}
 reference_xrange = rtip - rroot
 reference_width = 3.0
-reference_height = 3.0
+reference_height = 2.5
 reference_width_long = reference_width * 2 * rtip / reference_xrange
 RADIUS = 0.01
 
@@ -144,16 +168,18 @@ for index_comp, comp in enumerate(components):
 
     xrange = PHI.max() - PHI.min()
 
-    WIDTH = reference_width * xrange / reference_xrange
-
+    # WIDTH = reference_width * xrange / reference_xrange
+    WIDTH = reference_width_long if index_comp<6 else reference_width
     fig, ax = plt.subplots(figsize=(WIDTH, HEIGHT))
 
     fig, ax, mappable = plot_directivity_contour(
         Phi=PHI,
         Theta=TH,
         magnitudes=Z,
-        xlabel="$r$ [m]",
-        ylabel=r"$\theta$ [rad]",
+        # xlabel="$r$ [m]",
+        # ylabel=r"$\theta$ [rad]" if comp['labely'] else '',
+        xlabel=comp['labelx'],
+        ylabel=comp['labely'],
         # title=comp["title"],
         levels=levels,
         fig=fig,
@@ -161,7 +187,7 @@ for index_comp, comp in enumerate(components):
         # cmap='binary'
         cmap='Blues'
     )
-    ax.set_ylim(0, 2 * np.pi)
+    # ax.set_ylim(0, 2 * np.pi)
 
     # ax.set_xlim(rroot, rtip)
     ax.set_aspect((2 * np.pi / (rtip - rroot))**(-1))
@@ -181,7 +207,21 @@ for index_comp, comp in enumerate(components):
     np.save(os.path.join(folder_name, f"p_surface_{comp['name']}.npy"), Z)
     np.save(os.path.join(folder_name, f"th_surface_{comp['name']}.npy"), TH)
     np.save(os.path.join(folder_name, f"PHI_surface_{comp['name']}.npy"), PHI)
+    yticks = np.linspace(0, 2*np.pi, 5)
 
+    yticklabels = [
+        # r'$-\pi$',
+        # r'$-\pi/2$',
+        r'$0$',
+        r'$\pi/2$',
+        r'$\pi$',
+        r'$3\pi/2$',
+        r'$2\pi$',
+    ]
+
+    ax.set_ylim(0, 2*np.pi)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels)
     fig.tight_layout()
     plt.show()
 
@@ -233,6 +273,8 @@ cbar = fig.colorbar(
 
 cbar.set_label("SPL [dB w.r.t. 20e-6 Pa]")
 cbar.set_ticks(np.arange(VMIN, VMAX+1, 10))
+
+
 
 fig.savefig(
     os.path.join(folder_name, "colorbar_spl.pdf"),

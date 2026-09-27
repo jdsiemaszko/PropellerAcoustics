@@ -10,14 +10,15 @@ plt.rcParams["mathtext.fontset"] = "dejavuserif"
 # BEGINNING OF HEADER
 FILE='TOTAL'
 MODE = 'half'
-SUFFIX = 'D20L20_D180_v2'
+# SUFFIX = 'D20L20_D180_v2'
+SUFFIX = 'D20L20_D180_M20'
 shape='D'
 RPM = 8000
 
 # SUFFIX = 'PARROT_D20L20_D180_NQ160'
 # shape = 'PARROT'
 # RPM = -7250
-ms = np.arange(1,11,1)
+ms = np.arange(1,20,1)
 
 
 for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [9, 9, 0, 18], [52, 51, None, 46], [62, 66, None, 61])):
@@ -63,7 +64,7 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
     print(theta, phi)
 
     # PAPER PLOT: only totals
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(4, 3))
 
     
     ax.plot(freq[0]/BPF,
@@ -80,10 +81,10 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
                             })
 
 
-    ax.plot(ms, p_to_SPL(pmB_model_beam_total + p_direct_s+p_direct_us+p_direct_thickness), label=f"Total (PIN)", color='r', marker='^', linestyle=':')
-    ax.plot(ms, p_to_SPL(pmB_model_beam_loading + p_direct_s+p_direct_us+p_direct_thickness), label=f"Total (PIN, Vella)", color='g', marker='p', linestyle='dashdot')
+    ax.plot(ms, p_to_SPL(pmB_model_beam_total + p_direct_s+p_direct_us+p_direct_thickness), alpha=0.75, label=f"Total (PIN)", color='r', marker='^', linestyle=':')
+    ax.plot(ms, p_to_SPL(pmB_model_beam_loading + p_direct_s+p_direct_us+p_direct_thickness), alpha=0.75, label=f"Total (PIN, Vella)", color='g', marker='p', linestyle='dashdot')
 
-    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc+p_direct_s+p_direct_us+p_direct_thickness), label=f"Total (Scattering)", color='b', marker='s', linestyle='dashed')
+    ax.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc+p_direct_s+p_direct_us+p_direct_thickness), alpha=0.75, label=f"Total (Scattering)", color='b', marker='s', linestyle='dashed')
 
 
 
@@ -91,9 +92,9 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 
         # --- inset zoom ---
-        x1, x2 = 1.5, 11      # example x-range of inset
+        x1, x2 = 1.5, 6      # example x-range of inset
 
-        axins = inset_axes(ax, width="40%", height="45%", loc="upper right")
+        axins = inset_axes(ax, width="35%", height="45%", loc="upper right")
 
         # replot all curves in inset
 
@@ -113,13 +114,13 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
                             })
 
         axins.plot(ms, p_to_SPL(pmB_model_beam_total+p_direct_s+p_direct_us+p_direct_thickness),
-                color='r', marker='^', linestyle=':')
+                color='r', marker='^', linestyle=':', alpha=0.75)
         axins.plot(ms, p_to_SPL(pmB_model_beam_loading+p_direct_s+p_direct_us+p_direct_thickness),
-                color='g', marker='p', linestyle='dashdot')
+                color='g', marker='p', linestyle='dashdot', alpha=0.75)
 
         axins.plot(ms, p_to_SPL(p_scattered_thickness_nc+p_scattered_s_nc+p_scattered_us_nc+
                                 p_direct_s+p_direct_us+p_direct_thickness),
-                color='b', marker='s', linestyle='dashed')
+                color='b', marker='s', linestyle='dashed', alpha=0.75)
 
         # inset limits
 
@@ -160,9 +161,9 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
         # Line2D([0], [0], color='r', lw=2, label='Rotor Steady Loading Noise'),
         # Line2D([0], [0], color='b', lw=2, label='Rotor Thickness Noise'),
         # Line2D([0], [0], color='g', lw=2, label='Rotor Unsteady Loading Noise'),
-        Line2D([0], [0], color='r', lw=2, label='Rotor'),
-        Line2D([0], [0], color='g', lw=2, label='Strut'),
-        Line2D([0], [0], color='b', lw=2, label='Total'),
+        Line2D([0], [0], color='r', lw=2, label='Rotor', alpha=0.75),
+        Line2D([0], [0], color='g', lw=2, label='Strut', alpha=0.75),
+        Line2D([0], [0], color='b', lw=2, label='Total', alpha=0.75),
         # Line2D([0], [0], color='c', lw=2, label='Non-linear'),
         # Line2D([0], [0], color='k', lw=2, label='Total'),
 
@@ -170,7 +171,7 @@ for index_global, (ind_theta, ind_phi, y1, y2) in enumerate(zip([6, 10, 6, 2], [
         # Line2D([0], [0], color='k', lw=2, label='L+T'),
     ]
 
-    if index_global==0:
+    if index_global==2:
         leg1 = ax.legend(handles=model_handles,
                         # loc='upper center',
                         loc='lower right' if y1 is not None else 'upper right',

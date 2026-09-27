@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from Constants.data_assim import getGojonData, getHarmonicsFromData
 from Constants.helpers import plot_directivity_contour, plot_phase_directivity_contour, p_to_SPL, read_force_file
-from SourceMode.Configurations_NACA0012 import m_surface
+# from SourceMode.Configurations_NACA0012 import m_surface
 
 
 
@@ -15,7 +15,7 @@ from SourceMode.Configurations_NACA0012 import m_surface
 # SUFFIX = '_D360_HR'
 
 from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
-SUFFIX = 'D20L20_D180_v2'
+SUFFIX = 'D20L20_D180_M20'
 shape='D'
 
 # from SourceMode.Configurations_NACA0012 import PARROT_D20L20W00_D180 as sourceArray
@@ -43,7 +43,8 @@ sourceArray.numerics['CompactnessCorrection'] = False
 MODE = 'half'
 FILE = 'TOTAL_DIR'
 
-mss = np.arange(1, 11, 1)
+mss = np.arange(1, 20, 1)
+m_surface = mss
 # mss = np.array([5])
 
 

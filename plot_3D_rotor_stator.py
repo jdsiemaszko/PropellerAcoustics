@@ -227,8 +227,8 @@ SUFFIX = 'D20L20_D180_v2'
 mplot = 1
 index_m = mplot-1
 
-# index_comp = 5 # SCATTERING TOTAL
-index_comp=10 # PIN TOTAL
+index_comp = 5 # SCATTERING TOTAL
+# index_comp=10 # PIN TOTAL
 
 folder_name = f'./Data/current/surface_pressure/'
 import os

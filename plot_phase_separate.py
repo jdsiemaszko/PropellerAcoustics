@@ -26,7 +26,7 @@ for m in m_values:
 
     for phi_plot in phi_values:
 
-        fig, ax = plt.subplots(figsize=(4, 2.75))
+        fig, ax = plt.subplots(figsize=(3.2, 2.75-0.4))
 
         # Load data
         Pxx = np.load(
@@ -109,6 +109,7 @@ for m in m_values:
         # ax.set_title(rf'$m={m},\ \phi={phi_plot}^\circ$')
 
         ax.set_xticks(mic_index)
+        ax.set_xticklabels([f'{ind}' if ind%2 else '' for ind in mic_index])
 
 
         # Phase ticks modulo 2*pi
@@ -150,7 +151,7 @@ for m in m_values:
 
 
         # Only show legend for reference case
-        if m == 1 and phi_plot == 50:
+        if m == 4 and phi_plot == 130:
             ax.legend(
                 fontsize=10,
                 ncol=1, loc='lower right'

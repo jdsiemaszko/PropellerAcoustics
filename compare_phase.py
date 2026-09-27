@@ -35,7 +35,9 @@ SUFFIX = 'D20L20_D180_v2'
 for m in [1, 2, 3, 4, 5]:
     ms = np.array([m]) # harmonic to plot
     
-    phi_plot = 130 # phi_experimental to plot, in degrees
+    # phi_plot = 130 # phi_experimental to plot, in degrees
+    # phi_plot = 90 
+    phi_plot = 50
 
     sourceArray.numerics['CompactnessCorrection'] = True
 

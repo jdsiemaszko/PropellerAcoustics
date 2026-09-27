@@ -11,14 +11,15 @@ plt.rcParams["mathtext.fontset"] = "dejavuserif"
 # BEGINNING OF HEADER
 FILE='TOTAL'
 MODE = 'half'
-SUFFIX = 'D20L20_D180_v2'
+# SUFFIX = 'D20L20_D180_v2'
+SUFFIX = 'D20L20_D180_M20'
 shape='D'
 RPM = 8000
 
 # SUFFIX = 'PARROT_D20L20_D180_NQ160'
 # shape = 'PARROT'
 # RPM = -7250
-ms = np.arange(1,11,1)
+ms = np.arange(1,20,1)
 
 
 for (ind_theta, ind_phi) in zip([6, 10, 6, 2], [9, 9, 0, 18]):

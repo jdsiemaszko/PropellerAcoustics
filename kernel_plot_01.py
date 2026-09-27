@@ -18,8 +18,9 @@ RROOT = RTIP * 0.16
 
 RREF = 0.75 * RTIP
 PHIREF = 0.0
-THETAREF = np.pi / 2
-# THETAREF = 0.0
+# THETAREF = np.pi / 2
+THETAREF = 0.0
+# THETAREF = np.pi 
 
 
 m = np.array([1])
@@ -208,7 +209,7 @@ ax.text(
 # -------------------------------------------------------------------------
 ax.set_xlabel(r'$(r-r_0)/R$')
 # ax.set_ylabel(r'Normalized magnitude $K/K_{\mathrm{max}}$')
-ax.set_ylabel(r'$K/K_{\mathrm{max}}$')
+ax.set_ylabel(r'$|K/K_{\mathrm{max}}|$')
 
 
 plt.minorticks_on()
@@ -227,7 +228,7 @@ plt.show()
 import os
 folder_name = f'./Figures/'
 fig.savefig(
-    os.path.join(folder_name, f"kernels.pdf"),
+    os.path.join(folder_name, f"kernels_{THETAREF*360/2/np.pi:.0f}.pdf"),
     dpi=300,
     bbox_inches="tight",
 )

@@ -5,7 +5,9 @@ import matplotlib.colors as colors
 from Constants.data_assim import getGojonData, getHarmonicsFromData
 from PotentialInteraction.PIN import PotentialInteraction
 from Constants.helpers import read_force_file, plot_3D_directivity, plot_3D_phase_directivity, plot_beam_azimuth, plot_rotation_arrow
+# plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.family"] = "serif"
+# plt.rcParams["font.serif"] = ["Times New Roman"]
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 r_inner, Fz, Fphi  = read_force_file('./Data/Zamponi2026/FS_ISAE_2_8000.txt') # reuse the radial stations from data
 # r = np.linspace(0.016, 0.1, 100)
@@ -48,15 +50,15 @@ He_Mr = chord / lambda0 * 2 * np.pi / Mach_r
 fig, ax = plt.subplots(figsize=(4, 3))
 
 # --- primary axis ---
-l1 = ax.plot(r_inner / r1, Fz, color='r', label='$F_z$')[0]
-l2 = ax.plot(r_inner / r1, Fphi, color='b', linestyle='--', label='$F_\phi$')[0]
-# ax2 = ax.twinx()
-# l3 = ax2.plot(r_inner / r1, U_z, color='r', linestyle='--', label='$U_z$')[0]
-# l4 = ax2.plot(r_inner / r1, U_phi, color='b', linestyle='--', label='$U_\phi$')[0]
+l1 = ax.plot(r_inner / r1, Fz, color='r', label=r'$F_z^\prime$')[0]
+l2 = ax.plot(r_inner / r1, Fphi, color='b',
+              linestyle='--', 
+              label=r'$F_\phi^\prime$')[0]
+
 
 
 ax.set_xlabel(r'$r/r_{\mathrm{tip}}$')
-ax.set_ylabel(r'$F$ [N/m]')
+ax.set_ylabel(r'$F^\prime$ [N/m]')
 # ax2.set_ylabel(r'$U$ [m/s]')
 
 plt.minorticks_on()
@@ -79,4 +81,39 @@ ax.legend(
 
 plt.tight_layout()
 plt.show()
-fig.savefig('./Figures/blade_loading_inflow.pdf')
+fig.savefig('./Figures/blade_loading.pdf')
+
+
+fig, ax = plt.subplots(figsize=(4, 3))
+
+l3 = ax.plot(r_inner / r1, U_z, color='r',
+            #    linestyle='--', 
+               label=r'$U_z$')[0]
+l4 = ax.plot(r_inner / r1, U_phi, color='b', linestyle='--', label=r'$U_\phi$')[0]
+
+ax.set_xlabel(r'$r/r_{\mathrm{tip}}$')
+ax.set_ylabel(r'$U$ [m/s]')
+# ax2.set_ylabel(r'$U$ [m/s]')
+
+plt.minorticks_on()
+# Grid
+ax.grid(which='major', axis='both', linestyle='-')
+ax.grid(which='minor', linestyle='--', alpha=0.5)
+# --- secondary axis ---
+# ax2 = ax.twinx()
+# l2 = ax2.plot(r_inner / r1, He_Mr, color='b', label=r'$He_0 / M_r$')[0]
+# ax2.set_ylabel(r'$He_0 / M_r = B c / r$')
+
+# --- legend (IMPORTANT FIX) ---
+ax.legend(
+    handles=[
+        # l1, l2
+             l3, l4
+             ],
+    loc='upper left',          # keeps it inside automatically
+    frameon=True, fontsize = 10, ncol=2
+)
+
+plt.tight_layout()
+plt.show()
+fig.savefig('./Figures/blade_inflow.pdf')

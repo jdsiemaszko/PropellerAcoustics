@@ -89,7 +89,7 @@ shape='D'
 sourceArray.numerics['CompactnessCorrection'] = True
 
 NDIPOLES = sourceArray.Nsources
-mss = np.array([2, 5])
+mss = np.array([5])
 
 for ms in mss:
     sourceArray.numerics['CompactnessCorrection'] = True
@@ -157,8 +157,8 @@ for ms in mss:
                                 
 
     # angular coordinates
-    theta = np.linspace(0.0, np.pi, Ntheta, endpoint=True)
-    phi   = np.linspace(0.0, 2.0 * np.pi, Nphi, endpoint=True)
+    theta = np.linspace(0.0, np.pi, Ntheta+1, endpoint=True)
+    phi   = np.linspace(0.0, 2.0 * np.pi, Nphi+1, endpoint=True)
 
     # 2D mesh
     theta_m, phi_m = np.meshgrid(theta, phi, indexing='ij')

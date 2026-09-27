@@ -152,7 +152,8 @@ for index_r, r in enumerate(rs):
 
         R_RT = r / RTIP
 
-        fig, ax = plt.subplots(figsize=(4, 3))
+        # fig, ax = plt.subplots(figsize=(4, 3))
+        fig, ax = plt.subplots(figsize=(3.2, 2.75-0.4))
 
         for index_comp, comp in enumerate(components):
             if comp['linestyle'] == 'dashdot':
@@ -203,7 +204,10 @@ for index_r, r in enumerate(rs):
                         # loc='upper center',
                         # loc='lower right',
                         # loc='upper left',
-                        loc='right',
+                        # loc='right',
+                        # loc='best',
+                            loc='right',
+    bbox_to_anchor=(1.0, 0.45),  # lower than the default centre
 
 
                         fontsize=10)

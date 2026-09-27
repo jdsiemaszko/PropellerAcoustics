@@ -16,7 +16,8 @@ D = 0.02
 RTIP = 0.1
 RROOT = RTIP * 0.16
 
-RREF = 0.75 * RTIP
+# RREF = 0.5 * RTIP + 0.5 * RROOT
+RREF = 0.8 * RTIP
 PHIREF = 0.0
 THETAREF = np.pi / 2
 # THETAREF = 0.0
@@ -44,8 +45,8 @@ observer = np.array([
 # Source points
 # -------------------------------------------------------------------------
 r_source = np.linspace(
-    -100 * D + RREF,
-    100 * D + RREF,
+    -10 * D + RREF,
+    10 * D + RREF,
     2500
 )
 
@@ -101,8 +102,8 @@ gradient_kernel = green.getGradientGreenAnalytical(
 
 
 # moments!
-r0 = np.linspace(RROOT, RTIP, 100)
-
+# r0 = np.linspace(RROOT, RTIP, 100)
+r0 = RREF
 import numpy as np
 
 
@@ -191,8 +192,8 @@ m02, m12, m22, m0_total2, m0_tail2 = get_moments(gradient_kernel[2, 0, 0, :], r_
 # Radial coordinate
 # -------------------------------------------------------------------------
 # x = r_source - RREF
-x = r0
-x_plot = x * 2 / D
+# x = r0
+# x_plot = x * 2 / D
 
 
 # -------------------------------------------------------------------------
@@ -203,6 +204,7 @@ fig, ax = plt.subplots(figsize=(4, 3))
 ax.plot(
     x_plot,
     # kernel_abs,
+    # np.sqrt(m21/m01),
     m11/m01,
     # label=r'Kernel $|G|$',
     color='r',
@@ -212,6 +214,7 @@ ax.plot(
 
 ax.plot(
     x_plot,
+    # np.sqrt(m22/m02),
     m12/m02,
     # label=r'Gradient $|\nabla G|$',
     color='b',
@@ -221,60 +224,60 @@ ax.plot(
 )
 
 
-# -------------------------------------------------------------------------
-# Blade radial extent: RROOT -> RTIP
-#
-# x = (r - RREF) * 2/D
-a = (RROOT - RREF) * 2 / D
-x_root = -a/2
-x_tip  = a/2
+# # -------------------------------------------------------------------------
+# # Blade radial extent: RROOT -> RTIP
+# #
+# # x = (r - RREF) * 2/D
+# a = (RROOT - RREF) * 2 / D
+# x_root = -a/2
+# x_tip  = a/2
 
-# Vertical lines indicat
-#ing the two ends
-ax.axvline(
-    x_root,
-    color='k',
-    ls=':',
-    lw=1
-)
+# # Vertical lines indicat
+# #ing the two ends
+# ax.axvline(
+#     x_root,
+#     color='k',
+#     ls=':',
+#     lw=1
+# )
 
-ax.axvline(
-    x_tip,
-    color='k',
-    ls=':',
-    lw=1
-)
+# ax.axvline(
+#     x_tip,
+#     color='k',
+#     ls=':',
+#     lw=1
+# )
 
 
-# Double-sided arrow
-y_arrow = 0.03
+# # Double-sided arrow
+# y_arrow = 0.03
 
-ax.annotate(
-    '',
-    xy=(x_tip, y_arrow),
-    xytext=(x_root, y_arrow),
-    arrowprops=dict(
-        arrowstyle='<->',
-        color='k',
-        lw=1.5
-    )
-)
+# ax.annotate(
+#     '',
+#     xy=(x_tip, y_arrow),
+#     xytext=(x_root, y_arrow),
+#     arrowprops=dict(
+#         arrowstyle='<->',
+#         color='k',
+#         lw=1.5
+#     )
+# )
 
-ax.text(
-    (x_root + x_tip) / 2,
-    y_arrow,
-    r'$r_{\mathrm{tip}}-r_{\mathrm{root}}$',
-    ha='center',
-    va='bottom'
-)
+# ax.text(
+#     (x_root + x_tip) / 2,
+#     y_arrow,
+#     r'$r_{\mathrm{tip}}-r_{\mathrm{root}}$',
+#     ha='center',
+#     va='bottom'
+# )
 
 
 # -------------------------------------------------------------------------
 # Labels / formatting
 # -------------------------------------------------------------------------
-ax.set_xlabel(r'$(r-r_0)/R$')
+ax.set_xlabel(r'$r/r_\mathrm{tip}$')
 # ax.set_ylabel(r'Normalized magnitude $K/K_{\mathrm{max}}$')
-ax.set_ylabel(r'$K/K_{\mathrm{max}}$')
+ax.set_ylabel(r'$\mathcal{M}_1(r) / \mathcal{M}_0$')
 
 
 plt.minorticks_on()
@@ -284,8 +287,8 @@ ax.grid(which='minor', linestyle='--', alpha=0.5)
 
 ax.legend()
 ax.grid(True, alpha=0.2)
-ax.set_ylim(0, 1.05)
-ax.set_xlim(-10, 10)
+# ax.set_ylim(0, 1.05)
+# ax.set_xlim(-10, 10)
 
 plt.tight_layout()
 plt.show()
@@ -293,7 +296,7 @@ plt.show()
 import os
 folder_name = f'./Figures/'
 fig.savefig(
-    os.path.join(folder_name, f"kernels.pdf"),
+    os.path.join(folder_name, f"kernel_moments.pdf"),
     dpi=300,
     bbox_inches="tight",
 )

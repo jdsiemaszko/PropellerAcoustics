@@ -37,12 +37,15 @@ import matplotlib.pyplot as plt
 # SUFFIX = 'D20L20_D180_NQ160'
 # shape='D'
 
-from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray # pick configuration
-SUFFIX = 'D20L20_D180_6000RPM_NQ160'
-shape='D'
+# from SourceMode.Configurations_NACA0012 import D20L20W00_D180_6000RPM as sourceArray # pick configuration
+# SUFFIX = 'D20L20_D180_6000RPM_NQ160'
+# shape='D'
 
 
-ms = np.arange(1, 11, 1)
+from SourceMode.Configurations_NACA0012 import D20L20W00_D180_v2 as sourceArray
+SUFFIX = 'D20L20_D180_M20'
+
+ms = np.arange(1, 20, 1)
 MODE = 'half'
 
 # # ------------------- Inputs -----------------------------

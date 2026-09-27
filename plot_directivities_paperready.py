@@ -16,7 +16,7 @@ Nphi = 36
 B=2
 
 m_surface = np.arange(1, 11, 1)
-ms = [2]
+ms = [5]
 SUFFIX = 'D20L20_D180_v2'
 shape='D'
 
@@ -121,8 +121,6 @@ for comp in components:
     comp["data"] = np.load(os.path.join(folder_name, f"data_directivities_{comp['name']}.npy"))
     comp["theta"] = np.load(os.path.join(folder_name, f"theta_directivities_{comp['name']}.npy"))
     comp["phi"] = np.load(os.path.join(folder_name, f"phi_directivities_{comp['name']}.npy"))
-
-
 
     # ==========================================================
     # SPL directivity
