@@ -18,8 +18,8 @@ RROOT = RTIP * 0.16
 
 RREF = 0.75 * RTIP
 PHIREF = 0.0
-# THETAREF = np.pi / 2
-THETAREF = 0.0
+THETAREF = np.pi / 2
+# THETAREF = 0.0
 # THETAREF = np.pi 
 
 
@@ -160,7 +160,7 @@ ax.plot(
 # Blade radial extent: RROOT -> RTIP
 #
 # x = (r - RREF) * 2/D
-a = (RROOT - RREF) * 2 / D
+a = abs(RROOT - RTIP) * 2 / D
 x_root = -a/2
 x_tip  = a/2
 

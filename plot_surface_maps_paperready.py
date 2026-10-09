@@ -18,8 +18,8 @@ components = [
             'marker' : 's',
             # 'label' : ''
             'labely' : '',
-            'labelx' : '$r$ [m]',
-            # 'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
+            # 'labelx' : r'$r/r_\mathrm{tip}$',
 
         },
 
@@ -33,7 +33,7 @@ components = [
             'linestyle': 'dashed',
             'marker' : 's',
             'labely' : '',
-            'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
         },
         {
             "name": "total_scattering",
@@ -41,7 +41,7 @@ components = [
             'linestyle': 'dashed',
             'marker' : 's',
             'labely' : '',
-            'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
         },
 
                 # ==========================================================
@@ -54,7 +54,7 @@ components = [
             'marker' : 's',
             # 'label' : ''
             'labely' : '',
-            'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
         },
 
         # ==========================================================
@@ -66,7 +66,7 @@ components = [
             'linestyle': 'dotted',
             'marker' : 's',
             'labely' : '',
-            'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
         },
 
         {
@@ -74,7 +74,7 @@ components = [
             'color' : 'k',
             'linestyle': 'dotted',
             'marker' : 's',
-            'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
                         'labely' : '',
         },
 
@@ -86,14 +86,14 @@ components = [
             'linestyle': 'solid',
             'marker' : '^',
             'labely' : r"$\theta$ [rad]",
-             'labelx' : '$r$ [m]',
+             'labelx' : r'$r/r_\mathrm{tip}$',
         },        {
             "name": "thickness_PIN",
                     'color' : 'b',
             'linestyle': 'solid',
             'marker' : '^',
             'labely' : r"$\theta$ [rad]",
-                 'labelx' : '$r$ [m]',
+                 'labelx' : r'$r/r_\mathrm{tip}$',
         },
         {
             "name": "nonlinear_PIN",
@@ -101,7 +101,7 @@ components = [
             'linestyle': 'solid',
             'marker' : '^',
             'labely' : r"$\theta$ [rad]",
-            'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
         },
         {
             "name": "total_PIN",
@@ -109,7 +109,7 @@ components = [
             'linestyle': 'solid',
             'marker' : '^',
             'labely' : r"$\theta$ [rad]",
-         'labelx' : '$r$ [m]',
+         'labelx' : r'$r/r_\mathrm{tip}$',
         },
 
             {
@@ -118,7 +118,7 @@ components = [
             'linestyle': 'solid',
             'marker' : '^',
             'labely' : '',
-            'labelx' : '$r$ [m]',
+            'labelx' : r'$r/r_\mathrm{tip}$',
         },
 
 
@@ -173,7 +173,7 @@ for index_comp, comp in enumerate(components):
     fig, ax = plt.subplots(figsize=(WIDTH, HEIGHT))
 
     fig, ax, mappable = plot_directivity_contour(
-        Phi=PHI,
+        Phi=PHI/rtip,
         Theta=TH,
         magnitudes=Z,
         # xlabel="$r$ [m]",
@@ -190,14 +190,14 @@ for index_comp, comp in enumerate(components):
     # ax.set_ylim(0, 2 * np.pi)
 
     # ax.set_xlim(rroot, rtip)
-    ax.set_aspect((2 * np.pi / (rtip - rroot))**(-1))
+    ax.set_aspect((2 * np.pi * rtip / (rtip - rroot))**(-1))
     if PHI.max() > rtip:
-        ax.axvline(rroot, color='r', linestyle='dashed', linewidth=3)
-        ax.axvline(rtip, color='r', linestyle='dashed', linewidth=3)
-        ax.set_xticks(np.linspace(0, 2*rtip, 11))
+        ax.axvline(rroot/rtip, color='r', linestyle='dashed', linewidth=3)
+        ax.axvline(rtip/rtip, color='r', linestyle='dashed', linewidth=3)
+        ax.set_xticks(np.linspace(0, 2*rtip/rtip, 11))
     else:
-        ax.set_xticks(np.linspace(0, rtip, 6))
-    ax.set_xlim(PHI.min(),PHI.max())
+        ax.set_xticks(np.linspace(0, rtip/rtip, 6))
+    ax.set_xlim(PHI.min()/rtip,PHI.max()/rtip)
 
 
     # store mappable for colorbar later
